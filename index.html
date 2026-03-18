@@ -1141,7 +1141,7 @@ async function processFile(){
 
   try{
     const AKEY=getAPIKey();
-    const prompt='Extract ALL data from this Sri Lanka Army e-GP quotation PDF. Return ONLY valid JSON, no other text:\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"","qty":1,"unit":"Number","brand":""}]}\nExtract every single item. Brand from Specifications section, empty string if none.';
+    const prompt='Extract ALL data from this Sri Lanka Army e-GP quotation PDF.\nReturn ONLY valid JSON - no markdown, no backticks, no extra text.\nFormat:\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"","qty":1,"unit":"Number","brand":""}]}\nRules:\n1. Extract EVERY item - all 200-300 items if present\n2. No trailing commas\n3. Escape special chars in strings\n4. brand from Specifications, empty string if none\n5. Return complete valid JSON only';
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{
@@ -1152,7 +1152,7 @@ async function processFile(){
       },
       body:JSON.stringify({
         model:'claude-haiku-4-5-20251001',
-        max_tokens:4096,
+        max_tokens:8192,
         messages:[{role:'user',content:[
           {type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},
           {type:'text',text:prompt}
@@ -1165,10 +1165,34 @@ async function processFile(){
     }
     const data=await resp.json();
     const raw=data.content[0].text;
+    // Better JSON extraction - find outermost { }
+    let parsed=null;
+    let parseErr='';
     const s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
-    if(s===-1) throw new Error('JSON not found in response');
-    const parsed=JSON.parse(raw.substring(s,e2+1));
-    if(!parsed.items) throw new Error('Items not found in response');
+    const jsonStr=s>=0&&e2>s?raw.substring(s,e2+1):raw;
+    // Try 1: Direct parse
+    try{ parsed=JSON.parse(jsonStr); } catch(e1){
+      // Try 2: Clean control chars + trailing commas
+      try{
+        const cleaned=jsonStr
+          .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F]/g,' ')
+          .replace(/,\s*\]/g,']')
+          .replace(/,\s*\}/g,'}')
+          .replace(/([^\\])"\s*\n\s*"/g,'$1","')
+          .replace(/\\'/g,"'");
+        parsed=JSON.parse(cleaned);
+      } catch(e2){
+        // Try 3: Line by line fix
+        try{
+          const lines=jsonStr.split('\n');
+          const fixed=lines.map(function(l){
+            return l.replace(/,\s*$/,'').trimEnd();
+          }).join('\n');
+          parsed=JSON.parse(fixed);
+        } catch(e3){ parseErr=e3.message; }
+      }
+    }
+    if(!parsed||!parsed.items) throw new Error('JSON parse failed: '+parseErr);
     fillForm(parsed);
 
     // Duplicate check
@@ -1468,6 +1492,103 @@ function renderItems(items){
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
 
+
+// ══════════════════════════════════════════════════
+// PARTS SYNONYM DICTIONARY
+// ══════════════════════════════════════════════════
+var PART_SYNONYMS = [
+  // Lower Arm variants
+  ['lower arm','lower control arm','arm lower','control arm lower','lower arm assy',
+   'arm assy lower','lower arm complete','suspension arm lower','front lower arm',
+   'lower wishbone','arm lower complete'],
+
+  // Shock Absorber variants
+  ['shock absorber','shock','damper','absorber','strut','shock absorber assy',
+   'shocker','shock damper'],
+
+  // Ball Joint variants
+  ['ball joint','ball joint assy','joint ball','balljoint','b/joint'],
+
+  // Tie Rod variants
+  ['tie rod','tie rod end','tierod','tie rod assy','track rod','steering tie rod',
+   'inner tie rod','outer tie rod'],
+
+  // Brake Pad variants
+  ['brake pad','brake pads','disc pad','disc brake pad','brake shoe','brake lining'],
+
+  // Oil Filter variants
+  ['oil filter','engine oil filter','lube filter','oil filter element'],
+
+  // Air Filter variants
+  ['air filter','air cleaner','air cleaner element','air filter element','air cleaner filter'],
+
+  // Fuel Filter variants
+  ['fuel filter','petrol filter','diesel filter','fuel filter element'],
+
+  // Water Pump variants
+  ['water pump','coolant pump','water pump assy'],
+
+  // Alternator variants
+  ['alternator','dynamo','generator','charging unit'],
+
+  // Radiator variants
+  ['radiator','cooling radiator','water radiator'],
+
+  // Timing Belt variants
+  ['timing belt','cam belt','timing belt kit','cambelt'],
+
+  // Clutch variants
+  ['clutch','clutch plate','clutch disc','clutch kit','clutch assy'],
+
+  // Bush/Bushing variants
+  ['bush','bushing','rubber bush','arm bush','suspension bush'],
+
+  // Upper Arm variants
+  ['upper arm','upper control arm','arm upper','control arm upper','upper wishbone'],
+
+  // Wheel Bearing variants
+  ['wheel bearing','hub bearing','wheel hub bearing','front wheel bearing'],
+
+  // CV Joint variants
+  ['cv joint','cv axle','constant velocity joint','drive shaft joint','cv boot'],
+
+  // Power Steering variants
+  ['power steering pump','p/s pump','steering pump','power steering'],
+
+  // Brake Disc variants
+  ['brake disc','brake rotor','disc rotor','brake disk'],
+];
+
+function getSynonymGroup(word){
+  var w=word.toLowerCase().trim();
+  for(var i=0;i<PART_SYNONYMS.length;i++){
+    for(var j=0;j<PART_SYNONYMS[i].length;j++){
+      if(PART_SYNONYMS[i][j]===w||PART_SYNONYMS[i][j].includes(w)||w.includes(PART_SYNONYMS[i][j])){
+        return PART_SYNONYMS[i];
+      }
+    }
+  }
+  return null;
+}
+
+function descToSynonymKey(desc){
+  // Clean description and find synonym group
+  var d=desc.toLowerCase().trim()
+    .replace(/[.\-_\/\[\]()]/g,' ')
+    .replace(/\s+/g,' ').trim()
+    .replace(/(assy|assembly|complete|front|rear|rh|lh|upper|lower|inner|outer)/g,'').trim();
+  
+  for(var i=0;i<PART_SYNONYMS.length;i++){
+    for(var j=0;j<PART_SYNONYMS[i].length;j++){
+      var syn=PART_SYNONYMS[i][j].replace(/(assy|assembly|complete)/g,'').trim();
+      if(d===syn||d.includes(syn)||syn.includes(d)){
+        return i; // Return group index
+      }
+    }
+  }
+  return -1;
+}
+
 function findAllPriceMatches(desc,prices,vehicle){
   if(!desc||!prices||!prices.length) return [];
 
@@ -1485,8 +1606,27 @@ function findAllPriceMatches(desc,prices,vehicle){
     });
   }
 
-  var dClean=clean(desc);
-  var dWords=getKeyWords(desc);
+  // Extract brand from description if present
+  // e.g. "Logo Ram Ball Joint" → brand="logo ram", desc="Ball Joint"
+  var knownBrands=[];
+  prices.forEach(function(p){if(p.brand&&p.brand.length>2)knownBrands.push(clean(p.brand));});
+  knownBrands=[...new Set(knownBrands)].sort(function(a,b){return b.length-a.length;});
+
+  var searchBrand='';
+  var searchDesc=desc;
+  var dLow=clean(desc);
+  knownBrands.forEach(function(b){
+    if(!searchBrand&&dLow.startsWith(b+' ')){
+      searchBrand=b;
+      searchDesc=desc.substring(b.length).trim();
+    } else if(!searchBrand&&dLow.includes(' '+b+' ')){
+      searchBrand=b;
+      searchDesc=desc.replace(new RegExp(b,'i'),'').trim();
+    }
+  });
+
+  var dClean=clean(searchDesc||desc);
+  var dWords=getKeyWords(searchDesc||desc);
   var vClean=vehicle?(vehicle.toLowerCase()):'';
 
   var matches=[];
@@ -1497,24 +1637,59 @@ function findAllPriceMatches(desc,prices,vehicle){
     var pVeh=(p.vehicle||'').toLowerCase();
     var score=0;
 
-    // Vehicle filter — if item has vehicle, must match
-    if(pVeh&&vClean){
-      var vMatch=false;
-      // Check vehicle name words match
-      var vWords=vClean.split(' ');
-      vWords.forEach(function(vw){
-        if(vw.length>2&&pVeh.includes(vw)) vMatch=true;
-      });
-      if(!vMatch) return; // Skip — wrong vehicle!
+    // Vehicle filter — STRICT
+    if(vClean){
+      if(pVeh){
+        // Price item has vehicle — must match current vehicle
+        var vMatch=false;
+        var vWords=vClean.split(' ');
+        vWords.forEach(function(vw){
+          if(vw.length>2&&pVeh.includes(vw)) vMatch=true;
+        });
+        // Also check reverse
+        var pvWords=pVeh.split(' ');
+        pvWords.forEach(function(pw){
+          if(pw.length>2&&vClean.includes(pw)) vMatch=true;
+        });
+        if(!vMatch) return; // Skip — wrong vehicle!
+      }
+      // If price item has no vehicle → show it (generic part)
+      // BUT reduce score so vehicle-specific parts rank higher
     }
+
+    // Brand filter — if user specified brand, match only that brand
+    var pBrand=clean(p.brand||'');
+    if(searchBrand&&pBrand&&pBrand!==searchBrand){
+      return; // Skip — wrong brand!
+    }
+    // Brand bonus — boost score if brand matches
+    var brandBonus=searchBrand&&pBrand&&pBrand===searchBrand?20:0;
+    // Vehicle bonus — boost if vehicle matches exactly
+    var vehBonus=0;
+    if(vClean&&pVeh){
+      var vWords2=vClean.split(' ');
+      var anyMatch=vWords2.some(function(vw){return vw.length>2&&pVeh.includes(vw);});
+      if(anyMatch) vehBonus=15; // Same vehicle → higher priority
+    } else if(vClean&&!pVeh){
+      vehBonus=-10; // No vehicle tag → lower priority
+    }
+
+    // Synonym check — same part different words
+    var dSynGroup=descToSynonymKey(searchDesc||dClean);
+    var pSynGroup=descToSynonymKey(pdClean);
+    var synonymMatch=dSynGroup>=0&&pSynGroup>=0&&dSynGroup===pSynGroup;
 
     // Exact match
     if(pdClean===dClean){
-      score=100;
+      score=100+brandBonus+vehBonus;
+    }
+    // Synonym match — same part, different words
+    else if(synonymMatch){
+      score=88+brandBonus+vehBonus;
     }
     // One contains the other fully
     else if(pdClean.includes(dClean)||dClean.includes(pdClean)){
-      score=90;
+      score=85+brandBonus+vehBonus;
     }
     // KEY WORD MATCHING — STRICT
     else {
@@ -1852,7 +2027,12 @@ function closeQV(){document.getElementById('qv-popup').classList.remove('open');
 // PARTS PRICE MASTER LIST
 // ══════════════════════════════════════════════════
 function autoSavePrices(items){
-  var vehicle=document.getElementById('f-vname')?document.getElementById('f-vname').value||'':'';
+  var vehicle=document.getElementById('f-vname')?document.getElementById('f-vname').value.trim()||'':'';
+  if(!vehicle&&typeof curItems!=='undefined'&&curItems.length>0){
+    // Try to get vehicle from form
+    var vEl=document.getElementById('f-vname');
+    vehicle=vEl?vEl.value.trim():'';
+  }
   var prices=getPrices();
   var added=0,updated=0;
 
