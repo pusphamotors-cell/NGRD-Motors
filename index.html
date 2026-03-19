@@ -4288,11 +4288,13 @@ function initFirebaseSync(){
     el.title='Click to force sync';
     el.onclick=function(){
       var h=getHist();var p=getPrices();var u=getUsers();
-      if(h&&h.length>0) fbWrite('history',h);
+      var pushCount=0;
+      if(h&&h.length>0){fbWrite('history',h);pushCount+=h.length;}
       if(p&&p.length>0) fbWrite('prices',p);
       if(u&&u.length>0) fbWrite('users',u);
-      el.textContent='⬆️ Pushed!';
-      setTimeout(function(){el.textContent='🟢 Synced';},2000);
+      el.textContent='⬆️ '+pushCount+' pushed!';
+      showToast('Firebase-க்கு push பண்ணினோம்! Staff-க்கு 30sec-ல் வரும்','t-s');
+      setTimeout(function(){el.textContent='🟢 Synced';},3000);
     };
     document.body.appendChild(el);
   }
@@ -4325,22 +4327,27 @@ function startAutoSync(){
         var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
         var changed=false;
         var allIds={};
-        local.forEach(function(l){allIds[l.id]=true;});
+        local.forEach(function(l){if(l&&l.id)allIds[l.id]=true;});
         remote.forEach(function(r){if(r&&r.id)allIds[r.id]=true;});
         var merged=[];
         Object.keys(allIds).forEach(function(id){
-          var lo=local.find(function(x){return x.id===id;});
-          var re=remote.find(function(x){return x.id===id;});
+          var lo=local.find(function(x){return x&&x.id===id;});
+          var re=remote.find(function(x){return x&&x.id===id;});
           if(lo&&re){
             var loR=statusOrder[lo.status]||0;
             var reR=statusOrder[re.status]||0;
             merged.push(loR>=reR?lo:re);
             if(loR<reR) changed=true;
-          } else {
-            merged.push(lo||re);
-            if(re&&!lo) changed=true;
+          } else if(re&&!lo){
+            // New item from Firebase — always add!
+            merged.push(re);
+            changed=true;
+          } else if(lo){
+            merged.push(lo);
           }
         });
+        // Also check total count difference
+        if(merged.length!==local.length) changed=true;
         if(changed){
           merged.sort(function(a,b){return(b.createdAt||0)-(a.createdAt||0);});
           localStorage.setItem('ngrd_hist',JSON.stringify(merged));
