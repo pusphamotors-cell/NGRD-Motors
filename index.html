@@ -4130,11 +4130,11 @@ function fbRead(key,cb){
   xhr.open('GET',FB_BASE+'/'+key+'.json',true);
   xhr.timeout=8000;
   xhr.onload=function(){
-    try{var d=JSON.parse(xhr.responseText);if(d!==null&&d!==undefined)cb(d);}
-    catch(e){}
+    try{var d=JSON.parse(xhr.responseText);cb(d);}
+    catch(e){cb(null);}
   };
-  xhr.onerror=function(){};
-  xhr.ontimeout=function(){};
+  xhr.onerror=function(){cb(null);};
+  xhr.ontimeout=function(){cb(null);};
   xhr.send();
 }
 fbDb={ref:function(path){return{
@@ -4167,6 +4167,11 @@ function initFirebaseSync(){
   fbRead('history',function(data){
     try{
       var local=getHist();
+      // If Firebase empty → push local immediately
+      if(!data||data===null){
+        if(local.length>0){fbWrite('history',local);console.log('Pushed local history to Firebase:',local.length);}
+        return;
+      }
       var remote=[];
       if(data&&typeof data==='object'){
         remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
@@ -4200,11 +4205,14 @@ function initFirebaseSync(){
   fbRead('prices',function(data){
     try{
       var local=getPrices();
+      if(!data||data===null){
+        if(local.length>0){fbWrite('prices',local);console.log('Pushed local prices to Firebase:',local.length);}
+        return;
+      }
       var remote=[];
       if(data&&typeof data==='object'){
         remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       }
-      // Merge by desc+vehicle key
       var map={};
       remote.forEach(function(p){if(p&&p.desc){var k=(p.desc+p.vehicle).toLowerCase();map[k]=p;}});
       local.forEach(function(p){if(p&&p.desc){var k=(p.desc+p.vehicle).toLowerCase();map[k]=p;}});
@@ -4218,11 +4226,14 @@ function initFirebaseSync(){
   fbRead('users',function(data){
     try{
       var local=getUsers();
+      if(!data||data===null){
+        if(local.length>0){fbWrite('users',local);console.log('Pushed local users to Firebase:',local.length);}
+        return;
+      }
       var remote=[];
       if(data&&typeof data==='object'){
         remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       }
-      // Use whichever has more users
       var merged=local.length>=remote.length?local:remote;
       localStorage.setItem('ngrd_users',JSON.stringify(merged));
       if(local.length>remote.length) fbWrite('users',merged);
