@@ -4258,9 +4258,14 @@ function initFirebaseSync(){
         remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       }
 
-      // LOCAL IS MASTER — Never overwrite local with less data!
-      if(remote.length<=local.length){
-        // Push local to Firebase (Firebase is behind)
+      // Check if Firebase has any NEW ids not in local
+      var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
+      var newRemoteItems=remote.filter(function(r){
+        return r&&r.id&&localIds.indexOf(String(r.id))<0;
+      });
+
+      if(newRemoteItems.length===0){
+        // No new items in Firebase — push local (we have latest)
         if(local.length>0){
           fbWrite('history',local);
           console.log('Local is master, pushed to Firebase:',local.length);
@@ -4268,7 +4273,8 @@ function initFirebaseSync(){
         return;
       }
 
-      // Remote has MORE items — merge carefully
+      // Firebase has NEW items (from other users/devices) — merge!
+      console.log('Firebase has',newRemoteItems.length,'new items — merging');
       var merged=[];
       var allIds={};
       local.forEach(function(l){if(l&&l.id)allIds[l.id]=true;});
