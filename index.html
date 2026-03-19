@@ -4413,6 +4413,15 @@ function startAutoSync(){
         var local=getHist();
         var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
         var changed=false;
+        // ID-based: check if Firebase has any new IDs not in local
+        var localIdSet=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
+        remote.forEach(function(r){if(r&&r.id&&localIdSet.indexOf(String(r.id))<0) changed=true;});
+        if(!changed){
+          // No new items — push local to keep Firebase updated
+          if(local.length>0) fbWrite('history',local);
+          return;
+        }
+        changed=false; // reset — will be set again in merge
         var allIds={};
         local.forEach(function(l){if(l&&l.id)allIds[l.id]=true;});
         remote.forEach(function(r){if(r&&r.id)allIds[r.id]=true;});
