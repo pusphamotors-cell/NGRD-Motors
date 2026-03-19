@@ -313,66 +313,85 @@ var FB_READY=false;
 var FB_BASE='https://ngrd-motors-default-rtdb.firebaseio.com/ngrd';
 
 function fbWrite(key,val){
-  if(!FB_READY) return; // skip if not connected
-  fetch(FB_BASE+'/'+key+'.json',{
-    method:'PUT',
-    body:JSON.stringify(val),
-    headers:{'Content-Type':'application/json'}
-  }).then(function(r){
-    if(!r.ok) console.log('fbWrite HTTP error:',r.status);
-  }).catch(function(e){
-    console.log('fbWrite fail:',e.message);
-    FB_READY=false;
-    setTimeout(initFirebase,3000); // retry connect
-  });
+  if(!FB_READY) return;
+  var xhr=new XMLHttpRequest();
+  xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onerror=function(){FB_READY=false;setTimeout(initFirebase,3000);};
+  xhr.send(JSON.stringify(val));
 }
 
 function fbRead(key,cb){
-  fetch(FB_BASE+'/'+key+'.json')
-  .then(function(r){return r.json();})
-  .then(function(d){if(d!==null)cb(d);})
-  .catch(function(e){console.log('fbRead:',e.message);});
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET',FB_BASE+'/'+key+'.json',true);
+  xhr.timeout=8000;
+  xhr.onload=function(){
+    try{var d=JSON.parse(xhr.responseText);if(d!==null&&d!==undefined)cb(d);}
+    catch(e){console.log('fbRead parse:',e.message);}
+  };
+  xhr.onerror=function(){console.log('fbRead network error');};
+  xhr.ontimeout=function(){console.log('fbRead timeout');};
+  xhr.send();
 }
 
 // fbDb compatibility for doLogin
 var fbDb={ref:function(path){return{
   once:function(){
     var k=path.replace('ngrd/','');
-    return fetch(FB_BASE+'/'+k+'.json').then(function(r){return r.json();}).then(function(d){return{val:function(){return d;}};});
+    return new Promise(function(resolve){
+      var xhr=new XMLHttpRequest();
+      xhr.open('GET',FB_BASE+'/'+k+'.json',true);
+      xhr.timeout=8000;
+      xhr.onload=function(){
+        try{var d=JSON.parse(xhr.responseText);resolve({val:function(){return d;}});}
+        catch(e){resolve({val:function(){return null;}});}
+      };
+      xhr.onerror=function(){resolve({val:function(){return null;}});};
+      xhr.ontimeout=function(){resolve({val:function(){return null;}});};
+      xhr.send();
+    });
   },
   on:function(){}
 };}};
 
 var _fbRetry=0;
+var FB_URL='https://ngrd-motors-default-rtdb.firebaseio.com';
 function initFirebase(){
-  // Use GET ping — more reliable than PUT
-  fetch(FB_BASE+'.json?shallow=true')
-  .then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return r.json();
-  })
-  .then(function(){
-    FB_READY=true;
-    _fbRetry=0;
-    console.log('Firebase REST OK');
-    var badge=document.getElementById('fb-badge');
-    if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
-    if(typeof initFirebaseSync==='function') initFirebaseSync();
-  })
-  .catch(function(e){
-    FB_READY=false;
-    console.log('Firebase retry',_fbRetry,e.message);
-    _fbRetry++;
-    if(_fbRetry<=5){
-      setTimeout(initFirebase, _fbRetry*2000);
-    } else {
+  // Use XMLHttpRequest — most compatible with iOS Safari
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET','https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/ping.json',true);
+  xhr.timeout=8000;
+  xhr.onload=function(){
+    if(xhr.status>=200&&xhr.status<400){
+      FB_READY=true;
+      _fbRetry=0;
+      console.log('Firebase XHR OK');
       var badge=document.getElementById('fb-badge');
-      if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}
+      if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
+      if(typeof initFirebaseSync==='function') initFirebaseSync();
+      if(typeof loadAPIKeyFromFirebase==='function') loadAPIKeyFromFirebase();
+    } else {
+      onFbFail('HTTP '+xhr.status);
     }
-  });
+  };
+  xhr.onerror=function(){ onFbFail('network error'); };
+  xhr.ontimeout=function(){ onFbFail('timeout'); };
+  xhr.send();
+}
+function onFbFail(reason){
+  FB_READY=false;
+  _fbRetry++;
+  console.log('Firebase offline ('+reason+') retry:',_fbRetry);
+  var badge=document.getElementById('fb-badge');
+  if(_fbRetry<=8){
+    if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}
+    setTimeout(initFirebase,3000);
+  } else {
+    if(badge){badge.textContent='🔴 Offline Mode';badge.style.color='#B22222';}
+  }
 }
 
-window.addEventListener('load',function(){setTimeout(initFirebase,1000);});
+window.addEventListener('load',function(){setTimeout(initFirebase,1500);});
 </script>
 </head>
 <body>
@@ -3366,16 +3385,34 @@ function bulkReassign(){
 }
 
 function getAPIKey(){
+  // 1. Check localStorage first (fastest)
   var k=localStorage.getItem('ngrd_akey');
-  if(!k){
-    k=prompt("Anthropic API Key enter பண்ணுங்கள்:\n(ஒரே ஒரு முறை மட்டும் கேட்கும்)");
-    if(k) localStorage.setItem('ngrd_akey',k);
+  if(k) return k;
+  // 2. Not found → ask user (admin enters, staff should not need to)
+  k=prompt("Anthropic API Key enter பண்ணுங்கள்:\n(Admin ஒரே முறை enter பண்ணினா போதும்)");
+  if(k&&k.trim()){
+    k=k.trim();
+    localStorage.setItem('ngrd_akey',k);
+    // Save to Firebase so all staff can use it
+    fbWrite('apikey', k);
+    showToast('API Key saved — எல்லா staff-க்கும் sync ஆகும்!','t-s');
   }
   return k||'';
 }
+function loadAPIKeyFromFirebase(){
+  // Called after Firebase connects — pull key if not in localStorage
+  if(localStorage.getItem('ngrd_akey')) return; // already have it
+  fbRead('apikey',function(k){
+    if(k&&typeof k==='string'&&k.startsWith('sk-')){
+      localStorage.setItem('ngrd_akey',k);
+      console.log('API Key loaded from Firebase');
+    }
+  });
+}
 function resetAPIKey(){
   localStorage.removeItem('ngrd_akey');
-  showToast('API Key cleared — next extract-ல் கேட்கும்','t-i');
+  if(CU&&CU.role==='admin') fbWrite('apikey',null); // admin resets for all
+  showToast('API Key cleared!','t-i');
 }
 // ══════════════════════════════════════════════════
 // MANUAL ENTRY SYSTEM
@@ -4105,37 +4142,77 @@ window.onload=()=>{
 <script>
 var FB_READY=false;
 var fbDb=null;
+var FB_BASE='https://ngrd-motors-default-rtdb.firebaseio.com/ngrd';
+var _fbRetry=0;
 
-// Firebase REST API — No CDN! Works everywhere!
 function initFirebase(){
-  fetch('https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/ping.json',{
-    method:'PUT',
-    body:'"ok"',
-    headers:{'Content-Type':'application/json'}
-  }).then(function(){
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET','https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/ping.json',true);
+  xhr.timeout=8000;
+  xhr.onload=function(){
     FB_READY=true;
-    console.log('✅ Firebase REST Ready!');
-    if(typeof initFirebaseSync==='function') setTimeout(initFirebaseSync,200);
-  }).catch(function(e){
-    FB_READY=false;
-    console.log('Firebase offline:',e.message);
-  });
+    _fbRetry=0;
+    console.log('Firebase XHR OK');
+    var badge=document.getElementById('fb-badge');
+    if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
+    if(typeof initFirebaseSync==='function') initFirebaseSync();
+    if(typeof loadAPIKeyFromFirebase==='function') loadAPIKeyFromFirebase();
+  };
+  xhr.onerror=function(){onFbFail('network error');};
+  xhr.ontimeout=function(){onFbFail('timeout');};
+  xhr.send();
 }
-
-// fbDb compatibility for doLogin
+function onFbFail(reason){
+  FB_READY=false;
+  _fbRetry++;
+  var badge=document.getElementById('fb-badge');
+  if(_fbRetry<=8){
+    if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}
+    setTimeout(initFirebase,3000);
+  } else {
+    if(badge){badge.textContent='🔴 Offline Mode';badge.style.color='#B22222';}
+  }
+}
+function fbWrite(key,val){
+  if(!FB_READY)return;
+  var xhr=new XMLHttpRequest();
+  xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onerror=function(){FB_READY=false;setTimeout(initFirebase,3000);};
+  xhr.send(JSON.stringify(val));
+}
+function fbRead(key,cb){
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET',FB_BASE+'/'+key+'.json',true);
+  xhr.timeout=8000;
+  xhr.onload=function(){
+    try{var d=JSON.parse(xhr.responseText);if(d!==null&&d!==undefined)cb(d);}
+    catch(e){}
+  };
+  xhr.onerror=function(){};
+  xhr.ontimeout=function(){};
+  xhr.send();
+}
 fbDb={ref:function(path){return{
   once:function(){
     var k=path.replace('ngrd/','');
-    return fetch('https://ngrd-motors-default-rtdb.firebaseio.com/'+path+'.json')
-      .then(function(r){return r.json();})
-      .then(function(d){return{val:function(){return d;}};});
+    return new Promise(function(resolve){
+      var xhr=new XMLHttpRequest();
+      xhr.open('GET',FB_BASE+'/'+k+'.json',true);
+      xhr.timeout=8000;
+      xhr.onload=function(){
+        try{var d=JSON.parse(xhr.responseText);resolve({val:function(){return d;}});}
+        catch(e){resolve({val:function(){return null;}});}
+      };
+      xhr.onerror=function(){resolve({val:function(){return null;}});};
+      xhr.ontimeout=function(){resolve({val:function(){return null;}});};
+      xhr.send();
+    });
   },
   on:function(){}
 };}};
 
-window.addEventListener('load',function(){setTimeout(initFirebase,800);});
-
-function fbWrite(k,v){if(!FB_READY)return;try{fbDb.ref('ngrd/'+k).set(v);}catch(e){}}
+window.addEventListener('load',function(){setTimeout(initFirebase,1500);});
 
 function initFirebaseSync(){
   if(!FB_READY)return;
