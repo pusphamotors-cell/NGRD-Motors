@@ -1081,6 +1081,7 @@ function initApp(){
   document.getElementById('admin-nav').style.display=CU.role==='admin'?'block':'none';
   startSessionTimer();
   showPage('dashboard');
+  if(typeof startAutoSync==='function') startAutoSync();
   setTimeout(checkDeadlineAlarms,500);
   setTimeout(autoFixGarbage,800);
   setTimeout(function(){if(typeof initFirebaseSync==='function')initFirebaseSync();},1500);
@@ -2992,16 +2993,44 @@ function renderStaffDashboard(){
 
   // ── My Stats Summary ──
   var total=myHist.length;
+  var uploads=myHist.filter(function(e){return e.steps&&e.steps.uploaded&&(e.steps.uploaded.by===CU.username||e.owner===CU.username);}).length;
+  var priced=myHist.filter(function(e){return e.steps&&e.steps.priced&&e.steps.priced.by===CU.username;}).length;
+  var submitted=myHist.filter(function(e){return e.status==='submitted'||(e.steps&&e.steps.submitted&&e.steps.submitted.by===CU.username);}).length;
   var approved=myHist.filter(function(e){return e.status==='approved';}).length;
-  var submitted=myHist.filter(function(e){return e.status==='submitted';}).length;
   var awarded=myHist.filter(function(e){return e.status==='awarded';}).length;
+  var pending=myHist.filter(function(e){return e.status==='pending';}).length;
 
-  html2+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">';
-  html2+='<div style="background:#0D1B2A;color:#fff;border-radius:5px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#E8B84B;">'+total+'</div><div style="font-size:10px;color:#aaa;margin-top:3px;">Total</div></div>';
-  html2+='<div style="background:#1A6B3C;color:#fff;border-radius:5px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:700;">'+approved+'</div><div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:3px;">Approved</div></div>';
-  html2+='<div style="background:#1A2E45;color:#fff;border-radius:5px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:700;">'+submitted+'</div><div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:3px;">Submitted</div></div>';
-  html2+='<div style="background:#2A1A3A;color:#fff;border-radius:5px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#E8B84B;">'+awarded+'</div><div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:3px;">Awarded</div></div>';
+  html2+='<div style="margin-top:14px;">';
+  html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 என் Activity Summary</div>';
+  html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;">';
+  html2+='<div style="background:#0D1B2A;color:#fff;border-radius:5px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:700;color:#E8B84B;">'+uploads+'</div><div style="font-size:10px;color:#aaa;margin-top:2px;">📤 PDF Upload</div></div>';
+  html2+='<div style="background:#1A3A6B;color:#fff;border-radius:5px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:700;">'+priced+'</div><div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;">💰 Price Enter</div></div>';
+  html2+='<div style="background:#1A2E45;color:#fff;border-radius:5px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:700;">'+submitted+'</div><div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;">✅ Submit</div></div>';
   html2+='</div>';
+  html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+  html2+='<div style="background:#0D2818;color:#fff;border-radius:5px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:700;color:#4CAF50;">'+approved+'</div><div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;">👍 Approved</div></div>';
+  html2+='<div style="background:#2A1A3A;color:#fff;border-radius:5px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:700;color:#E8B84B;">'+awarded+'</div><div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;">🏆 Awarded</div></div>';
+  html2+='<div style="background:#3A1A1A;color:#fff;border-radius:5px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:700;color:#FF6B6B;">'+pending+'</div><div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;">⏳ Pending</div></div>';
+  html2+='</div>';
+  html2+='</div>';
+
+  // ── Recent Activity (my last 5) ──
+  var recent=myHist.slice(0,5);
+  if(recent.length>0){
+    html2+='<div style="margin-top:14px;">';
+    html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🕐 என் Recent Transactions</div>';
+    recent.forEach(function(e){
+      var statusColor={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';
+      var statusLabel={draft:'Draft',pending:'Pending',submitted:'Submitted',approved:'Approved',awarded:'Awarded',rejected:'Rejected'}[e.status]||e.status;
+      var dt=e.createdAt?new Date(e.createdAt).toLocaleDateString('en-GB'):'';
+      html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;background:#fafbfc;">';
+      html2+='<div><div style="font-size:12px;font-weight:700;color:#0D1B2A;">'+(e.vehicle||'Unknown')+' — '+(e.eqNo||e.refNo||'')+'</div>';
+      html2+='<div style="font-size:11px;color:#666;">'+dt+'</div></div>';
+      html2+='<span style="font-size:10px;font-weight:700;color:'+statusColor+';background:'+statusColor+'18;padding:3px 8px;border-radius:10px;">'+statusLabel+'</span>';
+      html2+='</div>';
+    });
+    html2+='</div>';
+  }
 
   staffContent.innerHTML=html2;
 }
@@ -4233,6 +4262,62 @@ window.addEventListener('load',function(){
     setUsers=function(u){ou(u);fbWrite('users',u);};
   },1000);
 });
+
+// Auto poll every 30 seconds — live updates for all devices
+var _pollTimer=null;
+function startAutoSync(){
+  if(_pollTimer) clearInterval(_pollTimer);
+  _pollTimer=setInterval(function(){
+    if(!FB_READY||!CU) return;
+    // Pull history from Firebase
+    fbRead('history',function(data){
+      try{
+        if(!data||typeof data!=='object') return;
+        var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+        if(remote.length===0) return;
+        var local=getHist();
+        var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
+        var changed=false;
+        var allIds={};
+        local.forEach(function(l){allIds[l.id]=true;});
+        remote.forEach(function(r){if(r&&r.id)allIds[r.id]=true;});
+        var merged=[];
+        Object.keys(allIds).forEach(function(id){
+          var lo=local.find(function(x){return x.id===id;});
+          var re=remote.find(function(x){return x.id===id;});
+          if(lo&&re){
+            var loR=statusOrder[lo.status]||0;
+            var reR=statusOrder[re.status]||0;
+            merged.push(loR>=reR?lo:re);
+            if(loR<reR) changed=true;
+          } else {
+            merged.push(lo||re);
+            if(re&&!lo) changed=true;
+          }
+        });
+        if(changed){
+          merged.sort(function(a,b){return(b.createdAt||0)-(a.createdAt||0);});
+          localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+          updatePendingBadge();
+          if(typeof renderDashboard==='function') renderDashboard();
+          if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none') renderHistory();
+          var badge=document.getElementById('fb-badge');
+          if(badge){badge.textContent='🟢 Updated!';setTimeout(function(){badge.textContent='🟢 Synced';},2000);}
+        }
+      }catch(e){}
+    });
+    // Pull prices too
+    fbRead('prices',function(data){
+      try{
+        if(!data||typeof data!=='object') return;
+        var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+        if(remote.length>getPrices().length){
+          localStorage.setItem('ngrd_prices',JSON.stringify(remote));
+        }
+      }catch(e){}
+    });
+  },30000); // every 30 seconds
+}
 </script>
 
 </body>
