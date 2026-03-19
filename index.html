@@ -308,40 +308,43 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
   <!-- Firebase SDK with fallback -->
   <script>
-  function loadFirebaseCDN(attempt){
-    attempt=attempt||1;
-    var urls=[
-      'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
-      'https://cdn.jsdelivr.net/npm/firebase@10.7.1/compat/app.min.js'
-    ];
-    var dbUrls=[
-      'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js',
-      'https://cdn.jsdelivr.net/npm/firebase@10.7.1/compat/database.min.js'
-    ];
-    var url=urls[attempt-1]||urls[0];
-    var dbUrl=dbUrls[attempt-1]||dbUrls[0];
-    var s1=document.createElement('script');
-    s1.src=url;
-    s1.onerror=function(){
-      if(attempt<2) loadFirebaseCDN(attempt+1);
-      else console.log('Firebase CDN failed — offline mode');
-    };
-    s1.onload=function(){
-      var s2=document.createElement('script');
-      s2.src=dbUrl;
-      s2.onload=function(){
-        console.log('Firebase loaded from CDN '+attempt);
-        if(typeof initFirebase==='function') setTimeout(initFirebase,200);
-      };
-      s2.onerror=function(){
-        if(attempt<2) loadFirebaseCDN(attempt+1);
-      };
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s1);
-  }
-  loadFirebaseCDN(1);
-  </script>
+// Firebase REST API — No CDN needed! Works everywhere!
+var FB_READY=false;
+var FB_BASE='https://ngrd-motors-default-rtdb.firebaseio.com/ngrd';
+
+function fbWrite(key,val){
+  if(!navigator.onLine)return;
+  fetch(FB_BASE+'/'+key+'.json',{method:'PUT',body:JSON.stringify(val),headers:{'Content-Type':'application/json'}})
+  .catch(function(e){console.log('fbWrite:',e.message);});
+}
+
+function fbRead(key,cb){
+  fetch(FB_BASE+'/'+key+'.json')
+  .then(function(r){return r.json();})
+  .then(function(d){if(d!==null)cb(d);})
+  .catch(function(e){console.log('fbRead:',e.message);});
+}
+
+// fbDb compatibility for doLogin
+var fbDb={ref:function(path){return{
+  once:function(){
+    var k=path.replace('ngrd/','');
+    return fetch(FB_BASE+'/'+k+'.json').then(function(r){return r.json();}).then(function(d){return{val:function(){return d;}};});
+  },
+  on:function(){}
+};}};
+
+function initFirebase(){
+  fetch(FB_BASE+'/ping.json',{method:'PUT',body:'"ok"',headers:{'Content-Type':'application/json'}})
+  .then(function(){
+    FB_READY=true;
+    console.log('Firebase REST OK');
+    if(typeof initFirebaseSync==='function') initFirebaseSync();
+  }).catch(function(){FB_READY=false;console.log('Firebase offline');});
+}
+
+window.addEventListener('load',function(){setTimeout(initFirebase,800);});
+</script>
 </head>
 <body>
 
@@ -412,6 +415,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="nav-sec-lbl">Administration</div>
         <button class="nav-item" id="nav-analytics" onclick="showPage('analytics');closeSidebarMobile()"><span class="nav-icon">📊</span>Analytics</button>
         <button class="nav-item" id="nav-users" onclick="showPage('users');closeSidebarMobile()"><span class="nav-icon">👥</span>Users</button>
+        <button class="nav-item" id="nav-vehicles" onclick="showPage('vehicles');closeSidebarMobile()"><span class="nav-icon">🚗</span>Vehicles</button>
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
@@ -558,7 +562,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <div class="format-group">
                 <div class="format-lbl">Format 1 — Price Quotation</div>
                 <button class="btn btn-gold" onclick="downloadExcel()">📥 Excel</button>
-                <button class="btn btn-green" onclick="downloadPDFDirect()">💾 Download PDF</button>
+                <button class="btn btn-green" onclick="downloadPDFDirect()">💾 Save as PDF</button>
                 <button class="btn btn-navy" onclick="downloadPDF()">🖨️ Print</button>
               </div>
               <div class="action-div"></div>
@@ -745,6 +749,25 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <span class="panel-hdr-title">All Quotations</span>
           </div>
           <div class="panel-body" id="db-all-list"></div>
+        </div>
+      </div>
+
+      <!-- ═ VEHICLES ═ -->
+      <div id="page-vehicles" style="display:none;">
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-hdr-icon">🚗</span>
+            <span class="panel-hdr-title">Vehicle Master List</span>
+            <div class="panel-hdr-right">
+              <button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add Vehicle</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#7A5800;">
+              💡 Admin மட்டும் vehicle add/delete பண்ணலாம். புதிய vehicle add பண்ணினால் எல்லா dropdowns-லும் automatically வரும்!
+            </div>
+            <div id="vehicle-settings-list"></div>
+          </div>
         </div>
       </div>
       <!-- ═ ANALYTICS ═ -->
@@ -1087,6 +1110,7 @@ function initApp(){
   setTimeout(autoFixGarbage,800);
   setTimeout(function(){if(typeof initFirebaseSync==='function')initFirebaseSync();},1500);
   setTimeout(migrateOwnerField,3000);
+  setTimeout(refreshAllVehicleDropdowns,500);
   setTimeout(applyViewOnlyMode,600);
   updatePendingBadge();
 }
@@ -1123,7 +1147,7 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 function closeSidebarMobile(){if(isMobile())closeSidebar();}
 
 // ── NAVIGATION ──
-const PAGES=['dashboard','new','history','prices','search','analytics','users','log','backup'];
+const PAGES=['dashboard','new','history','prices','search','analytics','users','vehicles','log','backup'];
 function showPage(pg){
   if(['analytics','users','log','backup'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
   PAGES.forEach(p=>{
@@ -1137,6 +1161,7 @@ function showPage(pg){
   if(pg==='backup')renderBackupPage();
   if(pg==='prices')renderPriceList();
   if(pg==='search')runQuickSearch();
+  if(pg==='vehicles'){renderVehicleSettings();}
   if(pg==='dashboard')renderDashboard();
 }
 
@@ -1146,6 +1171,18 @@ function showPage(pg){
 let pdfB64=null,curItems=[],curStatus='draft';
 
 function handleFile(inp){
+  // Check vehicle selected first
+  var vName=document.getElementById('f-vname')?document.getElementById('f-vname').value:'';
+  if(!vName){
+    showToast('Vehicle select pannungal first!','t-e');
+    document.getElementById('f-vname').style.border='2px solid #B22222';
+    setTimeout(function(){
+      if(document.getElementById('f-vname'))
+        document.getElementById('f-vname').style.border='';
+    },3000);
+    inp.value='';
+    return;
+  }
   const f=inp.files[0];if(!f)return;
   const fn=document.getElementById('upload-fname');
   fn.textContent='[OK] '+f.name;fn.style.display='block';
@@ -2556,7 +2593,9 @@ function renderDashboard(){
   var closingToday=[];
   var closing3Days=[];
   h.forEach(function(e){
-    if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='approved') return;
+    if(!e.closingDate) return;
+    // No alert for completed quotations
+    if(e.status==='awarded'||e.status==='rejected'||e.status==='approved'||e.status==='submitted') return;
     var cd=parseClosingDate(e.closingDate);
     if(!cd) return;
     var days=Math.floor((cd-today)/86400000);
@@ -2851,13 +2890,13 @@ function renderStaffDashboard(){
 
   // ── Closing Alerts ──
   var closingToday=myHist.filter(function(e){
-    if(!e.closingDate||e.status==='awarded'||e.status==='rejected') return false;
+    if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='approved'||e.status==='submitted') return false;
     var cd=parseClosingDate(e.closingDate);
     if(!cd) return false;
     return Math.floor((cd-today)/86400000)===0;
   });
   var closing3=myHist.filter(function(e){
-    if(!e.closingDate||e.status==='awarded'||e.status==='rejected') return false;
+    if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='approved'||e.status==='submitted') return false;
     var cd=parseClosingDate(e.closingDate);
     if(!cd) return false;
     var d=Math.floor((cd-today)/86400000);
@@ -2975,6 +3014,92 @@ function renderPendingPanel(title, color, items, subtitle){
   out+='</div>';
   return out;
 }
+
+// ══════════════════════════════════════════════════
+// VEHICLE MASTER LIST MANAGEMENT
+// ══════════════════════════════════════════════════
+function getVehicleMaster(){
+  var saved=localStorage.getItem('ngrd_vehicles');
+  if(saved){
+    try{var v=JSON.parse(saved);if(v&&v.length>0)return v;}catch(e){}
+  }
+  return [
+    'Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab',
+    'Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van',
+    'Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab',
+    'Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166',
+    'Toyota Cab LN106','Toyota Cab LN107'
+  ];
+}
+
+function saveVehicleMaster(v){
+  localStorage.setItem('ngrd_vehicles',JSON.stringify(v));
+  if(typeof fbWrite==='function') fbWrite('vehicles',v);
+  // Refresh all vehicle dropdowns
+  refreshAllVehicleDropdowns();
+}
+
+function refreshAllVehicleDropdowns(){
+  var vehicles=getVehicleMaster();
+  var opts='<option value=""></option>'+vehicles.map(function(v){
+    return '<option value="'+v+'">'+v+'</option>';
+  }).join('');
+  // Update main quotation dropdown
+  var fv=document.getElementById('f-vname');
+  if(fv){var cur=fv.value;fv.innerHTML=opts;fv.value=cur;}
+}
+
+function addVehicle(){
+  var name=prompt("புதிய Vehicle name enter பண்ணுங்கள்:\n(e.g. Toyota Hilux, Mitsubishi L300)");
+  if(!name||!name.trim()) return;
+  var vehicles=getVehicleMaster();
+  if(vehicles.includes(name.trim())){showToast('Already exists!','t-e');return;}
+  vehicles.push(name.trim());
+  saveVehicleMaster(vehicles);
+  renderVehicleSettings();
+  showToast('✅ '+name+' added!','t-s');
+  addLog("Vehicle added: "+name+" by "+CU.name);
+}
+
+function deleteVehicle(name){
+  if(!confirm("Delete vehicle: "+name+"?\nQuotations will not be affected.")) return;
+  var vehicles=getVehicleMaster().filter(function(v){return v!==name;});
+  saveVehicleMaster(vehicles);
+  renderVehicleSettings();
+  showToast('Deleted: '+name,'t-i');
+  addLog('Vehicle deleted: '+name+' by '+CU.name);
+}
+
+function renderVehicleSettings(){
+  var el=document.getElementById('vehicle-settings-list');
+  if(!el) return;
+  var vehicles=getVehicleMaster();
+  el.innerHTML=vehicles.map(function(v,i){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'">'
+      +'<span style="font-size:13px;font-weight:600;">🚗 '+v+'</span>'
+      +'<button onclick="deleteVehicle('+JSON.stringify(v)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️ Delete</button>'
+      +'</div>';
+  }).join('');
+}
+
+// Edit quotation vehicle (admin only)
+function editQuotVehicle(id){
+  var vehicles=getVehicleMaster();
+  var opts=vehicles.map(function(v,i){return (i+1)+'. '+v;}).join('\n');
+  var choice=prompt("Vehicle மாத்துங்கள்:\n\n"+opts+'\n\nNumber enter பண்ணுங்கள்:');
+  if(!choice) return;
+  var idx=parseInt(choice)-1;
+  if(idx<0||idx>=vehicles.length){showToast('Invalid','t-e');return;}
+  var hist=getHist();
+  var hIdx=hist.findIndex(function(e){return e.id===id;});
+  if(hIdx<0) return;
+  var oldVeh=hist[hIdx].vehicle;
+  hist[hIdx].vehicle=vehicles[idx];
+  setHist(hist);
+  showToast('✅ Vehicle updated: '+vehicles[idx],'t-s');
+  addLog('Vehicle changed: '+oldVeh+' → '+vehicles[idx]+' ('+( hist[hIdx].eqNo||hist[hIdx].refNo)+')');
+  renderHistory();
+}
 // ══════════════════════════════════════════════════
 // DATA MIGRATION — Old quotations owner fix
 // ══════════════════════════════════════════════════
@@ -3066,7 +3191,7 @@ function bulkReassign(){
 function getAPIKey(){
   var k=localStorage.getItem('ngrd_akey');
   if(!k){
-    k=prompt('Anthropic API Key enter பண்ணுங்கள்:\n(ஒரே ஒரு முறை மட்டும் கேட்கும்)');
+    k=prompt("Anthropic API Key enter பண்ணுங்கள்:\n(ஒரே ஒரு முறை மட்டும் கேட்கும்)");
     if(k) localStorage.setItem('ngrd_akey',k);
   }
   return k||'';
@@ -3598,8 +3723,11 @@ function downloadPDFDirect(){
   const d=buildQData();
   const content=generatePDFHtml(d);
   const fname='NGRD_'+(d.eqNo||d.refNo||'Quotation').replace(/[\s\/]/g,'_')+'.html';
-  // Direct download as HTML file - opens perfectly in any browser as PDF-ready
-  const blob=new Blob([content],{type:'text/html;charset=utf-8'});
+  // Add auto-print script to the HTML so when opened it prints automatically
+  const printContent=content.replace('</body>',
+    '<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body>'
+  );
+  const blob=new Blob([printContent],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
@@ -3608,7 +3736,7 @@ function downloadPDFDirect(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('✅ Downloaded! File திறந்து Ctrl+P → Save as PDF','t-s');
+  showToast('✅ Downloaded! File double-click → Print dialog → Save as PDF','t-s');
   addLog('PDF downloaded: '+(d.eqNo||d.refNo));
 }
 
