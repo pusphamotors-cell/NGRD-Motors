@@ -3799,6 +3799,7 @@ window.onload=()=>{
 
 <script>
 var FB_READY=false;
+var fbDb=null;
 var _fbRetry=0;
 function initFirebase(){
 try{
@@ -3819,8 +3820,11 @@ try{
       appId:"1:809702937675:web:294d2129582129231729ce"
     });
   }
-  var fbDb=firebase.database();
+  fbDb=firebase.database();
   FB_READY=true;
+  console.log('✅ Firebase Ready!');
+  // Start sync after init
+  if(typeof initFirebaseSync==='function') setTimeout(initFirebaseSync,500);
 }catch(e){console.log('FB init:',e);}
 }
 // Call after DOM ready
