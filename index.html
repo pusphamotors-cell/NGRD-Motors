@@ -3621,14 +3621,23 @@ function previewRestore(inp){
       if(!data.history||!Array.isArray(data.history)){document.getElementById('restore-preview').innerHTML='<div style="color:var(--red);font-size:13px;">❌ Invalid backup file.</div>';document.getElementById('restore-preview').style.display='block';return;}
       _restoreData=data;
       const existing=getHist();
-      const toAdd=data.history.filter(e=>!existing.find(x=>x.eqNo===e.eqNo&&x.refNo===e.refNo));
+      const toAdd=data.history.filter(function(e){
+        if(!e||typeof e!=='object') return false;
+        return!existing.find(function(x){
+          if(!x||typeof x!=='object') return false;
+          if(e.id&&x.id) return String(e.id)===String(x.id);
+          if(e.eqNo&&x.eqNo) return e.eqNo===x.eqNo;
+          if(e.refNo&&x.refNo) return e.refNo===x.refNo;
+          return false;
+        });
+      });
       document.getElementById('restore-preview').innerHTML=`<div style="background:#fff;border:1px solid var(--border);border-radius:3px;padding:12px;font-size:13px;">
         <b>Backup:</b> ${new Date(data.exportedAt||0).toLocaleDateString()} by ${data.exportedBy||'?'}<br>
         <span style="color:var(--green);">✅ ${toAdd.length} new quotations</span> &nbsp;|&nbsp; <span style="color:var(--muted);">⏭️ ${data.history.length-toAdd.length} duplicates skip</span>
         ${data.prices?`<br><span style="color:var(--steel);">💰 ${data.prices.length} part prices</span>`:''}
       </div>`;
       document.getElementById('restore-preview').style.display='block';
-      const btn=document.getElementById('restore-btn');btn.disabled=toAdd.length===0;btn.style.opacity=toAdd.length===0?'.5':'1';
+      const btn=document.getElementById('restore-btn');btn.disabled=false;btn.style.opacity='1';
     }catch(err){document.getElementById('restore-preview').innerHTML=`<div style="color:var(--red);">❌ ${err.message}</div>`;document.getElementById('restore-preview').style.display='block';}
   };r.readAsText(f);
 }
