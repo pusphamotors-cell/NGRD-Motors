@@ -1083,6 +1083,17 @@ function initApp(){
   startSessionTimer();
   showPage('dashboard');
   if(typeof startAutoSync==='function') startAutoSync();
+  // Push local data to Firebase immediately on login
+  setTimeout(function(){
+    if(FB_READY&&typeof initFirebaseSync==='function') initFirebaseSync();
+    else if(typeof _flushQueue==='function'){
+      // Queue current data so it pushes when Firebase connects
+      var h=getHist();var p=getPrices();var u=getUsers();
+      if(h&&h.length>0) _fbQueue['history']=h;
+      if(p&&p.length>0) _fbQueue['prices']=p;
+      if(u&&u.length>0) _fbQueue['users']=u;
+    }
+  },2000);
   setTimeout(checkDeadlineAlarms,500);
   setTimeout(autoFixGarbage,800);
   setTimeout(function(){if(typeof initFirebaseSync==='function')initFirebaseSync();},1500);
@@ -4134,7 +4145,9 @@ function initFirebase(){
     console.log('Firebase XHR OK');
     var badge=document.getElementById('fb-badge');
     if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
-    // Always sync when Firebase connects — even if already logged in
+    // Flush any queued writes first!
+    if(typeof _flushQueue==='function') _flushQueue();
+    // Sync
     if(typeof initFirebaseSync==='function') initFirebaseSync();
     if(typeof loadAPIKeyFromFirebase==='function') loadAPIKeyFromFirebase();
     // If user already logged in, push data immediately
@@ -4144,7 +4157,6 @@ function initFirebase(){
         if(h&&h.length>0){fbWrite('history',h);console.log('Auto-pushed history:',h.length);}
         if(p&&p.length>0){fbWrite('prices',p);console.log('Auto-pushed prices:',p.length);}
         if(u&&u.length>0){fbWrite('users',u);console.log('Auto-pushed users:',u.length);}
-        // Update badge to show ready
         var badge=document.getElementById('fb-badge');
         if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
       },500);
@@ -4165,16 +4177,33 @@ function onFbFail(reason){
     if(badge){badge.textContent='🔴 Offline Mode';badge.style.color='#B22222';}
   }
 }
+// Offline write queue
+var _fbQueue={};
 function fbWrite(key,val){
+  // Always update queue with latest value
+  _fbQueue[key]=val;
   if(!FB_READY){
-    console.log('fbWrite skipped (offline):',key);
+    console.log('Queued for Firebase:',key);
     return;
   }
-  var xhr=new XMLHttpRequest();
-  xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
-  xhr.setRequestHeader('Content-Type','application/json');
-  xhr.onerror=function(){FB_READY=false;setTimeout(initFirebase,3000);};
-  xhr.send(JSON.stringify(val));
+  _flushQueue();
+}
+function _flushQueue(){
+  var keys=Object.keys(_fbQueue);
+  if(keys.length===0) return;
+  keys.forEach(function(key){
+    var val=_fbQueue[key];
+    delete _fbQueue[key];
+    var xhr=new XMLHttpRequest();
+    xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
+    xhr.setRequestHeader('Content-Type','application/json');
+    xhr.onerror=function(){
+      _fbQueue[key]=val; // re-queue on fail
+      FB_READY=false;
+      setTimeout(initFirebase,3000);
+    };
+    xhr.send(JSON.stringify(val));
+  });
 }
 function fbRead(key,cb){
   var xhr=new XMLHttpRequest();
@@ -4214,28 +4243,27 @@ function initFirebaseSync(){
 
   var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
 
-  // STEP 1: Read Firebase history → merge with local → push merged back
   fbRead('history',function(data){
     try{
       var local=getHist();
-      // If Firebase empty → push local immediately
-      if(!data||data===null){
-        if(local.length>0){fbWrite('history',local);console.log('Pushed local history to Firebase:',local.length);}
-        return;
-      }
+
+      // Parse remote data
       var remote=[];
       if(data&&typeof data==='object'){
         remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       }
-      // SAFETY: If remote is empty or less than local → keep local, push to Firebase
-      if(remote.length===0){
+
+      // LOCAL IS MASTER — Never overwrite local with less data!
+      if(remote.length<=local.length){
+        // Push local to Firebase (Firebase is behind)
         if(local.length>0){
           fbWrite('history',local);
-          console.log('Remote empty, kept local:',local.length);
+          console.log('Local is master, pushed to Firebase:',local.length);
         }
         return;
       }
-      // Merge: take best of local vs remote
+
+      // Remote has MORE items — merge carefully
       var merged=[];
       var allIds={};
       local.forEach(function(l){if(l&&l.id)allIds[l.id]=true;});
@@ -4251,18 +4279,20 @@ function initFirebaseSync(){
           merged.push(lo||re);
         }
       });
-      // SAFETY: Never save fewer items than local had!
+
+      // Final safety — never reduce!
       if(merged.length<local.length){
-        console.log('Merge would reduce items, keeping local');
         fbWrite('history',local);
         return;
       }
-      merged.sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+
+      merged.sort(function(a,b){return(b.createdAt||0)-(a.createdAt||0);});
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
       fbWrite('history',merged);
       updatePendingBadge();
       if(typeof renderDashboard==='function') renderDashboard();
-    }catch(e){}
+      console.log('Merged remote+local:',merged.length,'items');
+    }catch(e){console.log('Sync error:',e.message);}
   });
 
   // STEP 2: Prices — merge local+remote, push back
@@ -4403,12 +4433,13 @@ function startAutoSync(){
         if(merged.length!==local.length) changed=true;
         // SAFETY: Never save fewer items than we had!
         if(merged.length<local.length){
-          console.log('Poll merge reduce - skip');
+          fbWrite('history',local); // push local — never lose data
           return;
         }
         if(changed){
           merged.sort(function(a,b){return(b.createdAt||0)-(a.createdAt||0);});
           localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+          fbWrite('history',merged); // push merged → admin gets staff data!
           updatePendingBadge();
           if(typeof renderDashboard==='function') renderDashboard();
           if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none') renderHistory();
