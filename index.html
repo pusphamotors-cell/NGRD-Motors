@@ -2613,7 +2613,7 @@ function renderDashboard(){
       urgentHtml+='<div style="background:rgba(255,255,255,.1);border-radius:4px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">';
       urgentHtml+='<div><div style="font-weight:700;">'+( e.vehicle||'Vehicle')+'</div><div style="font-size:11px;opacity:.8;">'+( e.eqNo||e.refNo||'—')+'</div></div>';
       urgentHtml+='<div style="display:flex;gap:6px;">';
-      urgentHtml+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:5px 12px;background:#fff;color:#B22222;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
+      urgentHtml+='<button onclick="viewQuot('+e.id+')" style="padding:5px 12px;background:#fff;color:#B22222;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
       urgentHtml+='</div></div>';
     });
     urgentHtml+='</div>';
@@ -2625,7 +2625,7 @@ function renderDashboard(){
       var e=item.entry;
       urgentHtml+='<div style="background:rgba(255,255,255,.1);border-radius:4px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">';
       urgentHtml+='<div><div style="font-weight:700;">'+( e.vehicle||'Vehicle')+' — '+item.days+'d left</div><div style="font-size:11px;opacity:.8;">'+( e.eqNo||e.refNo||'—')+'</div></div>';
-      urgentHtml+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:5px 12px;background:#fff;color:#8B4513;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
+      urgentHtml+='<button onclick="viewQuot('+e.id+')" style="padding:5px 12px;background:#fff;color:#8B4513;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
       urgentHtml+='</div>';
     });
     urgentHtml+='</div>';
@@ -2690,7 +2690,7 @@ function renderDashboard(){
           +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">'+(e.entity||'')+' | '+(e.items?e.items.length:0)+' items | '+lkr(e.grandTotal||0)+'</div>'
           +'<div style="font-size:10px;color:var(--muted);">By: '+(e.savedBy||'?')+' | '+e.date+'</div>'
           +'</div>'
-          +'<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:5px 10px;background:var(--light);border:1px solid var(--border);border-radius:3px;font-size:11px;cursor:pointer;">Open</button>'
+          +'<button onclick="viewQuot('+e.id+')" style="padding:5px 10px;background:var(--light);border:1px solid var(--border);border-radius:3px;font-size:11px;cursor:pointer;">Open</button>'
           +'</div>';
       }).join('');
     }
@@ -2870,7 +2870,7 @@ function renderStaffDashboard(){
     closingToday.forEach(function(e){
       html2+='<div style="background:rgba(255,255,255,.1);border-radius:4px;padding:8px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;">';
       html2+='<div><div style="font-weight:700;">'+( e.vehicle||'')+'</div><div style="font-size:11px;opacity:.8;">'+(e.eqNo||e.refNo||'')+'</div></div>';
-      html2+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:5px 12px;background:#fff;color:#B22222;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
+      html2+='<button onclick="viewQuot('+e.id+')" style="padding:5px 12px;background:#fff;color:#B22222;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
       html2+='</div>';
     });
     html2+='</div>';
@@ -2884,7 +2884,7 @@ function renderStaffDashboard(){
       var days=Math.floor((cd-today)/86400000);
       html2+='<div style="background:rgba(255,255,255,.1);border-radius:4px;padding:7px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">';
       html2+='<div><div style="font-weight:700;">'+( e.vehicle||'')+' — '+days+'d left</div><div style="font-size:11px;opacity:.8;">'+(e.eqNo||e.refNo||'')+'</div></div>';
-      html2+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:4px 10px;background:#fff;color:#8B4513;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
+      html2+='<button onclick="viewQuot('+e.id+')" style="padding:4px 10px;background:#fff;color:#8B4513;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
       html2+='</div>';
     });
     html2+='</div>';
@@ -2966,7 +2966,7 @@ function renderPendingPanel(title, color, items, subtitle){
     out+='<div style="font-weight:700;font-size:12px;">'+( e.vehicle||'Vehicle')+' — '+(e.eqNo||e.refNo||'—')+'</div>';
     out+='<div style="font-size:10px;color:#666;margin-top:2px;">'+(e.entity||'')+' | '+(e.items?e.items.length:0)+' items'+(days!==null?' | <span style="color:'+(urgent?'#B22222':'#888')+';">'+days+'d left</span>':'')+'</div>';
     out+='</div>';
-    out+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:6px 14px;background:'+color+';color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">Open →</button>';
+    out+='<button onclick="viewQuot('+e.id+')" style="padding:6px 14px;background:'+color+';color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">Open →</button>';
     out+='</div>';
   });
   if(items.length>5){
