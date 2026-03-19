@@ -472,6 +472,11 @@ window.addEventListener('load',function(){setTimeout(initFirebase,800);});
               <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="width:100%;max-width:400px;padding:9px 12px;border:2px solid #2060a0;border-radius:4px;font-family:var(--fb);font-size:14px;font-weight:700;background:#fff;outline:none;">
                 <option value="">— Vehicle Select பண்ணுங்கள் —</option>
               </select>
+              <div id="vehicle-admin-btns" style="display:none;gap:8px;margin-top:8px;max-width:400px;">
+                <button onclick="uploadPageAddVehicle()" style="flex:1;padding:7px;background:#1a6b3c;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">➕ Add</button>
+                <button onclick="uploadPageEditVehicle()" style="flex:1;padding:7px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Edit</button>
+                <button onclick="uploadPageDeleteVehicle()" style="flex:1;padding:7px;background:#b22222;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ Delete</button>
+              </div>
             </div>
             <div class="upload-zone" id="drop-zone">
               <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile(this)">
@@ -1437,15 +1442,54 @@ function syncRow(idx,bi){
   if(marginVal!=='') br.marginPct=parseFloat(marginVal)||br.marginPct||0;
 }
 
-function autoSell(idx,bi){
-  var pu=parseFloat((document.getElementById('br-pu-'+idx+'-'+bi)||{}).value)||0;
-  var mg=parseFloat((document.getElementById('br-m-'+idx+'-'+bi)||{}).value)||0;
-  if(pu>0&&mg>=0){
-    var sell=Math.round(pu*(1+mg/100));
-    var el=document.getElementById('br-s-'+idx+'-'+bi);
-    if(el){el.value=sell;if(curItems[idx]&&curItems[idx].brandRows[bi])curItems[idx].brandRows[bi].price=sell;}
-    calcTotals();
+
+function autoCalcMargin(idx,bi){
+  var puEl=document.getElementById('br-pu-'+idx+'-'+bi);
+  var mgEl=document.getElementById('br-m-'+idx+'-'+bi);
+  var sEl=document.getElementById('br-s-'+idx+'-'+bi);
+  if(!puEl||!mgEl||!sEl) return;
+  var pu=parseFloat(puEl.value)||0;
+  var sell=parseFloat(sEl.value)||0;
+  if(pu>0&&sell>0){
+    var margin=((sell-pu)/pu*100).toFixed(1);
+    mgEl.value=margin;
+    if(curItems[idx]&&curItems[idx].brandRows[bi]){
+      curItems[idx].brandRows[bi].marginPct=parseFloat(margin);
+      curItems[idx].brandRows[bi].price=sell;
+    }
   }
+}
+function autoSell(idx,bi){
+  var puEl=document.getElementById('br-pu-'+idx+'-'+bi);
+  var mgEl=document.getElementById('br-m-'+idx+'-'+bi);
+  var sEl=document.getElementById('br-s-'+idx+'-'+bi);
+  var pu=parseFloat(puEl?puEl.value:0)||0;
+  var mg=parseFloat(mgEl?mgEl.value:0)||0;
+
+  if(pu>0){
+    // Purchase price entered → calculate selling price
+    var sell=Math.round(pu*(1+mg/100));
+    if(sEl){
+      sEl.value=sell;
+      if(curItems[idx]&&curItems[idx].brandRows[bi]){
+        curItems[idx].brandRows[bi].price=sell;
+        curItems[idx].brandRows[bi].purchasePrice=pu;
+        curItems[idx].brandRows[bi].marginPct=mg;
+      }
+    }
+  } else if(sEl&&sEl.value&&mg>0) {
+    // Selling price + margin → back-calculate purchase price
+    var selling=parseFloat(sEl.value)||0;
+    if(selling>0&&puEl){
+      var purchase=Math.round(selling/(1+mg/100));
+      puEl.value=purchase;
+      if(curItems[idx]&&curItems[idx].brandRows[bi]){
+        curItems[idx].brandRows[bi].purchasePrice=purchase;
+        curItems[idx].brandRows[bi].marginPct=mg;
+      }
+    }
+  }
+  calcTotals();
 }
 
 function addBR(idx){
@@ -1550,7 +1594,7 @@ function renderItems(items){
         if(daysOld!==null&&daysOld>30) hintHtml='<div style="font-size:9px;color:#B22222;font-weight:700;margin-top:1px;">⚠️ '+daysOld+'d Recheck!</div>';
         else hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hint.price||0)+' ('+hint.date+')</div>';
       }
-      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');calcTotals()" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:var(--fb);outline:none;">'+hintHtml+'</td>';
+      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');autoCalcMargin('+idx+','+bi+');calcTotals()" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:var(--fb);outline:none;">'+hintHtml+'</td>';
       // Total
       h+='<td class="tr" id="rt-'+idx+'-'+bi+'" style="font-weight:700;color:var(--navy2);font-size:12px;padding:3px 6px;">—</td>';
       // ± buttons
@@ -3073,6 +3117,9 @@ function saveVehicleMaster(v){
 }
 
 function refreshAllVehicleDropdowns(){
+  // Show/hide admin-only vehicle buttons
+  var adminBtns=document.getElementById('vehicle-admin-btns');
+  if(adminBtns) adminBtns.style.display=(CU&&CU.role==='admin')?'flex':'none';
   var vehicles=getVehicleMaster();
   var opts='<option value=""></option>'+vehicles.map(function(v){
     return '<option value="'+v+'">'+v+'</option>';
@@ -3091,6 +3138,60 @@ function refreshAllVehicleDropdowns(){
   if(mpv){var curM=mpv.value;vehicles.forEach(function(v){if(![...mpv.options].find(function(o){return o.value===v;})){mpv.appendChild(new Option(v,v));}});if(curM)mpv.value=curM;}
 }
 
+
+function uploadPageAddVehicle(){
+  if(!CU||CU.role!=="admin"){alert("Admin மட்டும் Vehicle manage பண்ணலாம்!");return;}
+  var name=prompt('புதிய Vehicle பெயர் enter பண்ணுங்கள்:','');
+  if(!name||!name.trim()) return;
+  name=name.trim();
+  var vlist=getVehicleMaster();
+  if(vlist.indexOf(name)>=0){alert('இந்த Vehicle ஏற்கனவே உள்ளது!');return;}
+  vlist.push(name);
+  localStorage.setItem('ngrd_vehicles',JSON.stringify(vlist));
+  fbWrite('vehicles',vlist);
+  refreshAllVehicleDropdowns();
+  // Select new vehicle
+  var sel=document.getElementById('upload-vehicle-select');
+  if(sel){sel.value=name;syncUploadVehicle(name);}
+  alert('✅ '+name+' — சேர்க்கப்பட்டது!');
+}
+
+function uploadPageEditVehicle(){
+  if(!CU||CU.role!=="admin"){alert("Admin மட்டும் Vehicle manage பண்ணலாம்!");return;}
+  var sel=document.getElementById('upload-vehicle-select');
+  var cur=sel?sel.value:'';
+  if(!cur){alert('முதலில் Vehicle ஒன்றை Select பண்ணுங்கள்!');return;}
+  var newName=prompt('புதிய பெயர் enter பண்ணுங்கள்:',cur);
+  if(!newName||!newName.trim()||newName.trim()===cur) return;
+  newName=newName.trim();
+  var vlist=getVehicleMaster();
+  var idx=vlist.indexOf(cur);
+  if(idx<0){alert('Vehicle கண்டுபிடிக்கவில்லை!');return;}
+  vlist[idx]=newName;
+  localStorage.setItem('ngrd_vehicles',JSON.stringify(vlist));
+  fbWrite('vehicles',vlist);
+  // Update all quotations with old name
+  var h=getHist();
+  h.forEach(function(q){if(q.vehicle===cur)q.vehicle=newName;});
+  setHist(h);
+  refreshAllVehicleDropdowns();
+  sel.value=newName;syncUploadVehicle(newName);
+  alert('✅ '+cur+' → '+newName+' மாற்றப்பட்டது!');
+}
+
+function uploadPageDeleteVehicle(){
+  if(!CU||CU.role!=="admin"){alert("Admin மட்டும் Vehicle manage பண்ணலாம்!");return;}
+  var sel=document.getElementById('upload-vehicle-select');
+  var cur=sel?sel.value:'';
+  if(!cur){alert('முதலில் Vehicle ஒன்றை Select பண்ணுங்கள்!');return;}
+  if(!confirm('❗ '+cur+' — Delete பண்ணணுமா?')) return;
+  var vlist=getVehicleMaster();
+  vlist=vlist.filter(function(v){return v!==cur;});
+  localStorage.setItem('ngrd_vehicles',JSON.stringify(vlist));
+  fbWrite('vehicles',vlist);
+  refreshAllVehicleDropdowns();
+  alert('🗑️ '+cur+' — நீக்கப்பட்டது!');
+}
 function addVehicle(){
   var name=prompt("புதிய Vehicle name enter பண்ணுங்கள்:\n(e.g. Toyota Hilux, Mitsubishi L300)");
   if(!name||!name.trim()) return;
@@ -3970,39 +4071,35 @@ window.onload=()=>{
 <script>
 var FB_READY=false;
 var fbDb=null;
-var _fbRetry=0;
+
+// Firebase REST API — No CDN! Works everywhere!
 function initFirebase(){
-try{
-  if(typeof firebase==='undefined'){
-    _fbRetry++;
-    if(_fbRetry>10){console.log('Firebase CDN failed to load — offline mode');return;}
-    setTimeout(initFirebase,1000);
-    return;
-  }
-  if(!firebase.apps.length){
-    firebase.initializeApp({
-      apiKey:"AIzaSyBWr_MTwjwHRLqJeo1HVtZd9VsTh9GB4KY",
-      authDomain:"ngrd-motors.firebaseapp.com",
-      databaseURL:"https://ngrd-motors-default-rtdb.firebaseio.com",
-      projectId:"ngrd-motors",
-      storageBucket:"ngrd-motors.firebasestorage.app",
-      messagingSenderId:"809702937675",
-      appId:"1:809702937675:web:294d2129582129231729ce"
-    });
-  }
-  fbDb=firebase.database();
-  FB_READY=true;
-  console.log('✅ Firebase Ready!');
-  // Start sync after init
-  if(typeof initFirebaseSync==='function') setTimeout(initFirebaseSync,500);
-}catch(e){console.log('FB init:',e);}
+  fetch('https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/ping.json',{
+    method:'PUT',
+    body:'"ok"',
+    headers:{'Content-Type':'application/json'}
+  }).then(function(){
+    FB_READY=true;
+    console.log('✅ Firebase REST Ready!');
+    if(typeof initFirebaseSync==='function') setTimeout(initFirebaseSync,200);
+  }).catch(function(e){
+    FB_READY=false;
+    console.log('Firebase offline:',e.message);
+  });
 }
-// Call after DOM ready
-// initFirebase is called by CDN onload callback
-// Fallback: try after 3 seconds
-setTimeout(function(){
-  if(!FB_READY && typeof firebase!=='undefined') initFirebase();
-}, 3000);
+
+// fbDb compatibility for doLogin
+fbDb={ref:function(path){return{
+  once:function(){
+    var k=path.replace('ngrd/','');
+    return fetch('https://ngrd-motors-default-rtdb.firebaseio.com/'+path+'.json')
+      .then(function(r){return r.json();})
+      .then(function(d){return{val:function(){return d;}};});
+  },
+  on:function(){}
+};}};
+
+window.addEventListener('load',function(){setTimeout(initFirebase,800);});
 
 function fbWrite(k,v){if(!FB_READY)return;try{fbDb.ref('ngrd/'+k).set(v);}catch(e){}}
 
