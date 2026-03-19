@@ -975,7 +975,8 @@ function getHist(){
     h=Object.values(h).filter(function(x){return x&&typeof x==='object';});
     if(h.length>0) LS.set('ngrd_hist',h);
   }
-  return h||[];
+  // Filter out any null/corrupt entries
+  return (h||[]).filter(function(x){return x&&typeof x==='object'&&x.id;});
 }
 function setHist(h){LS.set('ngrd_hist',h);if(typeof fbWrite==='function')fbWrite('history',h);}
 function getPrices(){
@@ -1325,7 +1326,10 @@ function vehicleMatchesUser(vn){
 
 function findDuplicate(refNo,eqNo){
   const h=getHist();if(!refNo&&!eqNo)return null;
-  return h.find(e=>(refNo&&e.refNo&&e.refNo.trim()===refNo.trim())||(eqNo&&e.eqNo&&e.eqNo.trim()===eqNo.trim()))||null;
+  return h.find(e=>e&&typeof e==='object'&&(
+    (refNo&&e.refNo&&e.refNo.trim()===refNo.trim())||
+    (eqNo&&e.eqNo&&e.eqNo.trim()===eqNo.trim())
+  ))||null;
 }
 
 // ══════════════════════════════════════════════════
