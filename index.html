@@ -976,7 +976,7 @@ function getHist(){
     if(h.length>0) LS.set('ngrd_hist',h);
   }
   // Filter out any null/corrupt entries
-  return (h||[]).filter(function(x){return x&&typeof x==='object'&&x.id;});
+  return (h||[]).filter(function(x){return x&&typeof x==='object';});
 }
 function setHist(h){LS.set('ngrd_hist',h);if(typeof fbWrite==='function')fbWrite('history',h);}
 function getPrices(){
@@ -3654,7 +3654,14 @@ function importBackup(){
   var existing=getHist();
   var toAdd=_restoreData.history?_restoreData.history.filter(function(e){
     if(!e||typeof e!=='object') return false;
-    return!existing.find(function(x){return x&&x.id&&e.id&&x.id===e.id;});
+    // Match by id OR eqNo OR refNo
+    return!existing.find(function(x){
+      if(!x||typeof x!=='object') return false;
+      if(e.id&&x.id&&e.id===x.id) return true;
+      if(e.eqNo&&x.eqNo&&e.eqNo===x.eqNo) return true;
+      if(e.refNo&&x.refNo&&e.refNo===x.refNo) return true;
+      return false;
+    });
   }):[];
   var newHist=[...toAdd,...existing];
   setHist(newHist);
@@ -3667,7 +3674,8 @@ function importBackup(){
     var nu=_restoreData.users.filter(function(u){return u.id!==1&&!eu.find(function(x){return x.username===u.username;});});
     if(nu.length) saveUsers([...eu,...nu]);
   }
-  LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:newHist.length});
+  var finalHist=getHist();
+  LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:finalHist.length});
   // Push to Firebase
   setTimeout(function(){
     if(typeof fbWrite==='function'&&FB_READY){
