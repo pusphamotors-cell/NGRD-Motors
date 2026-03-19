@@ -4132,48 +4132,88 @@ window.addEventListener('load',function(){setTimeout(initFirebase,1500);});
 function initFirebaseSync(){
   if(!FB_READY)return;
 
-  // Load from Firebase — but DON'T overwrite local approved/rejected statuses
+  var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
+
+  // STEP 1: Read Firebase history → merge with local → push merged back
   fbRead('history',function(data){
     try{
-      var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       var local=getHist();
-      // Smart merge: keep local status if newer
-      var merged=remote.map(function(re){
-        var lo=local.find(function(l){return l.id===re.id;});
-        if(lo){
-          // Keep local if status is more advanced
-          var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
-          var loRank=statusOrder[lo.status]||0;
-          var reRank=statusOrder[re.status]||0;
-          if(loRank>=reRank) return lo; // Keep local
+      var remote=[];
+      if(data&&typeof data==='object'){
+        remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+      }
+      // Merge: take best of local vs remote
+      var merged=[];
+      var allIds={};
+      local.forEach(function(l){allIds[l.id]=true;});
+      remote.forEach(function(r){if(r&&r.id)allIds[r.id]=true;});
+      Object.keys(allIds).forEach(function(id){
+        var lo=local.find(function(x){return x.id===id;});
+        var re=remote.find(function(x){return x.id===id;});
+        if(lo&&re){
+          var loR=statusOrder[lo.status]||0;
+          var reR=statusOrder[re.status]||0;
+          merged.push(loR>=reR?lo:re);
+        } else {
+          merged.push(lo||re);
         }
-        return re;
       });
-      // Add any local-only entries not in remote
-      local.forEach(function(lo){
-        if(!merged.find(function(m){return m.id===lo.id;})) merged.unshift(lo);
-      });
+      merged.sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+      // Push merged back to Firebase so all devices get it
+      fbWrite('history',merged);
       updatePendingBadge();
       if(typeof renderDashboard==='function') renderDashboard();
     }catch(e){}
   });
 
+  // STEP 2: Prices — merge local+remote, push back
   fbRead('prices',function(data){
     try{
-      var arr=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
-      localStorage.setItem('ngrd_prices',JSON.stringify(arr));
+      var local=getPrices();
+      var remote=[];
+      if(data&&typeof data==='object'){
+        remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+      }
+      // Merge by desc+vehicle key
+      var map={};
+      remote.forEach(function(p){if(p&&p.desc){var k=(p.desc+p.vehicle).toLowerCase();map[k]=p;}});
+      local.forEach(function(p){if(p&&p.desc){var k=(p.desc+p.vehicle).toLowerCase();map[k]=p;}});
+      var merged=Object.values(map);
+      localStorage.setItem('ngrd_prices',JSON.stringify(merged));
+      fbWrite('prices',merged);
     }catch(e){}
   });
 
+  // STEP 3: Users — admin local users push to Firebase
   fbRead('users',function(data){
     try{
-      var arr=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
-      if(arr.length>0) localStorage.setItem('ngrd_users',JSON.stringify(arr));
+      var local=getUsers();
+      var remote=[];
+      if(data&&typeof data==='object'){
+        remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+      }
+      // Use whichever has more users
+      var merged=local.length>=remote.length?local:remote;
+      localStorage.setItem('ngrd_users',JSON.stringify(merged));
+      if(local.length>remote.length) fbWrite('users',merged);
     }catch(e){}
   });
 
-  // Show sync badge
+  // STEP 4: Vehicles sync
+  fbRead('vehicles',function(data){
+    try{
+      if(Array.isArray(data)&&data.length>0){
+        localStorage.setItem('ngrd_vehicles',JSON.stringify(data));
+        refreshAllVehicleDropdowns();
+      } else {
+        var local=getVehicleMaster();
+        fbWrite('vehicles',local);
+      }
+    }catch(e){}
+  });
+
+  // Badge
   var el=document.getElementById('fb-badge');
   if(!el){
     el=document.createElement('div');
@@ -4181,7 +4221,7 @@ function initFirebaseSync(){
     el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;background:#1A6B3C;color:#fff;';
     document.body.appendChild(el);
   }
-  el.textContent='🔥 Sync ON';
+  el.textContent='🟢 Synced';
 }
 
 // Patch save functions
