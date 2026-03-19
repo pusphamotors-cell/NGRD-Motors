@@ -3573,7 +3573,8 @@ function copyWhatsApp(desc,brand,partNo,country,price){
 // BACKUP / RESTORE
 // ══════════════════════════════════════════════════
 function renderBackupPage(){
-  const h=getHist(),u=getUsers(),p=getPrices();
+  const h=(getHist()||[]).filter(function(x){return x&&typeof x==='object';}),
+        u=getUsers()||[],p=getPrices()||[];
   const s=document.getElementById('backup-summary');
   if(s) s.innerHTML=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;">
     ${[['Quotations',h.length],['Users',u.length],['Parts',p.length]].map(([l,v])=>`
@@ -3647,7 +3648,10 @@ function importBackup(){
   if(!_restoreData){showToast('No file selected','t-e');return;}
   if(!confirm('Restore data? Existing data will NOT be deleted.'))return;
   var existing=getHist();
-  var toAdd=_restoreData.history?_restoreData.history.filter(function(e){return!existing.find(function(x){return x.eqNo===e.eqNo&&x.refNo===e.refNo;});}):[];
+  var toAdd=_restoreData.history?_restoreData.history.filter(function(e){
+    if(!e||typeof e!=='object') return false;
+    return!existing.find(function(x){return x&&x.id&&e.id&&x.id===e.id;});
+  }):[];
   var newHist=[...toAdd,...existing];
   setHist(newHist);
   if(_restoreData.prices){
@@ -4099,8 +4103,18 @@ function initFirebase(){
     console.log('Firebase XHR OK');
     var badge=document.getElementById('fb-badge');
     if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
+    // Always sync when Firebase connects — even if already logged in
     if(typeof initFirebaseSync==='function') initFirebaseSync();
     if(typeof loadAPIKeyFromFirebase==='function') loadAPIKeyFromFirebase();
+    // If user already logged in, push data immediately
+    if(typeof CU!=='undefined'&&CU){
+      setTimeout(function(){
+        var h=getHist();var p=getPrices();var u=getUsers();
+        if(h&&h.length>0){fbWrite('history',h);console.log('Auto-pushed history:',h.length);}
+        if(p&&p.length>0){fbWrite('prices',p);console.log('Auto-pushed prices:',p.length);}
+        if(u&&u.length>0){fbWrite('users',u);console.log('Auto-pushed users:',u.length);}
+      },500);
+    }
   };
   xhr.onerror=function(){onFbFail('network error');};
   xhr.ontimeout=function(){onFbFail('timeout');};
@@ -4258,7 +4272,16 @@ function initFirebaseSync(){
   if(!el){
     el=document.createElement('div');
     el.id='fb-badge';
-    el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;background:#1A6B3C;color:#fff;';
+    el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;background:#1A6B3C;color:#fff;cursor:pointer;';
+    el.title='Click to force sync';
+    el.onclick=function(){
+      var h=getHist();var p=getPrices();var u=getUsers();
+      if(h&&h.length>0) fbWrite('history',h);
+      if(p&&p.length>0) fbWrite('prices',p);
+      if(u&&u.length>0) fbWrite('users',u);
+      el.textContent='⬆️ Pushed!';
+      setTimeout(function(){el.textContent='🟢 Synced';},2000);
+    };
     document.body.appendChild(el);
   }
   el.textContent='🟢 Synced';
