@@ -1325,11 +1325,21 @@ function vehicleMatchesUser(vn){
 }
 
 function findDuplicate(refNo,eqNo){
-  const h=getHist();if(!refNo&&!eqNo)return null;
-  return h.find(e=>e&&typeof e==='object'&&(
-    (refNo&&e.refNo&&e.refNo.trim()===refNo.trim())||
-    (eqNo&&e.eqNo&&e.eqNo.trim()===eqNo.trim())
-  ))||null;
+  const h=getHist();
+  if(!refNo&&!eqNo) return null;
+  return h.find(function(e){
+    if(!e||typeof e!=='object') return false;
+    // Both must match
+    if(refNo&&eqNo&&e.refNo&&e.eqNo)
+      return e.refNo.trim()===refNo.trim()&&e.eqNo.trim()===eqNo.trim();
+    // Only eqNo
+    if(eqNo&&e.eqNo&&!refNo)
+      return e.eqNo.trim()===eqNo.trim();
+    // Only refNo
+    if(refNo&&e.refNo&&!eqNo)
+      return e.refNo.trim()===refNo.trim();
+    return false;
+  })||null;
 }
 
 // ══════════════════════════════════════════════════
@@ -1349,8 +1359,8 @@ function updateQuotStatus(){curStatus=document.getElementById('quot-status')?.va
 
 // Workflow roles
 var ROLES={
-  uploader: {seePurchase:false,canPurchase:false,canMargin:false,canSave:false,canExport:false,canUpload:true, canPrice:false,canSubmit:false,viewOnly:false,canApprove:false},
-  price:    {seePurchase:true, canPurchase:true, canMargin:true, canSave:false,canExport:false,canUpload:false,canPrice:true, canSubmit:false,viewOnly:false,canApprove:false},
+  uploader: {seePurchase:false,canPurchase:false,canMargin:false,canSave:true, canExport:false,canUpload:true, canPrice:false,canSubmit:false,viewOnly:false,canApprove:false},
+  price:    {seePurchase:true, canPurchase:true, canMargin:true, canSave:true, canExport:false,canUpload:false,canPrice:true, canSubmit:false,viewOnly:false,canApprove:false},
   submitter:{seePurchase:false,canPurchase:false,canMargin:false,canSave:true, canExport:true, canUpload:false,canPrice:false,canSubmit:true, viewOnly:false,canApprove:false},
   viewer:   {seePurchase:true, canPurchase:false,canMargin:false,canSave:false,canExport:false,canUpload:false,canPrice:false,canSubmit:false,viewOnly:true, canApprove:false},
   staff:    {seePurchase:false,canPurchase:false,canMargin:false,canSave:true, canExport:true, canUpload:true, canPrice:true, canSubmit:true, viewOnly:false,canApprove:false},
@@ -1366,7 +1376,7 @@ function getRole(){
       seePurchase:isAdmin||p.includes('price'),
       canPurchase:isAdmin||p.includes('price'),
       canMargin:isAdmin||p.includes('price'),
-      canSave:isAdmin||p.includes('submit'),
+      canSave:isAdmin||p.includes('submit')||p.includes('upload')||p.includes('price'),
       canExport:isAdmin||p.includes('export')||p.includes('submit'),
       canApprove:isAdmin||p.includes('approve'),
       canUpload:isAdmin||p.includes('upload'),
@@ -4134,6 +4144,9 @@ function initFirebase(){
         if(h&&h.length>0){fbWrite('history',h);console.log('Auto-pushed history:',h.length);}
         if(p&&p.length>0){fbWrite('prices',p);console.log('Auto-pushed prices:',p.length);}
         if(u&&u.length>0){fbWrite('users',u);console.log('Auto-pushed users:',u.length);}
+        // Update badge to show ready
+        var badge=document.getElementById('fb-badge');
+        if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
       },500);
     }
   };
@@ -4153,7 +4166,10 @@ function onFbFail(reason){
   }
 }
 function fbWrite(key,val){
-  if(!FB_READY)return;
+  if(!FB_READY){
+    console.log('fbWrite skipped (offline):',key);
+    return;
+  }
   var xhr=new XMLHttpRequest();
   xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
   xhr.setRequestHeader('Content-Type','application/json');
@@ -4211,14 +4227,22 @@ function initFirebaseSync(){
       if(data&&typeof data==='object'){
         remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       }
+      // SAFETY: If remote is empty or less than local → keep local, push to Firebase
+      if(remote.length===0){
+        if(local.length>0){
+          fbWrite('history',local);
+          console.log('Remote empty, kept local:',local.length);
+        }
+        return;
+      }
       // Merge: take best of local vs remote
       var merged=[];
       var allIds={};
-      local.forEach(function(l){allIds[l.id]=true;});
+      local.forEach(function(l){if(l&&l.id)allIds[l.id]=true;});
       remote.forEach(function(r){if(r&&r.id)allIds[r.id]=true;});
       Object.keys(allIds).forEach(function(id){
-        var lo=local.find(function(x){return x.id===id;});
-        var re=remote.find(function(x){return x.id===id;});
+        var lo=local.find(function(x){return x&&x.id===id;});
+        var re=remote.find(function(x){return x&&x.id===id;});
         if(lo&&re){
           var loR=statusOrder[lo.status]||0;
           var reR=statusOrder[re.status]||0;
@@ -4227,9 +4251,14 @@ function initFirebaseSync(){
           merged.push(lo||re);
         }
       });
+      // SAFETY: Never save fewer items than local had!
+      if(merged.length<local.length){
+        console.log('Merge would reduce items, keeping local');
+        fbWrite('history',local);
+        return;
+      }
       merged.sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
-      // Push merged back to Firebase so all devices get it
       fbWrite('history',merged);
       updatePendingBadge();
       if(typeof renderDashboard==='function') renderDashboard();
@@ -4296,13 +4325,28 @@ function initFirebaseSync(){
     el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;background:#1A6B3C;color:#fff;cursor:pointer;';
     el.title='Click to force sync';
     el.onclick=function(){
+      if(!FB_READY){
+        // Not connected — try reconnect first
+        el.textContent='🔄 Connecting...';
+        initFirebase();
+        setTimeout(function(){
+          if(FB_READY){
+            el.click(); // retry after connect
+          } else {
+            el.textContent='🔴 Offline';
+            showToast('Firebase connect இல்லை! Internet check பண்ணுங்கள்','t-e');
+            setTimeout(function(){el.textContent='🟢 Synced';},3000);
+          }
+        },4000);
+        return;
+      }
       var h=getHist();var p=getPrices();var u=getUsers();
       var pushCount=0;
       if(h&&h.length>0){fbWrite('history',h);pushCount+=h.length;}
       if(p&&p.length>0) fbWrite('prices',p);
       if(u&&u.length>0) fbWrite('users',u);
       el.textContent='⬆️ '+pushCount+' pushed!';
-      showToast('Firebase-க்கு push பண்ணினோம்! Staff-க்கு 30sec-ல் வரும்','t-s');
+      showToast('✅ Firebase push! Staff-க்கு 30sec-ல் வரும்','t-s');
       setTimeout(function(){el.textContent='🟢 Synced';},3000);
     };
     document.body.appendChild(el);
@@ -4357,6 +4401,11 @@ function startAutoSync(){
         });
         // Also check total count difference
         if(merged.length!==local.length) changed=true;
+        // SAFETY: Never save fewer items than we had!
+        if(merged.length<local.length){
+          console.log('Poll merge reduce - skip');
+          return;
+        }
         if(changed){
           merged.sort(function(a,b){return(b.createdAt||0)-(a.createdAt||0);});
           localStorage.setItem('ngrd_hist',JSON.stringify(merged));
