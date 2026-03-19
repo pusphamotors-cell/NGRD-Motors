@@ -4150,21 +4150,19 @@ function initFirebase(){
     console.log('Firebase XHR OK');
     var badge=document.getElementById('fb-badge');
     if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
-    // Flush any queued writes first!
+    // Flush queued writes first
     if(typeof _flushQueue==='function') _flushQueue();
-    // Sync
+    // Full sync (pull+push)
     if(typeof initFirebaseSync==='function') initFirebaseSync();
     if(typeof loadAPIKeyFromFirebase==='function') loadAPIKeyFromFirebase();
-    // If user already logged in, push data immediately
+    // If already logged in → sync immediately + render
     if(typeof CU!=='undefined'&&CU){
       setTimeout(function(){
-        var h=getHist();var p=getPrices();var u=getUsers();
-        if(h&&h.length>0){fbWrite('history',h);console.log('Auto-pushed history:',h.length);}
-        if(p&&p.length>0){fbWrite('prices',p);console.log('Auto-pushed prices:',p.length);}
-        if(u&&u.length>0){fbWrite('users',u);console.log('Auto-pushed users:',u.length);}
+        // Pull from Firebase first (get other users data)
+        if(typeof initFirebaseSync==='function') initFirebaseSync();
         var badge=document.getElementById('fb-badge');
         if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
-      },500);
+      },800);
     }
   };
   xhr.onerror=function(){onFbFail('network error');};
