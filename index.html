@@ -2595,8 +2595,8 @@ function renderDashboard(){
   var total=isAdmin?allHist.length:h.length;
   var totalValue=h.reduce(function(s,e){return s+(e.grandTotal||0);},0);
   var pendingApproval=isAdmin
-    ?allHist.filter(function(e){return e.status==='submitted'||e.status==='pending';}).length
-    :h.filter(function(e){return e.status==='submitted'||e.status==='pending';}).length;
+    ?allHist.filter(function(e){return e.status==='pending';}).length
+    :h.filter(function(e){return e.status==='pending';}).length;
   var approved=h.filter(function(e){return e.status==='approved';}).length;
 
   // Closing alerts — ONLY user's own vehicles
@@ -2693,7 +2693,7 @@ function renderDashboard(){
   var role=getRole();
   var canApproveNow=role.canApprove||isAdmin;
   var approvalEl=document.getElementById('db-approval-list');
-  var pendingList=h.filter(function(e){return e.status==='submitted'||e.status==='pending';});
+  var pendingList=h.filter(function(e){return e.status==='pending';});
   if(approvalEl){
     if(pendingList.length===0){
       approvalEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">✅ No pending approvals</div>';
@@ -4008,27 +4008,57 @@ function fbWrite(k,v){if(!FB_READY)return;try{fbDb.ref('ngrd/'+k).set(v);}catch(
 
 function initFirebaseSync(){
   if(!FB_READY)return;
-  fbDb.ref('ngrd/history').on('value',function(s){
-    var v=s.val();if(!v)return;
-    try{localStorage.setItem('ngrd_hist',JSON.stringify(v));updatePendingBadge();}catch(e){}
+
+  // Load from Firebase — but DON'T overwrite local approved/rejected statuses
+  fbRead('history',function(data){
+    try{
+      var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+      var local=getHist();
+      // Smart merge: keep local status if newer
+      var merged=remote.map(function(re){
+        var lo=local.find(function(l){return l.id===re.id;});
+        if(lo){
+          // Keep local if status is more advanced
+          var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
+          var loRank=statusOrder[lo.status]||0;
+          var reRank=statusOrder[re.status]||0;
+          if(loRank>=reRank) return lo; // Keep local
+        }
+        return re;
+      });
+      // Add any local-only entries not in remote
+      local.forEach(function(lo){
+        if(!merged.find(function(m){return m.id===lo.id;})) merged.unshift(lo);
+      });
+      localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+      updatePendingBadge();
+      if(typeof renderDashboard==='function') renderDashboard();
+    }catch(e){}
   });
-  fbDb.ref('ngrd/prices').on('value',function(s){
-    var v=s.val();if(!v)return;
-    try{localStorage.setItem('ngrd_prices',JSON.stringify(v));}catch(e){}
+
+  fbRead('prices',function(data){
+    try{
+      var arr=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+      localStorage.setItem('ngrd_prices',JSON.stringify(arr));
+    }catch(e){}
   });
-  fbDb.ref('ngrd/users').on('value',function(s){
-    var v=s.val();if(!v)return;
-    try{localStorage.setItem('ngrd_users',JSON.stringify(v));}catch(e){}
+
+  fbRead('users',function(data){
+    try{
+      var arr=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+      if(arr.length>0) localStorage.setItem('ngrd_users',JSON.stringify(arr));
+    }catch(e){}
   });
-  fbDb.ref('.info/connected').on('value',function(s){
-    var el=document.getElementById('fb-badge');
-    if(!el){el=document.createElement('div');el.id='fb-badge';
-      el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;';
-      document.body.appendChild(el);}
-    el.style.background=s.val()?'#1A6B3C':'#B22222';
-    el.style.color='#fff';
-    el.textContent=s.val()?'🔥 Sync ON':'⚠️ Offline';
-  });
+
+  // Show sync badge
+  var el=document.getElementById('fb-badge');
+  if(!el){
+    el=document.createElement('div');
+    el.id='fb-badge';
+    el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;background:#1A6B3C;color:#fff;';
+    document.body.appendChild(el);
+  }
+  el.textContent='🔥 Sync ON';
 }
 
 // Patch save functions
