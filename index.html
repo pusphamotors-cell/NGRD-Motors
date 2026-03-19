@@ -1015,23 +1015,28 @@ function vehicleLabel(u){const l=getVehicleList(u);return l.includes('All Vehicl
 function doLogin(){
   const u=document.getElementById('l-user').value.trim().toLowerCase();
   const p=document.getElementById('l-pass').value;
+  if(!u||!p){document.getElementById('login-err').style.display='block';return;}
 
-  // Try Firebase first — fetch latest users before login check
-  if(typeof FB_READY!=='undefined'&&FB_READY&&typeof fbDb!=='undefined'){
-    fbDb.ref('ngrd/users').once('value').then(function(snap){
-      var val=snap.val();
-      if(val){
-        // Convert Firebase object → array
+  // Always fetch users from Firebase directly (XHR) — works even if FB_READY=false
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET','https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/users.json',true);
+  xhr.timeout=5000;
+  xhr.onload=function(){
+    try{
+      var val=JSON.parse(xhr.responseText);
+      if(val&&typeof val==='object'){
         var arr=Array.isArray(val)?val:Object.values(val).filter(function(x){return x&&typeof x==='object';});
-        if(arr.length>0) LS.set('ngrd_users',arr);
+        if(arr.length>0){
+          LS.set('ngrd_users',arr);
+          console.log('Users loaded from Firebase:',arr.length);
+        }
       }
-      _doLoginCheck(u,p);
-    }).catch(function(){
-      _doLoginCheck(u,p);
-    });
-  } else {
+    }catch(e){}
     _doLoginCheck(u,p);
-  }
+  };
+  xhr.onerror=function(){_doLoginCheck(u,p);};
+  xhr.ontimeout=function(){_doLoginCheck(u,p);};
+  xhr.send();
 }
 
 function _doLoginCheck(u,p){
