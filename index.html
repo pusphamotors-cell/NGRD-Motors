@@ -4396,14 +4396,7 @@ function initFirebaseSync(){
 }
 
 // Patch save functions
-window.addEventListener('load',function(){
-  setTimeout(function(){
-    var oh=setHist,op=setPrices,ou=setUsers;
-    setHist=function(h){oh(h);fbWrite('history',h);};
-    setPrices=function(p){op(p);fbWrite('prices',p);};
-    setUsers=function(u){ou(u);fbWrite('users',u);};
-  },1000);
-});
+// setHist/setPrices/saveUsers already have fbWrite built-in
 
 // Auto poll every 30 seconds — live updates for all devices
 var _pollTimer=null;
