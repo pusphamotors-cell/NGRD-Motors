@@ -306,9 +306,42 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 </style>
 
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <!-- Firebase SDK with fallback -->
+  <script>
+  function loadFirebaseCDN(attempt){
+    attempt=attempt||1;
+    var urls=[
+      'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+      'https://cdn.jsdelivr.net/npm/firebase@10.7.1/compat/app.min.js'
+    ];
+    var dbUrls=[
+      'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js',
+      'https://cdn.jsdelivr.net/npm/firebase@10.7.1/compat/database.min.js'
+    ];
+    var url=urls[attempt-1]||urls[0];
+    var dbUrl=dbUrls[attempt-1]||dbUrls[0];
+    var s1=document.createElement('script');
+    s1.src=url;
+    s1.onerror=function(){
+      if(attempt<2) loadFirebaseCDN(attempt+1);
+      else console.log('Firebase CDN failed — offline mode');
+    };
+    s1.onload=function(){
+      var s2=document.createElement('script');
+      s2.src=dbUrl;
+      s2.onload=function(){
+        console.log('Firebase loaded from CDN '+attempt);
+        if(typeof initFirebase==='function') setTimeout(initFirebase,200);
+      };
+      s2.onerror=function(){
+        if(attempt<2) loadFirebaseCDN(attempt+1);
+      };
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s1);
+  }
+  loadFirebaseCDN(1);
+  </script>
 </head>
 <body>
 
@@ -3311,21 +3344,54 @@ function previewRestore(inp){
     }catch(err){document.getElementById('restore-preview').innerHTML=`<div style="color:var(--red);">❌ ${err.message}</div>`;document.getElementById('restore-preview').style.display='block';}
   };r.readAsText(f);
 }
+
+function forceSyncToFirebase(){
+  if(typeof fbWrite!=='function'||!FB_READY){
+    showToast('Firebase not connected! Wait for Sync ON badge','t-e');
+    return;
+  }
+  if(!confirm('All local data → Firebase-க்கு push பண்ணட்டுமா?')) return;
+  var h=getHist();
+  var p=getPrices();
+  var u=getUsers();
+  fbWrite('history', h);
+  fbWrite('prices', p);
+  fbWrite('users', u);
+  addLog('Force sync: '+h.length+' quotations, '+p.length+' prices by '+CU.name);
+  showToast('✅ '+h.length+' quotations + '+p.length+' prices Firebase-க்கு sync ஆச்சு!','t-s');
+}
 function importBackup(){
   if(!_restoreData){showToast('No file selected','t-e');return;}
   if(!confirm('Restore data? Existing data will NOT be deleted.'))return;
-  const existing=getHist();
-  const toAdd=_restoreData.history.filter(e=>!existing.find(x=>x.eqNo===e.eqNo&&x.refNo===e.refNo));
-  setHist([...toAdd,...existing]);
-  if(_restoreData.prices) setPrices([..._restoreData.prices,...getPrices().filter(p=>!_restoreData.prices.find(x=>x.description===p.description))]);
-  if(_restoreData.users){const eu=getUsers();const nu=_restoreData.users.filter(u=>u.id!==1&&!eu.find(x=>x.username===u.username));if(nu.length)saveUsers([...eu,...nu]);}
-  LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:getHist().length});
-  _restoreData=null;document.getElementById('restore-file').value='';
-  document.getElementById('restore-preview').style.display='none';
-  const btn=document.getElementById('restore-btn');btn.disabled=true;btn.style.opacity='.5';
-  addLog(`Restored backup: ${toAdd.length} quotations added`);
-  showToast(`Restored! ${toAdd.length} quotations added.`,'t-s');
-  renderBackupPage();updatePendingBadge();
+  var existing=getHist();
+  var toAdd=_restoreData.history?_restoreData.history.filter(function(e){return!existing.find(function(x){return x.eqNo===e.eqNo&&x.refNo===e.refNo;});}):[];
+  var newHist=[...toAdd,...existing];
+  setHist(newHist);
+  if(_restoreData.prices){
+    var newPrices=[..._restoreData.prices,...getPrices().filter(function(p){return!_restoreData.prices.find(function(x){return x.description===p.description;});})];
+    setPrices(newPrices);
+  }
+  if(_restoreData.users){
+    var eu=getUsers();
+    var nu=_restoreData.users.filter(function(u){return u.id!==1&&!eu.find(function(x){return x.username===u.username;});});
+    if(nu.length) saveUsers([...eu,...nu]);
+  }
+  LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:newHist.length});
+  // Push to Firebase
+  setTimeout(function(){
+    if(typeof fbWrite==='function'&&FB_READY){
+      fbWrite('history',getHist());
+      fbWrite('prices',getPrices());
+      fbWrite('users',getUsers());
+      showToast('Data restored + Firebase sync! '+toAdd.length+' new quotations','t-s');
+      addLog('Backup restored+synced by '+CU.name);
+    } else {
+      showToast('Data restored! '+toAdd.length+' new quotations added','t-s');
+      addLog('Backup restored by '+CU.name);
+    }
+  },1500);
+  renderHistory();
+  if(typeof renderDashboard==='function') renderDashboard();
 }
 
 // ══════════════════════════════════════════════════
@@ -3758,10 +3824,11 @@ try{
 }catch(e){console.log('FB init:',e);}
 }
 // Call after DOM ready
-// Use window.onload to ensure ALL scripts including CDN are loaded
-window.addEventListener('load', function(){
-  setTimeout(initFirebase, 100);
-});
+// initFirebase is called by CDN onload callback
+// Fallback: try after 3 seconds
+setTimeout(function(){
+  if(!FB_READY && typeof firebase!=='undefined') initFirebase();
+}, 3000);
 
 function fbWrite(k,v){if(!FB_READY)return;try{fbDb.ref('ngrd/'+k).set(v);}catch(e){}}
 
