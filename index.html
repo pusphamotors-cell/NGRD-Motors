@@ -313,9 +313,18 @@ var FB_READY=false;
 var FB_BASE='https://ngrd-motors-default-rtdb.firebaseio.com/ngrd';
 
 function fbWrite(key,val){
-  if(!navigator.onLine)return;
-  fetch(FB_BASE+'/'+key+'.json',{method:'PUT',body:JSON.stringify(val),headers:{'Content-Type':'application/json'}})
-  .catch(function(e){console.log('fbWrite:',e.message);});
+  if(!FB_READY) return; // skip if not connected
+  fetch(FB_BASE+'/'+key+'.json',{
+    method:'PUT',
+    body:JSON.stringify(val),
+    headers:{'Content-Type':'application/json'}
+  }).then(function(r){
+    if(!r.ok) console.log('fbWrite HTTP error:',r.status);
+  }).catch(function(e){
+    console.log('fbWrite fail:',e.message);
+    FB_READY=false;
+    setTimeout(initFirebase,3000); // retry connect
+  });
 }
 
 function fbRead(key,cb){
@@ -334,16 +343,36 @@ var fbDb={ref:function(path){return{
   on:function(){}
 };}};
 
+var _fbRetry=0;
 function initFirebase(){
-  fetch(FB_BASE+'/ping.json',{method:'PUT',body:'"ok"',headers:{'Content-Type':'application/json'}})
+  // Use GET ping — more reliable than PUT
+  fetch(FB_BASE+'.json?shallow=true')
+  .then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  })
   .then(function(){
     FB_READY=true;
+    _fbRetry=0;
     console.log('Firebase REST OK');
+    var badge=document.getElementById('fb-badge');
+    if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
     if(typeof initFirebaseSync==='function') initFirebaseSync();
-  }).catch(function(){FB_READY=false;console.log('Firebase offline');});
+  })
+  .catch(function(e){
+    FB_READY=false;
+    console.log('Firebase retry',_fbRetry,e.message);
+    _fbRetry++;
+    if(_fbRetry<=5){
+      setTimeout(initFirebase, _fbRetry*2000);
+    } else {
+      var badge=document.getElementById('fb-badge');
+      if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}
+    }
+  });
 }
 
-window.addEventListener('load',function(){setTimeout(initFirebase,800);});
+window.addEventListener('load',function(){setTimeout(initFirebase,1000);});
 </script>
 </head>
 <body>
@@ -475,7 +504,7 @@ window.addEventListener('load',function(){setTimeout(initFirebase,800);});
               <div id="vehicle-admin-btns" style="display:none;gap:8px;margin-top:8px;max-width:400px;">
                 <button onclick="uploadPageAddVehicle()" style="flex:1;padding:7px;background:#1a6b3c;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">➕ Add</button>
                 <button onclick="uploadPageEditVehicle()" style="flex:1;padding:7px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Edit</button>
-                <button onclick="uploadPageDeleteVehicle()" style="flex:1;padding:7px;background:#b22222;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ Delete</button>
+                <button id="upload-delete-btn" onclick="uploadPageDeleteVehicle()" style="flex:1;padding:7px;background:#b22222;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ Delete</button>
               </div>
             </div>
             <div class="upload-zone" id="drop-zone">
@@ -1161,7 +1190,7 @@ function closeSidebarMobile(){if(isMobile())closeSidebar();}
 // ── NAVIGATION ──
 const PAGES=['dashboard','new','history','prices','search','analytics','users','vehicles','log','backup'];
 function showPage(pg){
-  if(['analytics','users','log','backup'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
+  if(['analytics','users','log','backup','vehicles'].includes(pg)&&CU?.role!=='admin'){showToast('Admin மட்டும் access!','t-e');return;}
   PAGES.forEach(p=>{
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
@@ -3117,9 +3146,12 @@ function saveVehicleMaster(v){
 }
 
 function refreshAllVehicleDropdowns(){
-  // Show/hide admin-only vehicle buttons
+  // Show vehicle buttons for ALL logged-in users (upload page)
   var adminBtns=document.getElementById('vehicle-admin-btns');
-  if(adminBtns) adminBtns.style.display=(CU&&CU.role==='admin')?'flex':'none';
+  if(adminBtns) adminBtns.style.display=CU?'flex':'none';
+  // Delete button: admin only
+  var delBtn=document.getElementById('upload-delete-btn');
+  if(delBtn) delBtn.style.display=(CU&&CU.role==='admin')?'block':'none';
   var vehicles=getVehicleMaster();
   var opts='<option value=""></option>'+vehicles.map(function(v){
     return '<option value="'+v+'">'+v+'</option>';
@@ -3140,7 +3172,7 @@ function refreshAllVehicleDropdowns(){
 
 
 function uploadPageAddVehicle(){
-  if(!CU||CU.role!=="admin"){alert("Admin மட்டும் Vehicle manage பண்ணலாம்!");return;}
+  if(!CU){alert("Login பண்ணுங்கள்!");return;}
   var name=prompt('புதிய Vehicle பெயர் enter பண்ணுங்கள்:','');
   if(!name||!name.trim()) return;
   name=name.trim();
@@ -3157,7 +3189,7 @@ function uploadPageAddVehicle(){
 }
 
 function uploadPageEditVehicle(){
-  if(!CU||CU.role!=="admin"){alert("Admin மட்டும் Vehicle manage பண்ணலாம்!");return;}
+  if(!CU){alert("Login பண்ணுங்கள்!");return;}
   var sel=document.getElementById('upload-vehicle-select');
   var cur=sel?sel.value:'';
   if(!cur){alert('முதலில் Vehicle ஒன்றை Select பண்ணுங்கள்!');return;}
@@ -3180,7 +3212,7 @@ function uploadPageEditVehicle(){
 }
 
 function uploadPageDeleteVehicle(){
-  if(!CU||CU.role!=="admin"){alert("Admin மட்டும் Vehicle manage பண்ணலாம்!");return;}
+  if(!CU||CU.role!=="admin"){alert("Admin மட்டும் Delete பண்ணலாம்!");return;}
   var sel=document.getElementById('upload-vehicle-select');
   var cur=sel?sel.value:'';
   if(!cur){alert('முதலில் Vehicle ஒன்றை Select பண்ணுங்கள்!');return;}
@@ -3193,6 +3225,7 @@ function uploadPageDeleteVehicle(){
   alert('🗑️ '+cur+' — நீக்கப்பட்டது!');
 }
 function addVehicle(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
   var name=prompt("புதிய Vehicle name enter பண்ணுங்கள்:\n(e.g. Toyota Hilux, Mitsubishi L300)");
   if(!name||!name.trim()) return;
   var vehicles=getVehicleMaster();
@@ -3205,6 +3238,7 @@ function addVehicle(){
 }
 
 function deleteVehicle(name){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
   if(!confirm("Delete vehicle: "+name+"?\nQuotations will not be affected.")) return;
   var vehicles=getVehicleMaster().filter(function(v){return v!==name;});
   saveVehicleMaster(vehicles);
