@@ -466,6 +466,13 @@ window.addEventListener('load',function(){setTimeout(initFirebase,800);});
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
           <div class="panel-body" style="text-align:center;">
+            <!-- Vehicle Select FIRST -->
+            <div style="margin-bottom:16px;padding:12px;background:#f0f5ff;border:2px solid #2060a0;border-radius:6px;">
+              <label style="font-size:12px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">🚗 Step 1 — Vehicle Select பண்ணுங்கள் *</label>
+              <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="width:100%;max-width:400px;padding:9px 12px;border:2px solid #2060a0;border-radius:4px;font-family:var(--fb);font-size:14px;font-weight:700;background:#fff;outline:none;">
+                <option value="">— Vehicle Select பண்ணுங்கள் —</option>
+              </select>
+            </div>
             <div class="upload-zone" id="drop-zone">
               <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile(this)">
               <div style="font-size:34px;margin-bottom:8px;">📄</div>
@@ -1172,7 +1179,7 @@ let pdfB64=null,curItems=[],curStatus='draft';
 
 function handleFile(inp){
   // Check vehicle selected first
-  var vName=document.getElementById('f-vname')?document.getElementById('f-vname').value:'';
+  var vName=(document.getElementById('upload-vehicle-select')?.value)||document.getElementById('f-vname')?.value||'';
   if(!vName){
     showToast('Vehicle select pannungal first!','t-e');
     document.getElementById('f-vname').style.border='2px solid #B22222';
@@ -2326,7 +2333,10 @@ function checkDeadlineAlarms(){
   if(alarmDismissed)return;
   const h=getHist();
   const urgent=[],warning=[];
-  h.forEach(e=>{const days=getDaysUntil(e.closingDate);if(days===null)return;
+  h.forEach(e=>{
+    // Skip completed quotations — no alert needed!
+    if(e.status==='submitted'||e.status==='approved'||e.status==='awarded'||e.status==='rejected') return;
+    const days=getDaysUntil(e.closingDate);if(days===null)return;
     if(days>=0&&days<=1)urgent.push({...e,days});
     else if(days>1&&days<=3)warning.push({...e,days});
   });
@@ -3015,6 +3025,29 @@ function renderPendingPanel(title, color, items, subtitle){
   return out;
 }
 
+
+function syncUploadVehicle(val){
+  // Sync with main vehicle dropdown
+  var fv=document.getElementById('f-vname');
+  if(fv) fv.value=val;
+  // Show info panel if vehicle selected
+  if(val){
+    var ip=document.getElementById('info-panel');
+    // Don't show yet - wait for upload
+  }
+}
+
+function populateUploadVehicleSelect(){
+  var sel=document.getElementById('upload-vehicle-select');
+  if(!sel) return;
+  var vehicles=typeof getVehicleMaster==='function'?getVehicleMaster():[];
+  var cur=sel.value;
+  sel.innerHTML='<option value="">— Vehicle Select pannungal —</option>';
+  vehicles.forEach(function(v){
+    sel.innerHTML+='<option value="'+v+'">'+v+'</option>';
+  });
+  if(cur) sel.value=cur;
+}
 // ══════════════════════════════════════════════════
 // VEHICLE MASTER LIST MANAGEMENT
 // ══════════════════════════════════════════════════
@@ -3047,6 +3080,15 @@ function refreshAllVehicleDropdowns(){
   // Update main quotation dropdown
   var fv=document.getElementById('f-vname');
   if(fv){var cur=fv.value;fv.innerHTML=opts;fv.value=cur;}
+  // Update upload vehicle select
+  var uv=document.getElementById('upload-vehicle-select');
+  if(uv){var curU=uv.value;uv.innerHTML='<option value="">— Vehicle Select pannungal —</option>'+vehicles.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');if(curU)uv.value=curU;}
+  // Update upload vehicle select
+  var uv=document.getElementById('upload-vehicle-select');
+  if(uv){var curU=uv.value;uv.innerHTML='<option value="">— Vehicle Select pannungal —</option>'+vehicles.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');if(curU)uv.value=curU;}
+  // Update price modal vehicle
+  var mpv=document.getElementById('mp-veh');
+  if(mpv){var curM=mpv.value;vehicles.forEach(function(v){if(![...mpv.options].find(function(o){return o.value===v;})){mpv.appendChild(new Option(v,v));}});if(curM)mpv.value=curM;}
 }
 
 function addVehicle(){
