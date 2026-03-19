@@ -4275,21 +4275,27 @@ function initFirebaseSync(){
       console.log('Firebase has',newRemoteItems.length,'new items — merging');
       var merged=[];
       var allIds={};
-      local.forEach(function(l){if(l&&l.id)allIds[l.id]=true;});
-      remote.forEach(function(r){if(r&&r.id)allIds[r.id]=true;});
+      // Use String() for ALL id comparisons — Firebase ids can be numbers!
+      local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
+      remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
       Object.keys(allIds).forEach(function(id){
-        var lo=local.find(function(x){return x&&x.id===id;});
-        var re=remote.find(function(x){return x&&x.id===id;});
+        var lo=local.find(function(x){return x&&String(x.id)===id;});
+        var re=remote.find(function(x){return x&&String(x.id)===id;});
         if(lo&&re){
           var loR=statusOrder[lo.status]||0;
           var reR=statusOrder[re.status]||0;
           merged.push(loR>=reR?lo:re);
-        } else {
-          merged.push(lo||re);
+        } else if(lo){
+          merged.push(lo);
+        } else if(re){
+          merged.push(re);
         }
+        // Never push undefined!
       });
 
-      // Final safety — never reduce!
+      // Filter out any undefined/null
+      merged=merged.filter(function(x){return x&&typeof x==='object';});
+
       if(merged.length<local.length){
         fbWrite('history',local);
         return;
@@ -4300,7 +4306,8 @@ function initFirebaseSync(){
       fbWrite('history',merged);
       updatePendingBadge();
       if(typeof renderDashboard==='function') renderDashboard();
-      console.log('Merged remote+local:',merged.length,'items');
+      if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none') renderHistory();
+      console.log('Merged:',merged.length,'items');
     }catch(e){console.log('Sync error:',e.message);}
   });
 
@@ -4421,25 +4428,25 @@ function startAutoSync(){
         }
         changed=false; // reset — will be set again in merge
         var allIds={};
-        local.forEach(function(l){if(l&&l.id)allIds[l.id]=true;});
-        remote.forEach(function(r){if(r&&r.id)allIds[r.id]=true;});
+        local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
+        remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
         var merged=[];
         Object.keys(allIds).forEach(function(id){
-          var lo=local.find(function(x){return x&&x.id===id;});
-          var re=remote.find(function(x){return x&&x.id===id;});
+          var lo=local.find(function(x){return x&&String(x.id)===id;});
+          var re=remote.find(function(x){return x&&String(x.id)===id;});
           if(lo&&re){
             var loR=statusOrder[lo.status]||0;
             var reR=statusOrder[re.status]||0;
             merged.push(loR>=reR?lo:re);
             if(loR<reR) changed=true;
           } else if(re&&!lo){
-            // New item from Firebase — always add!
             merged.push(re);
             changed=true;
           } else if(lo){
             merged.push(lo);
           }
         });
+        merged=merged.filter(function(x){return x&&typeof x==='object';});
         // Also check total count difference
         if(merged.length!==local.length) changed=true;
         // SAFETY: Never save fewer items than we had!
