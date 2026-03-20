@@ -764,6 +764,22 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         </div>
       </div>
 
+      <!-- Staff Performance Section -->
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-hdr">
+          <span class="panel-hdr-icon">👥</span>
+          <span class="panel-hdr-title">Staff Performance</span>
+          <div class="panel-hdr-right">
+            <select id="staff-perf-select" onchange="renderStaffPerformance()" style="padding:5px 10px;border:1px solid var(--border);border-radius:4px;font-family:var(--fb);font-size:12px;">
+              <option value="">— Staff Select —</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-body" id="staff-perf-body">
+          <div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>
+        </div>
+      </div>
+
       <!-- ═ USERS ═ -->
       <div id="page-users" style="display:none;">
         <div class="panel">
@@ -2287,6 +2303,7 @@ function deletePrice(id){
 // ══════════════════════════════════════════════════
 function renderAnalytics(){
   const h=getHist();
+  setTimeout(populateStaffSelect,100);
   const total=h.length;
   const awarded=h.filter(x=>x.status==='awarded').length;
   const submitted=h.filter(x=>x.status==='submitted').length;
@@ -2340,6 +2357,116 @@ function renderAnalytics(){
       <div class="chart-bar-bg"><div class="chart-bar" style="width:${(mMap[m]/maxM*100).toFixed(1)}%"></div></div>
       <div class="chart-val">${mMap[m]} quotations</div>
     </div>`).join('')+'</div>':'<div style="text-align:center;padding:20px;color:var(--muted);">No data yet</div>';
+}
+
+function populateStaffSelect(){
+  var sel=document.getElementById('staff-perf-select');
+  if(!sel) return;
+  var users=getUsers().filter(function(u){return u.active;});
+  var h=getHist();
+  // Get unique owners from history too
+  var owners={};
+  users.forEach(function(u){owners[u.username]=u.name;});
+  h.forEach(function(e){if(e.owner&&e.owner!=='__all__'&&!owners[e.owner])owners[e.owner]=e.owner;});
+  sel.innerHTML='<option value="">— Staff Select —</option>';
+  Object.keys(owners).forEach(function(uname){
+    var opt=document.createElement('option');
+    opt.value=uname;
+    opt.textContent=owners[uname];
+    sel.appendChild(opt);
+  });
+}
+
+function renderStaffPerformance(){
+  var sel=document.getElementById('staff-perf-select');
+  var body=document.getElementById('staff-perf-body');
+  if(!sel||!body) return;
+  var uname=sel.value;
+  if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}
+
+  var h=getHist();
+  var myH=h.filter(function(e){return e.owner===uname;});
+  var user=getUsers().find(function(u){return u.username===uname;})||{name:uname,role:'staff'};
+
+  // Stats
+  var uploads=myH.length;
+  var pending=myH.filter(function(e){return e.status==='pending';}).length;
+  var approved=myH.filter(function(e){return e.status==='approved';}).length;
+  var submitted=myH.filter(function(e){return e.status==='submitted';}).length;
+  var awarded=myH.filter(function(e){return e.status==='awarded';}).length;
+  var rejected=myH.filter(function(e){return e.status==='rejected';}).length;
+  var draft=myH.filter(function(e){return e.status==='draft';}).length;
+
+  // Profit
+  var totalProfit=myH.reduce(function(s,e){
+    if(!e.items) return s;
+    return s+e.items.reduce(function(ss,item){
+      var br=(item.brandRows&&item.brandRows[0])||{};
+      var sell=parseFloat(br.price)||0;
+      var buy=parseFloat(br.purchasePrice)||0;
+      return ss+(sell-buy)*item.qty;
+    },0);
+  },0);
+
+  var totalValue=myH.reduce(function(s,e){return s+(e.grandTotal||0);},0);
+
+  var html2='';
+  // Header
+  html2+='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">';
+  html2+='<div><div style="font-size:16px;font-weight:700;">'+user.name+'</div>';
+  html2+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;">@'+uname+' · '+(user.role||'staff')+'</div></div>';
+  html2+='<div style="text-align:right;"><div style="font-size:11px;color:rgba(255,255,255,.6);">Total Quotations</div>';
+  html2+='<div style="font-size:24px;font-weight:700;color:#E8B84B;">'+uploads+'</div></div>';
+  html2+='</div>';
+
+  // Stats grid
+  html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';
+  var stats=[
+    ['📝','Draft',draft,'#555'],
+    ['⏳','Pending',pending,'#E8B84B'],
+    ['✅','Approved',approved,'#1A6B3C'],
+    ['📋','Submitted',submitted,'#2060a0'],
+    ['🏆','Awarded',awarded,'#C9952A'],
+    ['❌','Rejected',rejected,'#B22222']
+  ];
+  stats.forEach(function(s){
+    html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:10px;text-align:center;">';
+    html2+='<div style="font-size:18px;">'+s[0]+'</div>';
+    html2+='<div style="font-size:20px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div>';
+    html2+='<div style="font-size:10px;color:var(--muted);">'+s[1]+'</div>';
+    html2+='</div>';
+  });
+  html2+='</div>';
+
+  // Financial
+  html2+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
+  html2+='<div style="background:#0D2818;color:#fff;border-radius:5px;padding:12px;text-align:center;">';
+  html2+='<div style="font-size:11px;color:rgba(255,255,255,.6);">💰 Total Sales Value</div>';
+  html2+='<div style="font-size:16px;font-weight:700;color:#4CAF50;margin-top:4px;">LKR '+totalValue.toLocaleString()+'</div>';
+  html2+='</div>';
+  html2+='<div style="background:#0D1B2A;color:#fff;border-radius:5px;padding:12px;text-align:center;">';
+  html2+='<div style="font-size:11px;color:rgba(255,255,255,.6);">📈 Total Profit</div>';
+  html2+='<div style="font-size:16px;font-weight:700;color:#E8B84B;margin-top:4px;">LKR '+totalProfit.toLocaleString()+'</div>';
+  html2+='</div>';
+  html2+='</div>';
+
+  // Recent activity
+  html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📋 Recent Activity</div>';
+  if(myH.length===0){
+    html2+='<div style="text-align:center;padding:20px;color:var(--muted);">No activity yet</div>';
+  } else {
+    myH.slice(0,10).forEach(function(e){
+      var statusColor={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';
+      var statusLabel={draft:'Draft',pending:'Pending',submitted:'Submitted',approved:'Approved',awarded:'Awarded',rejected:'Rejected'}[e.status]||e.status;
+      html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;">';
+      html2+='<div><div style="font-size:12px;font-weight:700;color:#0D1B2A;">'+(e.vehicle||'')+'</div>';
+      html2+='<div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+' · '+(e.date||'')+'</div></div>';
+      html2+='<span style="font-size:10px;font-weight:700;color:'+statusColor+';background:'+statusColor+'18;padding:3px 8px;border-radius:10px;">'+statusLabel+'</span>';
+      html2+='</div>';
+    });
+  }
+
+  body.innerHTML=html2;
 }
 
 // ══════════════════════════════════════════════════
