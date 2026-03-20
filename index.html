@@ -459,6 +459,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div class="panel-hdr-right">
               <select id="quot-status" onchange="updateQuotStatus()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:2px;font-family:var(--fb);font-size:12px;outline:none;">
                 <option value="draft">📝 Draft</option>
+                <option value="assigned">📌 Assigned</option>
                 <option value="pending">⏳ Pending Approval</option>
                 <option value="submitted">📤 Submitted</option>
                 <option value="awarded">✅ Awarded</option>
@@ -2009,6 +2010,8 @@ function renderHistory(){
     h=h.filter(function(e){
       // Own quotations
       if(e.owner===CU.username) return true;
+      // Assigned to me
+      if(e.assignedTo===CU.username) return true;
       // __all__ = old data — all staff can see (vehicle filter)
       if(e.owner==='__all__'||!e.owner){
         const list=getVehicleList(CU);
@@ -2966,6 +2969,41 @@ function renderDashboard(){
   }
 
   // All quotations
+
+  // Admin assign panel for draft items
+  if(isAdmin){
+    var draftUnassigned=allHist.filter(function(e){return e.status==='draft'&&!e.assignedTo;});
+    var aPanel=document.getElementById('db-assign-panel');
+    if(!aPanel){
+      aPanel=document.createElement('div');
+      aPanel.id='db-assign-panel';
+      aPanel.className='panel';
+      aPanel.style.marginBottom='14px';
+      var apEl=document.getElementById('db-all-panel');
+      if(apEl&&apEl.parentNode) apEl.parentNode.insertBefore(aPanel,apEl);
+    }
+    var staffList=getUsers().filter(function(u){return u.active&&u.role!=='admin';});
+    var sOpts=staffList.map(function(u){return '<option value="'+u.username+'">'+u.name+'</option>';}).join('');
+    var aHdr='<div class="panel-hdr"><span class="panel-hdr-icon">📌</span><span class="panel-hdr-title">Assign for Pricing ('+draftUnassigned.length+')</span></div>';
+    var aBody='';
+    if(draftUnassigned.length===0){
+      aBody='<div style="text-align:center;padding:14px;color:var(--muted);">All assigned!</div>';
+    } else {
+      aBody=draftUnassigned.slice(0,10).map(function(e){
+        var sel='assign-sel-'+e.id;
+        return '<div style="padding:9px 12px;border-bottom:1px solid var(--border);">'
+          +'<div style="font-weight:700;font-size:12px;margin-bottom:6px;">'+(e.vehicle||'')+' — '+(e.eqNo||e.refNo||'')+'</div>'
+          +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">By: '+(e.savedBy||e.owner||'')+' | '+(e.closingDate||'')+'</div>'
+          +'<div style="display:flex;gap:6px;">'
+          +'<select id="'+sel+'" style="flex:1;padding:5px;border:1px solid var(--border);border-radius:3px;font-size:12px;"><option value="">Staff select</option>'+sOpts+'</select>'
+          +'<button onclick="doAssign('+e.id+')" style="padding:5px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;">📌 Assign</button>'
+          +'<button onclick="viewQuot('+e.id+')" style="padding:5px 10px;background:var(--navy);color:#fff;border:none;border-radius:3px;font-size:12px;cursor:pointer;">Open</button>'
+          +'</div></div>';
+      }).join('');
+    }
+    aPanel.innerHTML=aHdr+'<div class="panel-body">'+aBody+'</div>';
+  }
+
   var allEl=document.getElementById('db-all-list');
   if(allEl){
     if(h.length===0){
@@ -2991,6 +3029,27 @@ function viewQuot(id){
   showPage('new');
 }
 
+
+function doAssign(id){
+  var sel=document.getElementById('assign-sel-'+id);
+  if(sel) assignQuot(id, sel.value);
+}
+function assignQuot(id, toUsername){
+  if(!toUsername){showToast('Staff select pannungal!','t-e');return;}
+  var h=getHist();
+  var idx=h.findIndex(function(e){return e.id===id;});
+  if(idx<0) return;
+  h[idx].assignedTo=toUsername;
+  h[idx].assignedBy=CU.username;
+  h[idx].assignedAt=new Date().toLocaleString('en-LK');
+  if(h[idx].status==='draft') h[idx].status='assigned';
+  setHist(h);
+  var staffUser=getUsers().find(function(u){return u.username===toUsername;});
+  var staffName=staffUser?staffUser.name:toUsername;
+  addLog('Assigned: '+(h[idx].eqNo||h[idx].refNo)+' to '+staffName+' by '+CU.name);
+  showToast('Assigned to '+staffName,'t-s');
+  renderDashboard();
+}
 function approveQuot(id){
   if(!confirm('Approve this quotation?')) return;
   var h=getHist();
@@ -3194,6 +3253,12 @@ function renderStaffDashboard(){
         'Price enter பண்ண கொடுக்கணும்'
       );
     }
+  }
+
+  // Assigned to me panel
+  var assignedToMe=allHist.filter(function(e){return e.assignedTo===CU.username&&(e.status==='assigned'||e.status==='draft');});
+  if(assignedToMe.length>0){
+    html2+=renderPendingPanel('📌 உங்களுக்கு Assign — '+assignedToMe.length+' items','#1A3A6B',assignedToMe,'Price enter pannungal!');
   }
 
   // PRICE role
