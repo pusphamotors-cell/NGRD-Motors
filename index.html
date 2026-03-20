@@ -459,6 +459,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div class="panel-hdr-right">
               <select id="quot-status" onchange="updateQuotStatus()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:2px;font-family:var(--fb);font-size:12px;outline:none;">
                 <option value="draft">📝 Draft</option>
+                <option value="pending">⏳ Pending Approval</option>
                 <option value="submitted">📤 Submitted</option>
                 <option value="awarded">✅ Awarded</option>
                 <option value="rejected">❌ Rejected</option>
@@ -1900,6 +1901,13 @@ function saveToHistory(){
   var g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
   var refNo=g('f-refno'),eqNo=g('f-eqno');
   var quotStatus=curStatus||g('quot-status')||'draft';
+  // Auto set to pending if prices filled and staff role
+  var hasPricesCheck=curItems.some(function(item){
+    return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
+  });
+  if(hasPricesCheck&&quotStatus==='draft'&&CU&&CU.role!=='admin'){
+    quotStatus='pending';
+  }
   var hist=getHist();
   var hasPrices=curItems.some(function(item){
     return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
