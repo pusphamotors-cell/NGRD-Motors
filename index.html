@@ -3184,9 +3184,18 @@ function renderStaffDashboard(){
   var now=new Date();
   var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
 
-  // My quotations only
+  // My quotations only — own uploads + assigned to me
   var myHist=allHist.filter(function(e){
-    return e.owner===CU.username||e.owner==='__all__'||!e.owner;
+    // Own uploads
+    if(e.owner===CU.username) return true;
+    // Assigned to me for pricing
+    if(e.assignedTo===CU.username) return true;
+    // Old data without owner — show only if All Vehicles
+    if(e.owner==='__all__'||!e.owner){
+      var vlist=getVehicleList(CU);
+      if(vlist.includes('All Vehicles')) return true;
+    }
+    return false;
   });
 
   var html2='';
