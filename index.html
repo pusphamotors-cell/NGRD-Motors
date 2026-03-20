@@ -2019,26 +2019,7 @@ function renderHistory(){
   // Admin bulk reassign button — show only for admin
   var bulkBtn=document.getElementById('btn-bulk-reassign');
   if(bulkBtn) bulkBtn.style.display=isAdmin?'block':'none';
-  if(CU&&CU.role!=='admin'){
-    const list=getVehicleList(CU);
-    const role=getRole();
-    const isAdmin=false;
-
-    // Filter by OWN uploads only (non-admin staff sees only what they uploaded)
-    // Unless they have 'All Vehicles' — then they can see all their vehicle quotations
-    h=h.filter(e=>{
-      // Check if this user uploaded it
-      var myUpload=(e.savedBy===CU.name)||(e.steps&&e.steps.uploaded&&e.steps.uploaded.by===CU.name);
-      // Also show if they are the updatedBy (price staff who edited)
-      var myEdit=(e.updatedBy===CU.name);
-      return myUpload||myEdit;
-    });
-
-    // Also apply vehicle filter
-    if(!list.includes('All Vehicles')){
-      h=h.filter(e=>{const ev=(e.vehicle||'').toLowerCase();return list.some(v=>ev.includes(v.toLowerCase())||v.toLowerCase().includes((ev.split(' ')[0])));});
-    }
-  }
+  // First filter already handles privacy — no need for second filter
   const sf=document.getElementById('hist-status-filter')?.value||'';
   if(sf) h=h.filter(x=>x.status===sf);
   const q=document.getElementById('hist-search')?.value?.toLowerCase()||'';
@@ -3003,7 +2984,7 @@ function renderDashboard(){
     if(h.length===0){
       allEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No quotations yet</div>';
     } else {
-      allEl.innerHTML=h.slice(0,20).map(function(e){
+      allEl.innerHTML=h.map(function(e){
         var sb=getStatusBadge(e.status);
         return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border);">'
           +'<div>'
@@ -3277,7 +3258,8 @@ function renderStaffDashboard(){
 
   // Show Approved files to uploader (owner)
   var myApproved=myHist.filter(function(e){
-    return e.status==='approved'&&e.owner===CU.username;
+    // Show approved to uploader (owner) OR to assignee
+    return e.status==='approved'&&(e.owner===CU.username||e.assignedTo===CU.username);
   });
   if(myApproved.length>0){
     html2+=renderPendingPanel(
@@ -3325,7 +3307,7 @@ function renderStaffDashboard(){
   html2+='</div>';
 
   // ── Recent Activity (my last 5) ──
-  var recent=myHist.slice(0,5);
+  var recent=myHist.slice(0,20);
   if(recent.length>0){
     html2+='<div style="margin-top:14px;">';
     html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🕐 என் Recent Transactions</div>';
@@ -3343,10 +3325,10 @@ function renderStaffDashboard(){
   }
 
   // Recent transactions
-  var recent=myHist.slice(0,5);
+  var recent=myHist.slice(0,30);
   if(recent.length>0){
     html2+='<div style="margin-top:14px;">';
-    html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🕐 Recent Activity</div>';
+    html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🕐 Recent Activity ('+myHist.length+')</div>';
     recent.forEach(function(e){
       var statusColor={draft:'#888',assigned:'#2060a0',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';
       var statusLabel={draft:'Draft',assigned:'Assigned',pending:'Pending',submitted:'Submitted',approved:'✅ Approved',awarded:'🏆 Awarded',rejected:'Rejected'}[e.status]||e.status;
@@ -3372,7 +3354,7 @@ function renderPendingPanel(title, color, items, subtitle){
   out+='<div style="font-size:10px;opacity:.8;margin-top:2px;">'+subtitle+'</div></div>';
   out+='<button onclick="showPage(\"history\")" style="padding:5px 12px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">All காட்டு</button>';
   out+='</div>';
-  items.slice(0,5).forEach(function(e){
+  items.forEach(function(e){
     var cd=parseClosingDate(e.closingDate);
     var days=cd?Math.floor((cd-new Date())/86400000):null;
     var urgent=days!==null&&days<=1;
@@ -4737,8 +4719,12 @@ function startAutoSync(){
           if(lo&&re){
             var loR=statusOrder[lo.status]||0;
             var reR=statusOrder[re.status]||0;
-            merged.push(loR>=reR?lo:re);
-            if(loR<reR) changed=true;
+            if(reR>loR){
+              merged.push(re); // Remote higher status (e.g. approved)
+              changed=true;
+            } else {
+              merged.push(lo);
+            }
           } else if(re&&!lo){
             merged.push(re);
             changed=true;
