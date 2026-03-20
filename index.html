@@ -3275,6 +3275,18 @@ function renderStaffDashboard(){
     }
   }
 
+  // Show Approved files to uploader (owner)
+  var myApproved=myHist.filter(function(e){
+    return e.status==='approved'&&e.owner===CU.username;
+  });
+  if(myApproved.length>0){
+    html2+=renderPendingPanel(
+      '✅ Approved! — '+myApproved.length+' quotations ready',
+      '#1A6B3C', myApproved,
+      'Admin approve பண்ணினார்! Submit பண்ணுங்கள்!'
+    );
+  }
+
   // SUBMITTER role
   if(perms.includes('submit')||CU.role==='submitter'||CU.role==='staff'){
     var readyToSubmit=myHist.filter(function(e){
@@ -3326,6 +3338,26 @@ function renderStaffDashboard(){
       html2+='<div style="font-size:11px;color:#666;">'+dt+'</div></div>';
       html2+='<span style="font-size:10px;font-weight:700;color:'+statusColor+';background:'+statusColor+'18;padding:3px 8px;border-radius:10px;">'+statusLabel+'</span>';
       html2+='</div>';
+    });
+    html2+='</div>';
+  }
+
+  // Recent transactions
+  var recent=myHist.slice(0,5);
+  if(recent.length>0){
+    html2+='<div style="margin-top:14px;">';
+    html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🕐 Recent Activity</div>';
+    recent.forEach(function(e){
+      var statusColor={draft:'#888',assigned:'#2060a0',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';
+      var statusLabel={draft:'Draft',assigned:'Assigned',pending:'Pending',submitted:'Submitted',approved:'✅ Approved',awarded:'🏆 Awarded',rejected:'Rejected'}[e.status]||e.status;
+      var dt=e.date||e.createdAt?new Date(e.createdAt||Date.now()).toLocaleDateString('en-GB'):'';
+      html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;">';
+      html2+='<div><div style="font-size:12px;font-weight:700;color:#0D1B2A;">'+(e.vehicle||'Unknown')+' — '+(e.eqNo||e.refNo||'')+'</div>';
+      html2+='<div style="font-size:11px;color:#666;">'+dt+'</div></div>';
+      html2+='<div style="display:flex;align-items:center;gap:6px;">';
+      html2+='<span style="font-size:10px;font-weight:700;color:'+statusColor+';background:'+statusColor+'18;padding:3px 8px;border-radius:10px;">'+statusLabel+'</span>';
+      html2+='<button onclick="viewQuot('+e.id+')" style="padding:3px 8px;background:var(--navy);color:#fff;border:none;border-radius:3px;font-size:10px;cursor:pointer;">Open</button>';
+      html2+='</div></div>';
     });
     html2+='</div>';
   }
