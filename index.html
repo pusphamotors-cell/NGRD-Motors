@@ -4546,8 +4546,18 @@ function initFirebaseSync(){
         return r&&r.id&&localIds.indexOf(String(r.id))<0;
       });
 
-      if(newRemoteItems.length===0){
-        // No new items in Firebase — push local (we have latest)
+      // Also check for status upgrades in existing items
+      var statusUpgrades=remote.filter(function(r){
+        if(!r||!r.id) return false;
+        var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
+        if(!lo) return false;
+        var loR=statusOrder[lo.status]||0;
+        var reR=statusOrder[r.status]||0;
+        return reR>loR; // Firebase has higher status
+      });
+
+      if(newRemoteItems.length===0&&statusUpgrades.length===0){
+        // No new items AND no status upgrades — push local
         if(local.length>0){
           fbWrite('history',local);
           console.log('Local is master, pushed to Firebase:',local.length);
@@ -4555,7 +4565,11 @@ function initFirebaseSync(){
         return;
       }
 
-      // Firebase has NEW items (from other users/devices) — merge!
+      if(statusUpgrades.length>0){
+        console.log('Firebase has',statusUpgrades.length,'status upgrades (e.g. approved)');
+      }
+
+      // Firebase has NEW items or STATUS UPGRADES — merge!
       console.log('Firebase has',newRemoteItems.length,'new items — merging');
       var merged=[];
       var allIds={};
@@ -4568,7 +4582,8 @@ function initFirebaseSync(){
         if(lo&&re){
           var loR=statusOrder[lo.status]||0;
           var reR=statusOrder[re.status]||0;
-          merged.push(loR>=reR?lo:re);
+          // Take HIGHER status always (approved > draft)
+          merged.push(reR>loR?re:lo);
         } else if(lo){
           merged.push(lo);
         } else if(re){
