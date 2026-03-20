@@ -2997,6 +2997,8 @@ function renderDashboard(){
       }).join('');
     }
   }
+  // Always update staff dashboard too
+  if(typeof renderStaffDashboard==='function') renderStaffDashboard();
 }
 
 function viewQuot(id){
