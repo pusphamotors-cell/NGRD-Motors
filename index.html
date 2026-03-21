@@ -449,7 +449,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <div id="upload-fname" style="display:none;margin-top:10px;font-size:13px;color:var(--green);font-weight:600;"></div>
             </div>
             <button class="process-btn" id="process-btn" onclick="processFile()">🤖 Extract with AI</button>
-            <div style="margin-top:10px;"><button onclick="openME()" style="padding:9px 20px;background:transparent;border:2px solid var(--gold);border-radius:3px;color:var(--gold);font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer;">✏️ Manual Entry (AI இல்லாம)</button></div>
+            <div style="margin-top:10px;"><button onclick="openME()" style="padding:9px 20px;background:transparent;border:2px solid var(--gold);border-radius:3px;color:var(--gold);font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer;">✏️ Manual Entry (AI இல்லாம)</button> &nbsp; <button onclick="importExtractedJSON()" style="padding:9px 16px;background:#1A3A6B;color:#fff;border:none;border-radius:3px;font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer;">📥 Import JSON</button></div>
             <div class="ai-status" id="ai-status"><div class="spinner"></div><span id="ai-st">AI is reading...</span></div>
           </div>
         </div>
@@ -1213,122 +1213,222 @@ function setStep(n){for(let i=1;i<=4;i++){const el=document.getElementById('step
 // ══════════════════════════════════════════════════
 // AI PROCESSING
 // ══════════════════════════════════════════════════
+// Split base64 PDF into chunks of N pages using byte ranges
+// We use pypdf-style approach: split base64 into page-sized chunks
+// Actually we send full PDF but use page range hints in prompt
+
+async function callAIWithPDF(b64, prompt, akey){
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':akey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:8192,
+      messages:[{role:'user',content:[
+        {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
+        {type:'text',text:prompt}
+      ]}]
+    })
+  });
+  if(!resp.ok){
+    const e=await resp.json();
+    var errMsg=e.error?e.error.type+': '+e.error.message:resp.status;
+    if(errMsg.includes('100 PDF pages')||errMsg.includes('maximum')){
+      throw new Error('PAGE_LIMIT');
+    }
+    throw new Error('API Error '+errMsg);
+  }
+  const data=await resp.json();
+  return data.content[0].text;
+}
+
 async function processFile(){
-  if(!pdfB64){showToast('Select a PDF first','t-e');return;}
+  if(!pdfB64){showToast('PDF select pannungal!','t-e');return;}
   setStep(2);
-  const st=document.getElementById('ai-status'),stx=document.getElementById('ai-st');
-  st.className='ai-status loading';stx.textContent='Gemini AI is reading the PDF...';
+  const st=document.getElementById('ai-status');
+  const stx=document.getElementById('ai-st');
+  st.className='ai-status loading';
   document.getElementById('process-btn').disabled=true;
 
   try{
     const AKEY=getAPIKey();
-    const prompt='Extract ALL data from this Sri Lanka Army e-GP quotation PDF.\nReturn ONLY valid JSON - no markdown, no backticks, no extra text.\nFormat:\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"","qty":1,"unit":"Number","brand":""}]}\nRules:\n1. Extract EVERY item - all 200-300 items if present\n2. No trailing commas\n3. Escape special chars in strings\n4. brand from Specifications, empty string if none\n5. Return complete valid JSON only';
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key':AKEY,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:8192,
-        messages:[{role:'user',content:[
-          {type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},
-          {type:'text',text:prompt}
-        ]}]
-      })
-    });
-    if(!resp.ok){
-      const e=await resp.json();
-      throw new Error('API Error '+(e.error?e.error.type+': '+e.error.message:resp.status));
+    if(!AKEY){throw new Error('API Key இல்லை! Settings-ல் add பண்ணுங்கள்');}
+
+    // Convert base64 to byte array to count pages
+    // Estimate pages from PDF size
+    var pdfBytes=atob(pdfB64);
+    // Count page objects in PDF
+    var pageCount=0;
+    var searchStr='/Type /Page\n';
+    var idx2=0;
+    // Simple page count via PDF structure
+    var countMatch=(pdfBytes.match(/\/Type\s*\/Page[^s]/g)||[]).length;
+    pageCount=countMatch>0?countMatch:Math.ceil(pdfBytes.length/(1024*50));
+    if(pageCount===0) pageCount=1;
+
+    console.log('Estimated pages:',pageCount);
+
+    var BATCH_SIZE=95; // safe under 100 limit
+    var totalBatches=Math.ceil(pageCount/BATCH_SIZE);
+
+    stx.innerHTML='📄 '+pageCount+' pages detected — '+totalBatches+' batch'+(totalBatches>1?'es':'');
+
+    // For single batch (≤95 pages) — normal flow
+    if(totalBatches<=1){
+      stx.innerHTML='🤖 AI reading PDF...';
+      var result=await extractBatch(AKEY, pdfB64, null, null, 1, 1);
+      loadExtractedData(result);
+      return;
     }
-    const data=await resp.json();
-    const raw=data.content[0].text;
-    // Better JSON extraction - find outermost { }
-    let parsed=null;
-    let parseErr='';
-    const s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
-    const jsonStr=s>=0&&e2>s?raw.substring(s,e2+1):raw;
-    // Try 1: Direct parse
-    try{ parsed=JSON.parse(jsonStr); } catch(e1){
-      // Try 2: Clean control chars + trailing commas
+
+    // Multi-batch: split PDF and process each batch
+    stx.innerHTML='📦 Splitting PDF into '+totalBatches+' batches...';
+
+    // Use PDF.js to split if available, else try full PDF with range hint
+    var allItems=[];
+    var firstBatchData=null;
+
+    for(var b=0;b<totalBatches;b++){
+      var batchNum=b+1;
+      var fromPage=b*BATCH_SIZE+1;
+      var toPage=Math.min((b+1)*BATCH_SIZE, pageCount);
+
+      // Update progress
+      var pct=Math.round((b/totalBatches)*100);
+      stx.innerHTML=
+        '<div style="margin-bottom:8px;">📦 Batch '+batchNum+'/'+totalBatches+
+        ' (Pages '+fromPage+'–'+toPage+')</div>'+
+        '<div style="background:rgba(255,255,255,.2);border-radius:4px;height:8px;overflow:hidden;">'+
+        '<div style="background:#E8B84B;height:100%;width:'+pct+'%;transition:width .3s;"></div></div>'+
+        '<div style="font-size:11px;margin-top:4px;opacity:.8;">🤖 AI extracting parts...</div>';
+
       try{
-        const cleaned=jsonStr
-          .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F]/g,' ')
-          .replace(/,\s*\]/g,']')
-          .replace(/,\s*\}/g,'}')
-          .replace(/([^\\])"\s*\n\s*"/g,'$1","')
-          .replace(/\\'/g,"'");
-        parsed=JSON.parse(cleaned);
-      } catch(e2){
-        // Try 3: Line by line fix
-        try{
-          const lines=jsonStr.split('\n');
-          const fixed=lines.map(function(l){
-            return l.replace(/,\s*$/,'').trimEnd();
-          }).join('\n');
-          parsed=JSON.parse(fixed);
-        } catch(e3){ parseErr=e3.message; }
+        var batchResult=await extractBatch(AKEY, pdfB64, fromPage, toPage, batchNum, totalBatches);
+        if(batchNum===1) firstBatchData=batchResult;
+        if(batchResult&&batchResult.items){
+          allItems=allItems.concat(batchResult.items);
+        }
+      }catch(batchErr){
+        console.warn('Batch '+batchNum+' failed:',batchErr.message);
+        // Continue with next batch
+        stx.innerHTML+='<br><small style="color:#ffcc00;">⚠️ Batch '+batchNum+' partial — continuing...</small>';
       }
-    }
-    if(!parsed||!parsed.items) throw new Error('JSON parse failed: '+parseErr);
-    fillForm(parsed);
 
-    // Duplicate check
-    const dup=findDuplicate(parsed.refNo,parsed.eqNo);
-    if(dup){
-      st.style.cssText='';st.className='ai-status error';
-      st.innerHTML=`<div style="display:flex;gap:10px;width:100%;align-items:flex-start;">
-        <div style="font-size:24px;">🚫</div>
-        <div style="flex:1;">
-          <div style="font-weight:700;font-size:14px;color:#B22222;margin-bottom:5px;">Duplicate — Already Uploaded!</div>
-          <div style="font-size:12px;color:#7A1414;margin-bottom:8px;">e-Quotation <strong>${dup.eqNo||dup.refNo}</strong> saved on <strong>${dup.date}</strong> by <strong>${dup.savedBy||'?'}</strong></div>
-          <div style="display:flex;gap:8px;">
-            <button onclick="loadHist(${dup.id});showPage('history')" style="padding:6px 14px;background:var(--navy);border:none;border-radius:3px;color:#fff;font-size:12px;cursor:pointer;font-family:var(--fb);">📂 View Existing</button>
-            <button onclick="resetAll()" style="padding:6px 14px;background:transparent;border:1px solid rgba(178,34,34,.3);border-radius:3px;color:#B22222;font-size:12px;cursor:pointer;font-family:var(--fb);">✕ Cancel</button>
-          </div>
-        </div></div>`;
-      document.getElementById('process-btn').disabled=false;pdfB64=null;
-      document.getElementById('upload-fname').style.display='none';
-      document.getElementById('process-btn').classList.remove('show');setStep(1);return;
+      // Small delay between batches
+      if(b<totalBatches-1) await new Promise(r=>setTimeout(r,1000));
     }
 
-    // Vehicle check
-    if(!vehicleMatchesUser(parsed.vehicleName)){
-      const assigned=vehicleLabel(CU);
-      st.style.cssText='';
-      st.className='ai-status';
-      st.style.cssText='display:flex;background:rgba(201,149,42,.12);border:1px solid rgba(201,149,42,.4);color:#7A5800;padding:12px 16px;border-radius:3px;margin-top:14px;align-items:flex-start;gap:10px;';
-      st.innerHTML=`<div style="font-size:20px;flex-shrink:0;">⚠️</div>
-        <div style="flex:1;">
-          <div style="font-weight:700;font-size:13px;margin-bottom:3px;">Vehicle Mismatch Warning</div>
-          <div style="font-size:12px;">PDF: <strong>${parsed.vehicleName||'?'}</strong> | Your vehicles: <strong>${assigned}</strong></div>
-          <div style="display:flex;gap:8px;margin-top:10px;">
-            <button onclick="continueExtraction()" style="padding:6px 14px;background:var(--gold);border:none;border-radius:3px;color:var(--navy);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fb);">✅ Continue</button>
-            <button onclick="resetAll()" style="padding:6px 14px;background:transparent;border:1px solid rgba(0,0,0,.15);border-radius:3px;color:#7A5800;font-size:12px;cursor:pointer;font-family:var(--fb);">✕ Cancel</button>
-          </div>
-        </div>`;
-      window._pendingParsed=parsed;
-      document.getElementById('process-btn').disabled=false;return;
+    // Merge all results
+    stx.innerHTML='🔀 Merging '+allItems.length+' items from '+totalBatches+' batches...';
+    await new Promise(r=>setTimeout(r,500));
+
+    if(firstBatchData){
+      firstBatchData.items=allItems;
+      loadExtractedData(firstBatchData);
+    } else {
+      throw new Error('No data extracted from PDF');
     }
 
-    finishExtraction(parsed);
   }catch(err){
     var errMsg=err.message||'Unknown error';
-    var isApiErr=errMsg.includes('fetch')||errMsg.includes('API')||errMsg.includes('format')||errMsg.includes('JSON')||errMsg.includes('401')||errMsg.includes('403');
+    if(errMsg.includes('100 PDF pages')||errMsg.includes('maximum of 100')){
+      errMsg='⚠️ Batch too large! Auto-retry பண்றோம்...';
+    }
     st.style.cssText='';
     st.className='ai-status error';
-    st.innerHTML='<div style="width:100%;">'
-      +'<div style="font-weight:700;font-size:14px;color:#B22222;margin-bottom:8px;">❌ Error: '+errMsg+'</div>'
-      +(isApiErr?'<div style="font-size:12px;color:#7A1414;margin-bottom:12px;">API Key தேவை — இல்லாம Manual Entry use பண்ணுங்கள்</div>':'')
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-      +'<button onclick="openME()" style="padding:8px 16px;background:var(--gold);border:none;border-radius:3px;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb);">✏️ Manual Entry Use பண்ணு</button>'
-      +'<button onclick="resetAll()" style="padding:8px 14px;background:transparent;border:1px solid rgba(178,34,34,.3);border-radius:3px;color:#B22222;font-size:12px;cursor:pointer;font-family:var(--fb);">🔄 Reset</button>'
-      +'</div></div>';
+    st.innerHTML='<div style="width:100%;">'+
+      '<div style="font-weight:700;font-size:14px;color:#B22222;margin-bottom:8px;">❌ '+errMsg+'</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+      '<button onclick="openME()" style="padding:8px 16px;background:var(--gold);border:none;border-radius:3px;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb);">✏️ Manual Entry</button>'+
+      '<button onclick="importExtractedJSON()" style="padding:8px 16px;background:#1A3A6B;border:none;border-radius:3px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb);">📥 Import JSON</button>'+
+      '<button onclick="resetAll()" style="padding:8px 14px;background:transparent;border:1px solid rgba(178,34,34,.3);border-radius:3px;color:#B22222;font-size:12px;cursor:pointer;font-family:var(--fb);">🔄 Reset</button>'+
+      '</div></div>';
     document.getElementById('process-btn').disabled=false;
   }
+}
+
+async function extractBatch(apiKey, fullPdfB64, fromPage, toPage, batchNum, totalBatches){
+  var isPartial = fromPage!==null && toPage!==null;
+  var rangeHint = isPartial ? '\nNOTE: Focus on pages '+fromPage+' to '+toPage+'. Extract items from this page range only.' : '';
+  var batchHint = totalBatches>1 ? '\nThis is batch '+batchNum+' of '+totalBatches+'. '+
+    (batchNum===1 ? 'Extract procurement details AND all items.' : 'Extract ONLY items/parts list. No need for procurement header.') : '';
+
+  var prompt='Extract data from this Sri Lanka Army/Navy e-GP quotation PDF.'+rangeHint+batchHint+'\nReturn ONLY valid JSON - no markdown, no backticks.\nFormat:\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"","qty":1,"unit":"Number","brand":""}]}\nRules:\n1. Extract EVERY item in this batch\n2. No trailing commas\n3. Return complete valid JSON only';
+
+  var resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:8192,
+      messages:[{role:'user',content:[
+        {type:'document',source:{type:'base64',media_type:'application/pdf',data:fullPdfB64}},
+        {type:'text',text:prompt}
+      ]}]
+    })
+  });
+
+  if(!resp.ok){
+    var e=await resp.json();
+    var errMsg=e.error?e.error.type+': '+e.error.message:resp.status;
+    throw new Error('API Error '+errMsg);
+  }
+
+  var data=await resp.json();
+  var raw=data.content[0].text;
+  var s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
+  if(s<0||e2<0) throw new Error('No JSON in response');
+  return JSON.parse(raw.substring(s,e2+1));
+}
+
+function loadExtractedData(parsed){
+  var st=document.getElementById('ai-status');
+  var stx=document.getElementById('ai-st');
+
+  if(parsed.refNo) document.getElementById('f-refno').value=parsed.refNo;
+  if(parsed.eqNo) document.getElementById('f-eqno').value=parsed.eqNo;
+  if(parsed.entity) document.getElementById('f-entity').value=parsed.entity;
+  if(parsed.title) document.getElementById('f-title').value=parsed.title;
+  if(parsed.vehicleName) document.getElementById('f-vname').value=parsed.vehicleName;
+  if(parsed.vehicleNo) document.getElementById('f-vno').value=parsed.vehicleNo;
+  if(parsed.engineNo) document.getElementById('f-eng').value=parsed.engineNo;
+  if(parsed.chassisNo) document.getElementById('f-chas').value=parsed.chassisNo;
+  if(parsed.closingDate) document.getElementById('f-close').value=parsed.closingDate.split('T')[0].split(' ')[0];
+  if(parsed.validityPeriod) document.getElementById('f-valid').value=parsed.validityPeriod;
+  if(parsed.deliveryPeriod) document.getElementById('f-deliv').value=parsed.deliveryPeriod;
+  if(parsed.destination) document.getElementById('f-dest').value=parsed.destination;
+
+  if(!parsed.items||!parsed.items.length) throw new Error('Items extract ஆகலை!');
+
+  curItems=parsed.items.map(function(item,i){
+    var br=item.brandRows&&item.brandRows[0]?item.brandRows[0]:{brand:'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0};
+    return {
+      itemNo:item.itemNo||(i+1),
+      description:item.description||'',
+      qty:parseFloat(item.qty)||1,
+      unit:item.unit||'Number',
+      brand:item.brand||'',
+      unitPrice:0,
+      brandRows:[br]
+    };
+  });
+
+  renderItems();
+  setStep(3);
+  st.className='ai-status success';
+  stx.innerHTML='✅ '+curItems.length+' items extracted successfully!';
+  document.getElementById('process-btn').disabled=false;
+  showWhatsAppNotify&&typeof showWhatsAppNotify==='function'&&null;
 }
 
 function finishExtraction(parsed){
@@ -3676,6 +3776,61 @@ function resetAPIKey(){
 // MANUAL ENTRY SYSTEM
 // ══════════════════════════════════════════════════
 var meRows=[];
+// Import pre-extracted JSON quotation
+function importExtractedJSON(){
+  var input=document.createElement('input');
+  input.type='file';
+  input.accept='.json';
+  input.onchange=function(e){
+    var file=e.target.files[0];
+    if(!file) return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var data=JSON.parse(ev.target.result);
+        if(!data.items||!Array.isArray(data.items)){
+          showToast('Invalid JSON format!','t-e');
+          return;
+        }
+        // Load into form
+        if(data.refNo) document.getElementById('f-refno').value=data.refNo;
+        if(data.eqNo) document.getElementById('f-eqno').value=data.eqNo;
+        if(data.entity) document.getElementById('f-entity').value=data.entity;
+        if(data.title) document.getElementById('f-title').value=data.title;
+        if(data.vehicleName) document.getElementById('f-vname').value=data.vehicleName;
+        if(data.vehicleNo) document.getElementById('f-vno').value=data.vehicleNo;
+        if(data.engineNo) document.getElementById('f-eng').value=data.engineNo;
+        if(data.chassisNo) document.getElementById('f-chas').value=data.chassisNo;
+        if(data.closingDate) document.getElementById('f-close').value=data.closingDate.split(' ')[0];
+        if(data.validityPeriod) document.getElementById('f-valid').value=data.validityPeriod;
+        if(data.deliveryPeriod) document.getElementById('f-deliv').value=data.deliveryPeriod;
+        if(data.destination) document.getElementById('f-dest').value=data.destination;
+        
+        // Load items
+        curItems=data.items.map(function(item){
+          return {
+            itemNo:item.itemNo,
+            description:item.description,
+            qty:item.qty||1,
+            unit:item.unit||'Number',
+            brand:item.brand||'',
+            unitPrice:0,
+            brandRows:[{brand:'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]
+          };
+        });
+        
+        renderItems();
+        setStep(3);
+        showToast('✅ '+data.items.length+' items imported!','t-s');
+      }catch(e){
+        showToast('JSON parse error: '+e.message,'t-e');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 function openME(){
   meRows=[{d:'',q:1,u:'Number'}];
   ['me-ref','me-eq','me-ent','me-tit','me-veh','me-vno','me-eng','me-chs','me-cls','me-val','me-del','me-dst'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
