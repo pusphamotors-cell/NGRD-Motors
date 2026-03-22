@@ -1475,7 +1475,17 @@ function initFirebaseSync(){
         if(!lo)return false;
         return (statusOrder[r.status]||0)>(statusOrder[lo.status]||0);
       });
-      if(newItems.length===0&&statusUpgrades.length===0){if(local.length>0)fbWrite('history',local);return;}
+      if(newItems.length===0&&statusUpgrades.length===0){
+        // Safe only if local doesn't have lower status than Firebase
+        var localBehind=remote.some(function(r){
+          if(!r||!r.id)return false;
+          var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
+          if(!lo)return false;
+          return (statusOrder[r.status]||0)>(statusOrder[lo.status]||0);
+        });
+        if(!localBehind&&local.length>0)fbWrite('history',local);
+        return;
+      }
       var allIds={};
       local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
       remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
@@ -1560,23 +1570,20 @@ function startAutoSync(){
         // NEVER just push local - always check Firebase status first
         // If no new items AND no upgrades - still check if local has higher status to push
         if(!hasNew&&!hasUpgrade){
-          // Safe to push local ONLY if local has no lower-status items than Firebase
+          // ALWAYS check if Firebase has higher status before pushing local
           var localHasLower=remote.some(function(r){
             if(!r||!r.id) return false;
             var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
             if(!lo) return false;
-            var remoteR=statusOrder2[r.status]||0;
-            var localR=statusOrder2[lo.status]||0;
-            return remoteR>localR; // Firebase is higher - don't push!
+            return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
           });
-          if(!localHasLower&&local.length>0) fbWrite('history',local);
           if(localHasLower){
-            // Pull Firebase version to fix local
+            // Firebase has approved/submitted — fix local localStorage
             var merged2=[];
             local.forEach(function(lo){
               var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});
               if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0)){
-                merged2.push(re2); // Take Firebase higher status
+                merged2.push(re2);
               } else {
                 merged2.push(lo);
               }
@@ -1590,6 +1597,9 @@ function startAutoSync(){
             localStorage.setItem('ngrd_hist',JSON.stringify(merged2));
             updatePendingBadge();
             if(typeof renderDashboard==='function') renderDashboard();
+            console.log('Fixed local: pulled approved/submitted from Firebase');
+          } else if(local.length>0){
+            fbWrite('history',local); // Safe to push — no higher status in Firebase
           }
           return;
         }
