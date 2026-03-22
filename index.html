@@ -1473,8 +1473,11 @@ function sendWAClosingAlert(entry){
   window.open('https://wa.me/'+ADMIN_WA+'?text='+msg,'_blank');
 }
 
+var _syncRunning=false;
 function initFirebaseSync(){
-  if(!FB_READY) return;
+  if(!FB_READY||_syncRunning) return;
+  _syncRunning=true;
+  setTimeout(function(){_syncRunning=false;},5000);
   var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
   fbRead('history',function(data){
     try{
@@ -1548,7 +1551,7 @@ function assignQuot(id,toUsername){
 
 function startAutoSync(){
   setInterval(function(){
-    if(!FB_READY||!CU)return;
+    if(!FB_READY||!CU||_syncRunning)return;
     fbRead('history',function(data){
       try{
         if(!data||typeof data!=='object')return;
@@ -4096,7 +4099,16 @@ function onFbFail(){
   if(_fbRetry<=8){if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}setTimeout(initFirebase,3000);}
   else{if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}}
 }
-function fbWrite(key,val){_fbQueue[key]=val;if(!FB_READY)return;_flushQueue();}
+var _lastFbHash={};
+function fbWrite(key,val){
+  // Prevent writing same data repeatedly (causes freeze)
+  var hash=JSON.stringify(val).length+'_'+String(val&&Array.isArray(val)?val.length:'');
+  if(_lastFbHash[key]===hash) return;
+  _lastFbHash[key]=hash;
+  _fbQueue[key]=val;
+  if(!FB_READY)return;
+  _flushQueue();
+}
 function _flushQueue(){
   var keys=Object.keys(_fbQueue);if(!keys.length)return;
   keys.forEach(function(key){
@@ -4104,8 +4116,15 @@ function _flushQueue(){
     var xhr=new XMLHttpRequest();
     xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
     xhr.setRequestHeader('Content-Type','application/json');
-    xhr.onerror=function(){_fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);};
-    xhr.send(JSON.stringify(val));
+    xhr.timeout=10000;
+    xhr.onerror=function(){FB_READY=false;setTimeout(initFirebase,5000);};
+    xhr.ontimeout=function(){FB_READY=false;setTimeout(initFirebase,5000);};
+    // Limit history to 100 entries to prevent huge payloads
+    var sendVal=val;
+    if(key==='history'&&Array.isArray(val)&&val.length>100){
+      sendVal=val.slice(0,100);
+    }
+    xhr.send(JSON.stringify(sendVal));
   });
 }
 function fbRead(key,cb){
