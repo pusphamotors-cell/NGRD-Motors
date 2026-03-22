@@ -379,6 +379,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="nav-sec-lbl">Administration</div>
         <button class="nav-item" id="nav-analytics" onclick="showPage('analytics');closeSidebarMobile()"><span class="nav-icon">📊</span>Analytics</button>
         <button class="nav-item" id="nav-users" onclick="showPage('users');closeSidebarMobile()"><span class="nav-icon">👥</span>Users</button>
+        <button class="nav-item" id="nav-vehicles" onclick="showPage('vehicles');closeSidebarMobile()"><span class="nav-icon">🚗</span>Vehicles</button>
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
@@ -728,7 +729,27 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="panel-body" id="db-all-list"></div>
         </div>
       </div>
-      <!-- ═ ANALYTICS ═ -->
+      
+      <!-- ═ VEHICLES ═ -->
+      <div id="page-vehicles" style="display:none;">
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-hdr-icon">🚗</span>
+            <span class="panel-hdr-title">Vehicle Master List</span>
+            <div class="panel-hdr-right">
+              <button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add Vehicle</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#7A5800;">
+              💡 Vehicle add பண்ணினால் எல்லா dropdowns-லும் automatically வரும்!
+            </div>
+            <div id="vehicle-settings-list"></div>
+          </div>
+        </div>
+      </div>
+
+<!-- ═ ANALYTICS ═ -->
       <div id="page-analytics" style="display:none;">
         <div class="stats-row" id="analytics-stats"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
@@ -1120,6 +1141,7 @@ function showPage(pg){
   if(pg==='log')renderLog();
   if(pg==='backup')renderBackupPage();
   if(pg==='prices')renderPriceList();
+  if(pg==='vehicles'){renderVehicleSettings();}
   if(pg==='search')runQuickSearch();
   if(pg==='dashboard')renderDashboard();
 }
@@ -3965,6 +3987,54 @@ function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;c
 // ══════════════════════════════════════════════════
 // RESET & TOAST
 // ══════════════════════════════════════════════════
+function getVehicleMaster(){
+  var saved=localStorage.getItem('ngrd_vehicles');
+  if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0)return v;}catch(e){}}
+  return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab',
+    'Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van',
+    'Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab',
+    'Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166',
+    'Toyota Cab LN106','Toyota Cab LN107','TATA LPT 1109 TRUCK','TATA WINGER VAN',
+    'Mahindra Bolero (SC TURBO)','TATA 1313 TRUCK','TOYOTA HIACE VAN',
+    'TOYOTA HILUX 1KZ CAB','SCORPIO JEEP'];
+}
+
+function saveVehicleMaster(v){
+  localStorage.setItem('ngrd_vehicles',JSON.stringify(v));
+  if(typeof fbWrite==='function') fbWrite('vehicles',v);
+  if(typeof refreshAllVehicleDropdowns==='function') refreshAllVehicleDropdowns();
+}
+
+function addVehicle(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  var name=prompt('புதிய Vehicle name:','');
+  if(!name||!name.trim())return;
+  name=name.trim();
+  var vehicles=getVehicleMaster();
+  if(vehicles.includes(name)){showToast('Already exists!','t-e');return;}
+  vehicles.push(name);saveVehicleMaster(vehicles);
+  renderVehicleSettings();showToast('✅ '+name+' added!','t-s');
+}
+
+function deleteVehicle(name){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  if(!confirm('Delete: '+name+'?'))return;
+  saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==name;}));
+  renderVehicleSettings();showToast('Deleted!','t-i');
+}
+
+function renderVehicleSettings(){
+  var el=document.getElementById('vehicle-settings-list');if(!el)return;
+  var vehicles=getVehicleMaster();
+  if(!vehicles.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles. Add பண்ணுங்கள்!</div>';return;}
+  el.innerHTML=vehicles.map(function(v,i){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'">'
+      +'<span style="font-size:13px;font-weight:600;">🚗 '+v+'</span>'
+      +'<button onclick="deleteVehicle('+JSON.stringify(v)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️ Delete</button>'
+      +'</div>';
+  }).join('');
+}
+
 function syncUploadVehicle(val){
   var fv=document.getElementById('f-vname');
   if(fv) fv.value=val;
