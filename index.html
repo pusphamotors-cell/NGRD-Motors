@@ -1678,7 +1678,7 @@ function renderItems(items){
       }
 
       // Our Brand
-      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:var(--fb);outline:none;"></td>';
+      h+='<td style="padding:3px 4px;position:relative;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" onfocus="showBrandSuggestions('+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:var(--fb);outline:none;"></td>';
       // Part No
       h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"></td>';
       // Country
@@ -1970,6 +1970,97 @@ function findAllPriceMatches(desc,prices,vehicle){
 function getPriceHint(desc,prices){
   var matches=findAllPriceMatches(desc,prices);
   return matches.length>0?matches[0]:null;
+}
+
+// Auto-fill brand+price from price list when brand input focused
+function autoFillRow(idx, bi){
+  var item=curItems[idx];
+  if(!item) return;
+  var prices=getPrices();
+  var matches=findAllPriceMatches(item.description, prices);
+  if(matches.length===0) return;
+
+  var best=matches[0];
+  // Auto fill brand, partNo, purchasePrice
+  var brandEl=document.getElementById('br-b-'+idx+'-'+bi);
+  var partEl=document.getElementById('br-p-'+idx+'-'+bi);
+  var purchEl=document.getElementById('br-pu-'+idx+'-'+bi);
+  var marginEl=document.getElementById('br-m-'+idx+'-'+bi);
+  var countryEl=document.getElementById('br-c-'+idx+'-'+bi);
+
+  if(brandEl&&!brandEl.value&&best.brand) brandEl.value=best.brand;
+  if(partEl&&!partEl.value&&best.partNo) partEl.value=best.partNo;
+  if(countryEl&&!countryEl.value&&best.country) countryEl.value=best.country;
+  if(purchEl&&!purchEl.value&&best.purchasePrice>0){
+    purchEl.value=best.purchasePrice;
+    purchEl.style.background='#fffde7'; // highlight auto-filled
+  }
+  // Auto calc selling price if margin exists
+  if(marginEl&&marginEl.value&&purchEl&&purchEl.value){
+    syncRow(idx,bi);
+    autoSell(idx,bi);
+  }
+  syncRow(idx,bi);
+}
+
+// Show dropdown suggestions for brand input
+function showBrandSuggestions(idx, bi){
+  var item=curItems[idx];
+  if(!item) return;
+  var prices=getPrices();
+  var matches=findAllPriceMatches(item.description, prices);
+  if(matches.length===0){
+    autoFillRow(idx,bi);
+    return;
+  }
+
+  // Remove existing dropdown
+  var existing=document.getElementById('brand-dd-'+idx+'-'+bi);
+  if(existing) existing.remove();
+
+  var brandEl=document.getElementById('br-b-'+idx+'-'+bi);
+  if(!brandEl) return;
+
+  var dd=document.createElement('div');
+  dd.id='brand-dd-'+idx+'-'+bi;
+  dd.style.cssText='position:absolute;background:#fff;border:1px solid #ccc;border-radius:4px;z-index:9999;min-width:200px;box-shadow:0 4px 12px rgba(0,0,0,.15);max-height:200px;overflow-y:auto;';
+
+  matches.slice(0,5).forEach(function(m){
+    var opt=document.createElement('div');
+    opt.style.cssText='padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #eee;';
+    opt.innerHTML='<b>'+m.brand+'</b>'+(m.partNo?' — '+m.partNo:'')+
+      '<span style="color:#1A6B3C;float:right;">LKR '+(m.purchasePrice||0).toLocaleString()+'</span>';
+    opt.onmousedown=function(e){
+      e.preventDefault();
+      var brandEl2=document.getElementById('br-b-'+idx+'-'+bi);
+      var partEl2=document.getElementById('br-p-'+idx+'-'+bi);
+      var purchEl2=document.getElementById('br-pu-'+idx+'-'+bi);
+      var countryEl2=document.getElementById('br-c-'+idx+'-'+bi);
+      if(brandEl2) brandEl2.value=m.brand||'';
+      if(partEl2) partEl2.value=m.partNo||'';
+      if(countryEl2&&m.country) countryEl2.value=m.country;
+      if(purchEl2&&m.purchasePrice>0){
+        purchEl2.value=m.purchasePrice;
+        purchEl2.style.background='#fffde7';
+      }
+      syncRow(idx,bi);
+      autoSell(idx,bi);
+      dd.remove();
+      showToast('✅ Auto-filled: '+m.brand,'t-s');
+    };
+    opt.onmouseover=function(){opt.style.background='#f0f7ff';};
+    opt.onmouseout=function(){opt.style.background='';};
+    dd.appendChild(opt);
+  });
+
+  // Position below brand input
+  var rect=brandEl.getBoundingClientRect();
+  dd.style.top=(rect.bottom+window.scrollY)+'px';
+  dd.style.left=rect.left+'px';
+  document.body.appendChild(dd);
+
+  // Close on blur
+  brandEl.onblur=function(){setTimeout(function(){dd.remove();},200);};
 }
 
 
