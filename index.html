@@ -429,6 +429,18 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
           <div class="panel-body" style="text-align:center;">
+            <!-- Vehicle Select -->
+            <div style="margin-bottom:16px;padding:12px;background:#f0f5ff;border:2px solid #2060a0;border-radius:6px;">
+              <label style="font-size:12px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">🚗 Step 1 — Vehicle Select பண்ணுங்கள் *</label>
+              <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="width:100%;max-width:400px;padding:9px 12px;border:2px solid #2060a0;border-radius:4px;font-family:var(--fb);font-size:14px;font-weight:700;background:#fff;outline:none;">
+                <option value="">— Vehicle Select பண்ணுங்கள் —</option>
+              </select>
+              <div id="vehicle-admin-btns" style="display:none;gap:8px;margin-top:8px;max-width:400px;">
+                <button onclick="uploadPageAddVehicle()" style="flex:1;padding:7px;background:#1a6b3c;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">➕ Add</button>
+                <button onclick="uploadPageEditVehicle()" style="flex:1;padding:7px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Edit</button>
+                <button onclick="uploadPageDeleteVehicle()" style="flex:1;padding:7px;background:#b22222;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ Delete</button>
+              </div>
+            </div>
             <div class="upload-zone" id="drop-zone">
               <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile(this)">
               <div style="font-size:34px;margin-bottom:8px;">📄</div>
@@ -1054,6 +1066,7 @@ function initApp(){
   startSessionTimer();
   showPage('dashboard');
   setTimeout(checkDeadlineAlarms,500);
+  setTimeout(refreshAllVehicleDropdowns,500);
   if(typeof startAutoSync==='function') startAutoSync();
   setTimeout(autoFixGarbage,800);
   setTimeout(function(){if(typeof initFirebaseSync==='function')initFirebaseSync();},1500);
@@ -1300,6 +1313,7 @@ function showPriceHistory(idx,bi){
   hist.forEach(function(entry){
     if(!entry.items||!Array.isArray(entry.items))return;
     var date=entry.date||'',quotRef=entry.eqNo||entry.refNo||'',entity=(entry.entity||'').substring(0,20);
+    if(!entry.items||!Array.isArray(entry.items)) return;
     entry.items.forEach(function(it){
       if(!it.description)return;
       var a=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
@@ -2279,6 +2293,7 @@ function autoSavePrices(items){
   items.forEach(function(item){
     if(!item.brandRows||!item.brandRows.length) return;
 
+    if(!item.brandRows||!Array.isArray(item.brandRows)) return;
     item.brandRows.forEach(function(br){
       var price=parseFloat(br.price)||0;
       if(price<=0) return; // Price இல்லாட்டி save பண்ணாதே
@@ -2789,6 +2804,7 @@ function renderDashboard(){
   var totalCost=0;
   h.forEach(function(e){
     if(!e.items) return;
+    if(!e.items||!Array.isArray(e.items)) return;
     e.items.forEach(function(item){
       var br=(item.brandRows&&item.brandRows[0])||{};
       var selling=parseFloat(br.price)||item.unitPrice||0;
@@ -3949,6 +3965,57 @@ function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;c
 // ══════════════════════════════════════════════════
 // RESET & TOAST
 // ══════════════════════════════════════════════════
+function syncUploadVehicle(val){
+  var fv=document.getElementById('f-vname');
+  if(fv) fv.value=val;
+}
+
+function refreshAllVehicleDropdowns(){
+  var adminBtns=document.getElementById('vehicle-admin-btns');
+  if(adminBtns) adminBtns.style.display=CU?'flex':'none';
+  var vehicles=getVehicleMaster();
+  var opts=vehicles.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');
+  var uv=document.getElementById('upload-vehicle-select');
+  if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}
+  var fv=document.getElementById('f-vname');
+  if(fv){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}
+}
+
+function uploadPageAddVehicle(){
+  var name=prompt('புதிய Vehicle பெயர்:','');
+  if(!name||!name.trim())return;
+  name=name.trim();
+  var vlist=getVehicleMaster();
+  if(vlist.indexOf(name)>=0){alert('Already exists!');return;}
+  vlist.push(name);saveVehicleMaster(vlist);
+  var sel=document.getElementById('upload-vehicle-select');
+  if(sel){sel.value=name;syncUploadVehicle(name);}
+  showToast('✅ '+name+' added!','t-s');
+}
+
+function uploadPageEditVehicle(){
+  var sel=document.getElementById('upload-vehicle-select');
+  var cur=sel?sel.value:'';
+  if(!cur){showToast('Vehicle select pannungal!','t-e');return;}
+  var newName=prompt('New name:',cur);
+  if(!newName||!newName.trim()||newName===cur)return;
+  var vlist=getVehicleMaster();
+  var idx=vlist.indexOf(cur);
+  if(idx>=0){vlist[idx]=newName.trim();saveVehicleMaster(vlist);refreshAllVehicleDropdowns();}
+  showToast('✅ Updated!','t-s');
+}
+
+function uploadPageDeleteVehicle(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  var sel=document.getElementById('upload-vehicle-select');
+  var cur=sel?sel.value:'';
+  if(!cur){showToast('Vehicle select pannungal!','t-e');return;}
+  if(!confirm('Delete '+cur+'?'))return;
+  saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==cur;}));
+  refreshAllVehicleDropdowns();
+  showToast('Deleted!','t-i');
+}
+
 function resetAll(){window.curEditId=null;
   pdfB64=null;curItems=[];curStatus='draft';
   ['pdf-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
