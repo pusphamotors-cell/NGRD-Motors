@@ -430,6 +430,20 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
           <div class="panel-body" style="text-align:center;">
+            <!-- Vehicle Select -->
+            <div id="upload-vehicle-section" style="margin-bottom:16px;padding:12px 16px;background:#f0f5ff;border:2px solid #2060a0;border-radius:6px;text-align:left;">
+              <label style="font-size:12px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">🚗 Vehicle Select *</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="flex:1;padding:9px 12px;border:2px solid #2060a0;border-radius:4px;font-family:var(--fb);font-size:14px;font-weight:700;background:#fff;outline:none;">
+                  <option value="">— Vehicle Select பண்ணுங்கள் —</option>
+                </select>
+                <div id="vehicle-admin-btns" style="display:none;gap:6px;">
+                  <button onclick="uploadPageAddVehicle()" title="Add Vehicle" style="padding:8px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;">➕</button>
+                  <button onclick="uploadPageEditVehicle()" title="Edit Vehicle" style="padding:8px 12px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;">✏️</button>
+                  <button id="vehicle-delete-btn" onclick="uploadPageDeleteVehicle()" title="Delete Vehicle" style="padding:8px 12px;background:#B22222;color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;display:none;">🗑️</button>
+                </div>
+              </div>
+            </div>
             <div class="upload-zone" id="drop-zone">
               <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile(this)">
               <div style="font-size:34px;margin-bottom:8px;">📄</div>
@@ -1132,6 +1146,14 @@ let pdfB64=null,curItems=[],curStatus='draft';
 
 function handleFile(inp){
   const f=inp.files[0];if(!f)return;
+  // Warn if vehicle not selected
+  var uvSel=document.getElementById('upload-vehicle-select');
+  if(uvSel&&!uvSel.value){
+    uvSel.style.border='2px solid #E8B84B';
+    uvSel.style.boxShadow='0 0 8px rgba(232,184,75,.5)';
+    showToast('⚠️ Vehicle select பண்ணுங்கள்!','t-i');
+    setTimeout(function(){if(uvSel){uvSel.style.border='';uvSel.style.boxShadow='';}},4000);
+  }
   const fn=document.getElementById('upload-fname');
   fn.textContent='[OK] '+f.name;fn.style.display='block';
   document.getElementById('process-btn').classList.add('show');
@@ -1228,10 +1250,27 @@ function loadExtractedData(parsed){
     document.getElementById('info-panel').style.display='block';
     setStep(2); return;
   }
+  // Auto-fill from price history for each item
+  var _prices=getPrices();
+  var _vehicle=(document.getElementById('f-vname')||{}).value||'';
+
   curItems=parsed.items.map(function(item,i){
-    return {itemNo:item.itemNo||(i+1),description:item.description||'',qty:parseFloat(item.qty)||1,
-      unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,
-      brandRows:[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
+    // Auto-fill from price list
+    var _desc=(item.description||'').trim();
+    var _matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(_desc,_prices,_vehicle):[];
+    var _brs;
+    if(_matches.length>0){
+      _brs=_matches.slice(0,3).map(function(m){
+        return {brand:m.brand||'',partNo:m.partNo||'',country:m.country||'Japan',
+          marginPct:0,price:m.price||0,purchasePrice:m.purchasePrice||0,totalPrice:0};
+      });
+    } else {
+      _brs=[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}];
+    }
+    return {itemNo:item.itemNo||(i+1),description:_desc||('Item '+(i+1)),
+      qty:parseFloat(item.qty)||1,unit:item.unit||'Number',
+      brand:_brs[0].brand||item.brand||'',unitPrice:_brs[0].price||0,
+      brandRows:_brs};
   });
   renderItems();setStep(3);
   if(st) st.className='ai-status success';
@@ -1591,6 +1630,18 @@ function startAutoSync(){
 
 async function processFile(){
   if(!pdfB64){showToast('PDF select pannungal!','t-e');return;}
+  // Vehicle mandatory check
+  var uvSel=document.getElementById('upload-vehicle-select');
+  var selVeh=uvSel?uvSel.value:'';
+  if(!selVeh){
+    showToast('⚠️ Vehicle select பண்ணுங்கள்!','t-e');
+    if(uvSel) uvSel.style.border='2px solid #B22222';
+    setTimeout(function(){if(uvSel)uvSel.style.border='';},3000);
+    return;
+  }
+  // Auto-fill vehicle name in form
+  var fv=document.getElementById('f-vname');
+  if(fv&&!fv.value) fv.value=selVeh;
   setStep(2);
   var st=document.getElementById('ai-status');
   var stx=document.getElementById('ai-st');
@@ -3972,7 +4023,27 @@ function addVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');
 function deleteVehicle(name){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}if(!confirm('Delete: '+name+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==name;}));renderVehicleSettings();showToast('Deleted!','t-i');}
 function renderVehicleSettings(){var el=document.getElementById('vehicle-settings-list');if(!el)return;var v=getVehicleMaster();if(!v.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles!</div>';return;}el.innerHTML=v.map(function(x,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'"><span style="font-size:13px;font-weight:600;">🚗 '+x+'</span><button onclick="deleteVehicle('+JSON.stringify(x)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️</button></div>';}).join('');}
 function syncUploadVehicle(val){var fv=document.getElementById('f-vname');if(fv)fv.value=val;}
-function refreshAllVehicleDropdowns(){var v=getVehicleMaster();var opts=v.map(function(x){return '<option value="'+x+'">'+x+'</option>';}).join('');var uv=document.getElementById('upload-vehicle-select');if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}var fv=document.getElementById('f-vname');if(fv&&fv.tagName==='SELECT'){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}}
+function refreshAllVehicleDropdowns(){
+  // Show admin buttons only for admin
+  var adminBtns=document.getElementById('vehicle-admin-btns');
+  if(adminBtns) adminBtns.style.display=(CU&&CU.role==='admin')?'flex':'none';
+  var v=getVehicleMaster();
+  var opts=v.map(function(x){return '<option value="'+x+'">'+x+'</option>';}).join('');
+  // Update upload vehicle select
+  var uv=document.getElementById('upload-vehicle-select');
+  if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}
+  // Update f-vname select
+  var fv=document.getElementById('f-vname');
+  if(fv&&fv.tagName==='SELECT'){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}
+  // Show/hide delete button based on role
+  var isAdmin=CU&&CU.role==='admin';
+  var delBtn=document.getElementById('vehicle-delete-btn');
+  if(delBtn) delBtn.style.display=isAdmin?'block':'none';
+  // Show admin buttons to all (add+edit for everyone, delete only admin)
+  var adminBtns=document.getElementById('vehicle-admin-btns');
+  if(adminBtns) adminBtns.style.display='flex';
+}
+
 function uploadPageAddVehicle(){var name=prompt('Vehicle:','');if(!name||!name.trim())return;name=name.trim();var v=getVehicleMaster();if(v.indexOf(name)>=0){alert('Already exists!');return;}v.push(name);saveVehicleMaster(v);var sel=document.getElementById('upload-vehicle-select');if(sel){sel.value=name;syncUploadVehicle(name);}showToast('✅ '+name+' added!','t-s');}
 function uploadPageEditVehicle(){var sel=document.getElementById('upload-vehicle-select');var cur=sel?sel.value:'';if(!cur){showToast('Select vehicle!','t-e');return;}var n=prompt('New name:',cur);if(!n||!n.trim()||n===cur)return;var v=getVehicleMaster();var i=v.indexOf(cur);if(i>=0){v[i]=n.trim();saveVehicleMaster(v);refreshAllVehicleDropdowns();}showToast('✅ Updated!','t-s');}
 function uploadPageDeleteVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var sel=document.getElementById('upload-vehicle-select');var cur=sel?sel.value:'';if(!cur){showToast('Select vehicle!','t-e');return;}if(!confirm('Delete '+cur+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==cur;}));refreshAllVehicleDropdowns();showToast('Deleted!','t-i');}
