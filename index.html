@@ -1234,7 +1234,9 @@ function loadExtractedData(parsed){
     document.getElementById('info-panel').style.display='block';
     setStep(2); return;
   }
+  // Ensure every item has brandRows array
   curItems=parsed.items.map(function(item,i){
+    if(!item.brandRows) item.brandRows=[];
     return {itemNo:item.itemNo||(i+1),description:item.description||'',qty:parseFloat(item.qty)||1,
       unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,
       brandRows:[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
@@ -1764,12 +1766,15 @@ function remBR(idx,bi){
 }
 
 function renderItems(items){
+  items=items||[];
+  if(!Array.isArray(items)) items=[];
   curItems=items;
-  var tb=document.getElementById('items-tbody');tb.innerHTML='';
+  var tb=document.getElementById('items-tbody');if(!tb)return;tb.innerHTML='';
   var prices=getPrices();
   var role=getRole();
   var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
 
+  if(!items||!items.length){calcTotals();return;}
   items.forEach(function(item,idx){
     if(!item.brandRows||!item.brandRows.length){
       // Auto-fill from price list
@@ -1814,6 +1819,7 @@ function renderItems(items){
 
     if(reqBrand&&item.brandRows[0]&&!item.brandRows[0].brand){item.brandRows[0].brand=reqBrand;}
     if(!item.brandRows||!Array.isArray(item.brandRows)) return;
+    if(!item.brandRows||!Array.isArray(item.brandRows)||!item.brandRows.length) return;
     item.brandRows.forEach(function(br,bi){
       var tr=document.createElement('tr');tr.style.background=bg;
       var h='';
