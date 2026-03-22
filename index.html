@@ -430,18 +430,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
           <div class="panel-body" style="text-align:center;">
-            <!-- Vehicle Select -->
-            <div style="margin-bottom:16px;padding:12px;background:#f0f5ff;border:2px solid #2060a0;border-radius:6px;">
-              <label style="font-size:12px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">🚗 Step 1 — Vehicle Select பண்ணுங்கள் *</label>
-              <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="width:100%;max-width:400px;padding:9px 12px;border:2px solid #2060a0;border-radius:4px;font-family:var(--fb);font-size:14px;font-weight:700;background:#fff;outline:none;max-height:200px;">
-                <option value="">— Vehicle Select பண்ணுங்கள் —</option>
-              </select>
-              <div id="vehicle-admin-btns" style="display:none;gap:8px;margin-top:8px;max-width:400px;">
-                <button onclick="uploadPageAddVehicle()" style="flex:1;padding:7px;background:#1a6b3c;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">➕ Add</button>
-                <button onclick="uploadPageEditVehicle()" style="flex:1;padding:7px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Edit</button>
-                <button onclick="uploadPageDeleteVehicle()" style="flex:1;padding:7px;background:#b22222;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ Delete</button>
-              </div>
-            </div>
             <div class="upload-zone" id="drop-zone">
               <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile(this)">
               <div style="font-size:34px;margin-bottom:8px;">📄</div>
@@ -592,8 +580,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="panel-body">
             <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:#7A5800;">💡 <b>CSV Format:</b> A=Description, B=PartNo, C=Brand, D=Country, E=Price (Row 1 header)</div>
             <input type="text" id="price-search" placeholder="Search parts..." oninput="renderPriceList()"
-              style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;margin-bottom:8px;">
-            <div style="display:flex;gap:8px;margin-bottom:14px;"><select id="price-vehicle-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:12px;"><option value="">🚗 All Vehicles</option></select><select id="price-brand-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:12px;"><option value="">🏷️ All Brands</option></select></div>
+              style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;margin-bottom:14px;">
             <div class="tbl-wrap">
               <table>
                 <thead><tr>
@@ -729,27 +716,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="panel-body" id="db-all-list"></div>
         </div>
       </div>
-      
-      <!-- ═ VEHICLES ═ -->
-      <div id="page-vehicles" style="display:none;">
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-hdr-icon">🚗</span>
-            <span class="panel-hdr-title">Vehicle Master List</span>
-            <div class="panel-hdr-right">
-              <button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add Vehicle</button>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#7A5800;">
-              💡 Vehicle add பண்ணினால் எல்லா dropdowns-லும் automatically வரும்!
-            </div>
-            <div id="vehicle-settings-list"></div>
-          </div>
-        </div>
-      </div>
-
-<!-- ═ ANALYTICS ═ -->
+      <!-- ═ ANALYTICS ═ -->
       <div id="page-analytics" style="display:none;">
         <div class="stats-row" id="analytics-stats"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
@@ -765,22 +732,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel" style="margin-top:14px;">
           <div class="panel-hdr"><span class="panel-hdr-icon">📅</span><span class="panel-hdr-title">Monthly Summary</span></div>
           <div class="panel-body" id="chart-monthly"></div>
-        </div>
-
-        <!-- Staff Performance -->
-        <div class="panel" style="margin-top:14px;">
-          <div class="panel-hdr">
-            <span class="panel-hdr-icon">👥</span>
-            <span class="panel-hdr-title">Staff Performance</span>
-            <div class="panel-hdr-right">
-              <select id="staff-perf-select" onchange="renderStaffPerformance()" style="padding:5px 10px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;">
-                <option value="">— Staff Select —</option>
-              </select>
-            </div>
-          </div>
-          <div class="panel-body" id="staff-perf-body">
-            <div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>
-          </div>
         </div>
       </div>
 
@@ -1103,7 +1054,6 @@ function initApp(){
   startSessionTimer();
   showPage('dashboard');
   setTimeout(checkDeadlineAlarms,500);
-  setTimeout(refreshAllVehicleDropdowns,500);
   if(typeof startAutoSync==='function') startAutoSync();
   setTimeout(autoFixGarbage,800);
   setTimeout(function(){if(typeof initFirebaseSync==='function')initFirebaseSync();},1500);
@@ -1194,7 +1144,7 @@ async function callAIWithPDF(b64, prompt, akey){
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8192,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:prompt}]}]})
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:16000,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:prompt}]}]})
   });
   if(!resp.ok){const e=await resp.json();throw new Error('API '+(e.error?e.error.message:resp.status));}
   const data=await resp.json();return data.content[0].text;
@@ -1205,19 +1155,14 @@ async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatc
   var batchHint=totalBatches>1?('\nBatch '+batchNum+'/'+totalBatches+'.'+(batchNum===1?' Extract header AND items.':' Extract items only.')):'';
   var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+`
 
-The PDF text has items in this EXACT format (each field on separate line with blank lines between):
-
+The PDF has items in this EXACT format:
 Item No
 
 1
 
 Item Name
 
-FRONT SHOCK ABSORBER MOUNT
-
-CPV Code
-
-34000000-7
+PISTON SET
 
 Unit
 
@@ -1225,42 +1170,17 @@ Number
 
 Quantity
 
-2.00
+1.00
 
-Item No
-
-2
-
-Item Name
-
-FRONT SHOCK ABSORBER MOUNT PLATE (ACCORDING TO SAMPLE)
-
-Unit
-
-Number
-
-Quantity
-
-2.00
-
-IMPORTANT RULES:
-1. Find EVERY "Item No" in the text
-2. The NUMBER after "Item No" blank line = item number
-3. ALL text after "Item Name" blank line until "CPV Code" = description (may be multi-line, join with space)
-4. Number after "Quantity" blank line = qty
-5. There may be 5, 10, 25, 47 or more items — extract ALL of them
-6. Page breaks do not stop items — continue across pages
-7. Also extract: refNo (Procurement Ref No), eqNo (e-Quotation No), entity (Procurement Entity), vehicleName (from Procurement Title - vehicle name), vehicleNo (registration number from Title), engineNo, chassisNo, closingDate (e-Quotation Closing date)
-
-Return ONLY this JSON, no markdown, no explanation:
-{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"FRONT SHOCK ABSORBER MOUNT","qty":2,"unit":"Number","brand":""}]}
-
-CRITICAL: Extract EVERY SINGLE ITEM. Do not stop at page breaks. Return all items in the items array.`;
+Find EVERY "Item No" occurrence and extract each item.
+Return ONLY valid JSON:
+{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"PISTON SET","qty":1,"unit":"Number","brand":""}]}
+CRITICAL: Extract ALL items. description=Item Name value, qty=Quantity value.`;
 
   var resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8192,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:fullPdfB64}},{type:'text',text:prompt}]}]})
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:16000,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:fullPdfB64}},{type:'text',text:prompt}]}]})
   });
   if(!resp.ok){var e=await resp.json();throw new Error('API '+(e.error?e.error.message:resp.status));}
   var data=await resp.json();
@@ -1287,33 +1207,20 @@ function loadExtractedData(parsed){
   if(parsed.validityPeriod) document.getElementById('f-valid').value=parsed.validityPeriod;
   if(parsed.deliveryPeriod) document.getElementById('f-deliv').value=parsed.deliveryPeriod;
   if(parsed.destination) document.getElementById('f-dest').value=parsed.destination;
-  console.log('Parsed items count:', parsed.items?parsed.items.length:0);
-  if(parsed.items&&parsed.items.length>0) console.log('First item:', JSON.stringify(parsed.items[0]));
   if(!parsed.items||!Array.isArray(parsed.items)||parsed.items.length===0){
     if(st) st.className='ai-status error';
-    if(stx) stx.innerHTML='<div style="font-weight:700;color:#B22222;margin-bottom:8px;">⚠️ 0 items extracted — AI-க்கு புரியலை!</div>'+
-      '<button onclick="processFile()" style="padding:7px 14px;background:#2060a0;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 Try Again</button>'+
-      '<button onclick="openME()" style="padding:7px 14px;background:var(--gold);color:var(--navy);border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">✏️ Manual Entry</button>'+
-      '<button onclick="importExtractedJSON()" style="padding:7px 14px;background:#1A3A6B;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;">📥 Import JSON</button>';
+    if(stx) stx.innerHTML='⚠️ 0 items extracted — Manual Entry try பண்ணுங்கள்!';
     document.getElementById('process-btn').disabled=false;
     document.getElementById('info-panel').style.display='block';
     setStep(2); return;
   }
   curItems=parsed.items.map(function(item,i){
-    var brandRows=item.brandRows&&Array.isArray(item.brandRows)&&item.brandRows.length>0
-      ? item.brandRows
-      : [{brand:item.brand||'',partNo:item.partNo||'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}];
     return {itemNo:item.itemNo||(i+1),description:item.description||'',qty:parseFloat(item.qty)||1,
-      unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,brandRows:brandRows};
+      unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,
+      brandRows:[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
   });
   renderItems();setStep(3);
   if(st) st.className='ai-status success';
-  if(curItems.length===0){
-    if(st) st.className='ai-status error';
-    if(stx) stx.innerHTML='⚠️ 0 items extracted — AI-க்கு புரியலை! Console F12 பாருங்கள்.';
-    document.getElementById('process-btn').disabled=false;
-    return;
-  }
   if(stx) stx.innerHTML='✅ '+curItems.length+' items extracted!';
   document.getElementById('process-btn').disabled=false;
 }
@@ -1358,7 +1265,6 @@ function extractPricesFromHistory(){
       if(!item.description) return;
       var brandRows=item.brandRows||[];
       if(brandRows.length===0&&item.brand) brandRows=[{brand:item.brand||'',partNo:item.partNo||'',country:'Japan',price:item.unitPrice||0,purchasePrice:item.purchasePrice||0}];
-      if(!brandRows||!Array.isArray(brandRows)) return;
       brandRows.forEach(function(br){
         var brand=br.brand||'',price=parseFloat(br.price)||0,pu=parseFloat(br.purchasePrice)||0;
         if(!brand&&!price) return;
@@ -1398,7 +1304,6 @@ function showPriceHistory(idx,bi){
     if(!entry.items||!Array.isArray(entry.items))return;
     var date=entry.date||'',quotRef=entry.eqNo||entry.refNo||'',entity=(entry.entity||'').substring(0,20);
     if(!entry.items||!Array.isArray(entry.items)) return;
-    if(!entry.items||!Array.isArray(entry.items)) return;
     entry.items.forEach(function(it){
       if(!it.description)return;
       var a=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
@@ -1409,7 +1314,6 @@ function showPriceHistory(idx,bi){
       if(bW.length===0||matched/bW.length<0.6)return;
       var rows=it.brandRows||[];
       if(rows.length===0&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
-      if(!rows||!Array.isArray(rows)) return;
       rows.forEach(function(br){
         if(!br.brand&&!br.price)return;
         matches.push({date:date,ref:quotRef,entity:entity,brand:br.brand||'',partNo:br.partNo||'',price:br.price||0,purchasePrice:br.purchasePrice||0,status:entry.status||''});
@@ -1502,7 +1406,7 @@ function sendWAClosingAlert(entry){
 
 function initFirebaseSync(){
   if(!FB_READY) return;
-  var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
+  var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
   fbRead('history',function(data){
     try{
       var local=getHist();
@@ -1518,7 +1422,6 @@ function initFirebaseSync(){
         return (statusOrder[r.status]||0)>(statusOrder[lo.status]||0);
       });
       if(newItems.length===0&&statusUpgrades.length===0){
-        // Safe only if local doesn't have lower status than Firebase
         var localBehind=remote.some(function(r){
           if(!r||!r.id)return false;
           var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
@@ -1535,7 +1438,8 @@ function initFirebaseSync(){
       Object.keys(allIds).forEach(function(id){
         var lo=local.find(function(x){return x&&String(x.id)===id;});
         var re2=remote.find(function(x){return x&&String(x.id)===id;});
-        if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;merged.push(reR>loR?re2:lo);}
+        var statusOrder2={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
+        if(lo&&re2){var loR=statusOrder2[lo.status]||0,reR=statusOrder2[re2.status]||0;merged.push(reR>loR?re2:lo);}
         else if(re2&&!lo)merged.push(re2);
         else if(lo)merged.push(lo);
       });
@@ -1548,14 +1452,6 @@ function initFirebaseSync(){
       if(typeof renderStaffDashboard==='function')renderStaffDashboard();
     }catch(e){console.log('Sync error:',e.message);}
   });
-  fbRead('prices',function(data){
-    try{
-      if(!data||typeof data!=='object')return;
-      var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
-      if(remote.length>getPrices().length)localStorage.setItem('ngrd_prices',JSON.stringify(remote));
-    }catch(e){}
-  });
-  // Badge
   var el=document.getElementById('fb-badge');
   if(!el){
     el=document.createElement('div');el.id='fb-badge';
@@ -1601,54 +1497,43 @@ function startAutoSync(){
         var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
         var statusOrder2={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
         var hasNew=remote.some(function(r){return r&&r.id&&localIds.indexOf(String(r.id))<0;});
-        // CRITICAL: Check if Firebase has HIGHER status (approved) than local (pending)
         var hasUpgrade=remote.some(function(r){
-          if(!r||!r.id) return false;
+          if(!r||!r.id)return false;
           var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-          if(!lo) return false;
+          if(!lo)return false;
           return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
         });
-        // If Firebase has upgrades → pull, don't push local
-        // NEVER just push local - always check Firebase status first
-        // If no new items AND no upgrades - still check if local has higher status to push
         if(!hasNew&&!hasUpgrade){
-          // ALWAYS check if Firebase has higher status before pushing local
           var localHasLower=remote.some(function(r){
-            if(!r||!r.id) return false;
+            if(!r||!r.id)return false;
             var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-            if(!lo) return false;
-            return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
+            if(!lo)return false;
+            var remoteR=statusOrder2[r.status]||0;
+            var localR=statusOrder2[lo.status]||0;
+            return remoteR>localR;
           });
           if(localHasLower){
-            // Firebase has approved/submitted — fix local localStorage
             var merged2=[];
             local.forEach(function(lo){
               var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});
-              if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0)){
-                merged2.push(re2);
-              } else {
-                merged2.push(lo);
-              }
+              if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0)){merged2.push(re2);}
+              else{merged2.push(lo);}
             });
             remote.forEach(function(re2){
-              if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);})){
-                merged2.push(re2);
-              }
+              if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);})){merged2.push(re2);}
             });
             merged2=merged2.filter(function(x){return x&&typeof x==='object';});
             localStorage.setItem('ngrd_hist',JSON.stringify(merged2));
             updatePendingBadge();
-            if(typeof renderDashboard==='function') renderDashboard();
+            if(typeof renderDashboard==='function')renderDashboard();
             console.log('Fixed local: pulled approved/submitted from Firebase');
-          } else if(local.length>0){
-            fbWrite('history',local); // Safe to push — no higher status in Firebase
-          }
+          }else if(local.length>0){fbWrite('history',local);}
           return;
         }
         var allIds={};
         local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
         remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
-        var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
+        var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
         var merged=[];
         Object.keys(allIds).forEach(function(id){
           var lo=local.find(function(x){return x&&String(x.id)===id;});
@@ -1682,37 +1567,28 @@ async function processFile(){
     var countMatch=(pdfBytes.match(/\/Type\s*\/Page[^s]/g)||[]).length;
     var pageCount=countMatch>0?countMatch:Math.ceil(pdfBytes.length/(1024*50));
     if(pageCount===0)pageCount=1;
-    if(stx) stx.textContent='📄 '+pageCount+' pages detected...';
-
-    // Smart batch: Promise.lk items are in first ~30 pages only
-    // 200-500 page PDFs have tech specs/forms after items - skip them!
-    var BATCH_SIZE=50; // smaller batch = more accurate
-    var MAX_PAGES=Math.min(pageCount,80); // items always in first 80 pages
-    var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE);
-
-    if(pageCount<=BATCH_SIZE){
-      // Small PDF — single call, full PDF
-      if(stx) stx.textContent='🤖 AI reading PDF ('+pageCount+' pages)...';
+    var pdfSizeKB=Math.round(pdfBytes.length/1024);
+    var isLarge=pageCount>60||pdfSizeKB>300;
+    if(stx) stx.textContent='📄 '+pageCount+' pages, '+pdfSizeKB+'KB detected...';
+    if(!isLarge){
+      if(stx) stx.textContent='🤖 AI reading PDF...';
       var result=await extractBatch(AKEY,pdfB64,null,null,1,1);
       loadExtractedData(result);return;
     }
-
-    // Large PDF — batch only first 80 pages (items section)
-    if(stx) stx.textContent='📦 Large PDF: '+pageCount+' pages — extracting first '+MAX_PAGES+' pages...';
+    var BATCH_SIZE=45;
+    var MAX_PAGES=Math.min(pageCount,150);
+    var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE);
+    if(stx) stx.textContent='📦 Large PDF: '+pdfSizeKB+'KB, '+pageCount+' pages → '+totalBatches+' batches...';
     var allItems=[],firstBatchData=null;
     for(var b=0;b<totalBatches;b++){
-      var batchNum=b+1;
-      var fromPage=b*BATCH_SIZE+1;
-      var toPage=Math.min((b+1)*BATCH_SIZE,MAX_PAGES);
-      if(stx) stx.textContent='📦 Batch '+batchNum+'/'+totalBatches+' (pages '+fromPage+'-'+toPage+')...';
+      var batchNum=b+1,fromPage=b*BATCH_SIZE+1,toPage=Math.min((b+1)*BATCH_SIZE,pageCount);
+      if(stx) stx.textContent='📦 Batch '+batchNum+'/'+totalBatches+'...';
       try{
         var batchResult=await extractBatch(AKEY,pdfB64,fromPage,toPage,batchNum,totalBatches);
         if(batchNum===1)firstBatchData=batchResult;
-        if(batchResult&&batchResult.items&&batchResult.items.length>0){
-          allItems=allItems.concat(batchResult.items);
-        }
+        if(batchResult&&batchResult.items)allItems=allItems.concat(batchResult.items);
       }catch(batchErr){console.warn('Batch '+batchNum+' failed:',batchErr.message);}
-      if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1200);});
+      if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1000);});
     }
     if(stx) stx.textContent='🔀 Merging '+allItems.length+' items...';
     if(firstBatchData){firstBatchData.items=allItems;loadExtractedData(firstBatchData);}
@@ -1729,22 +1605,6 @@ async function processFile(){
 function finishExtraction(parsed){
   window._uploadedBy=CU?CU.name:'';
   window._pricedBy='';
-  // Check 0 items
-  console.log('Parsed items count:', parsed.items?parsed.items.length:0);
-  if(parsed.items&&parsed.items.length>0) console.log('First item:', JSON.stringify(parsed.items[0]));
-  if(!parsed.items||!Array.isArray(parsed.items)||parsed.items.length===0){
-    var st2=document.getElementById('ai-status');
-    var stx2=document.getElementById('ai-st');
-    if(st2){st2.style.cssText='';st2.className='ai-status error';}
-    if(stx2) stx2.innerHTML='⚠️ 0 items extracted — Manual Entry try பண்ணுங்கள்! <br><small style="color:#888">AI PDF-ஐ படிக்கலை. Import JSON or Manual Entry use பண்ணுங்கள்.</small>';
-    document.getElementById('process-btn').disabled=false;
-    document.getElementById('info-panel').style.display='block';
-    setStep(2); return;
-  }
-  // Use loadExtractedData for consistency
-  loadExtractedData(parsed);
-  return;
-  // Legacy below (kept for reference)
   renderItems(parsed.items||[]);
   const st=document.getElementById('ai-status');
   st.style.cssText='';st.className='ai-status success';
@@ -1876,15 +1736,12 @@ function remBR(idx,bi){
 }
 
 function renderItems(items){
-  items=items||[];
-  if(!Array.isArray(items)) items=[];
   curItems=items;
   var tb=document.getElementById('items-tbody');tb.innerHTML='';
   var prices=getPrices();
   var role=getRole();
   var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
 
-  if(!items||!items.length){calcTotals();return;}
   items.forEach(function(item,idx){
     if(!item.brandRows||!item.brandRows.length){
       // Auto-fill from price list
@@ -1906,7 +1763,7 @@ function renderItems(items){
       }
     } else {
       // For existing brandRows with no price, try to fill from price list
-      if(item.brandRows&&Array.isArray(item.brandRows)) item.brandRows.forEach(function(br){
+      item.brandRows.forEach(function(br){
         if((!br.price||br.price===0)&&!br.partNo){
           var match=prices.find(function(p){
             return (p.description||'').toLowerCase()===item.description.toLowerCase()&&
@@ -1950,7 +1807,7 @@ function renderItems(items){
 
       // Purchase Price
       if(role.seePurchase){
-        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" onfocus="showPriceHistory('+idx+','+bi+')" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
+        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
         h+='<td style="padding:3px 4px;background:rgba(42,26,10,.04);">'+puInp+'</td>';
       } else {
         h+='<td style="padding:3px 4px;text-align:center;background:rgba(42,26,10,.04);"><span title="Margin role only">🔒</span></td>';
@@ -1990,33 +1847,23 @@ const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join
 
 
 var PART_SYNONYMS=[
-  ['lower arm','lower control arm','arm lower','control arm lower','lower arm assy','lower wishbone'],
+  ['lower arm','lower control arm','arm lower','control arm lower','lower arm assy'],
   ['shock absorber','shock','damper','absorber','strut','shocker'],
-  ['ball joint','ball joint assy','joint ball','balljoint','b/joint'],
-  ['tie rod','tie rod end','tierod','track rod','steering tie rod'],
+  ['ball joint','ball joint assy','joint ball','balljoint'],
+  ['tie rod','tie rod end','tierod','track rod'],
   ['brake pad','brake pads','disc pad','disc brake pad','brake shoe'],
   ['oil filter','engine oil filter','lube filter','oil filter element'],
-  ['air filter','air cleaner','air cleaner element','air filter element'],
-  ['fuel filter','petrol filter','diesel filter','fuel filter element'],
+  ['air filter','air cleaner','air cleaner element'],
+  ['fuel filter','petrol filter','diesel filter'],
   ['water pump','coolant pump','water pump assy'],
-  ['timing belt','cam belt','timing belt kit','cambelt'],
-  ['clutch','clutch plate','clutch disc','clutch kit','clutch assy'],
-  ['bush','bushing','rubber bush','arm bush','suspension bush'],
-  ['wheel bearing','hub bearing','wheel hub bearing','front wheel bearing'],
-  ['cv joint','cv axle','constant velocity joint','drive shaft joint'],
-  ['brake disc','brake rotor','disc rotor','brake disk'],
+  ['timing belt','cam belt','timing belt kit'],
+  ['clutch','clutch plate','clutch disc','clutch kit'],
+  ['bush','bushing','rubber bush','arm bush'],
+  ['wheel bearing','hub bearing','wheel hub bearing'],
+  ['cv joint','cv axle','constant velocity joint'],
+  ['brake disc','brake rotor','disc rotor'],
 ];
-function descToSynonymKey(desc){
-  var d=desc.toLowerCase().trim().replace(/[.\-_\/\[\]()]/g,' ').replace(/\s+/g,' ').trim()
-    .replace(/(assy|assembly|complete|front|rear|rh|lh|upper|lower|inner|outer)/g,'').trim();
-  for(var i=0;i<PART_SYNONYMS.length;i++){
-    for(var j=0;j<PART_SYNONYMS[i].length;j++){
-      var syn=PART_SYNONYMS[i][j].replace(/(assy|assembly|complete)/g,'').trim();
-      if(d===syn||d.includes(syn)||syn.includes(d)) return i;
-    }
-  }
-  return -1;
-}
+
 function findAllPriceMatches(desc,prices,vehicle){
   if(!desc||!prices||!prices.length) return [];
 
@@ -2108,74 +1955,34 @@ function findAllPriceMatches(desc,prices,vehicle){
   }).slice(0,5).map(function(m){return m.item;});
 }
 
+function autoFillRow(idx,bi){
+  var item=curItems[idx];if(!item)return;
+  var prices=getPrices();
+  var matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(item.description,prices):[];
+  if(!matches.length)return;
+  var best=matches[0];
+  var bEl=document.getElementById('br-b-'+idx+'-'+bi);
+  var pEl=document.getElementById('br-p-'+idx+'-'+bi);
+  var puEl=document.getElementById('br-pu-'+idx+'-'+bi);
+  var cEl=document.getElementById('br-c-'+idx+'-'+bi);
+  if(bEl&&!bEl.value&&best.brand)bEl.value=best.brand;
+  if(pEl&&!pEl.value&&best.partNo)pEl.value=best.partNo;
+  if(cEl&&!cEl.value&&best.country)cEl.value=best.country;
+  if(puEl&&!puEl.value&&best.purchasePrice>0){puEl.value=best.purchasePrice;puEl.style.background='#fffde7';}
+  syncRow(idx,bi);
+}
+
 function getPriceHint(desc,prices){
   var matches=findAllPriceMatches(desc,prices);
   return matches.length>0?matches[0]:null;
 }
 
 
-function autoFillRow(idx,bi){
-  var item=curItems[idx];if(!item)return;
-  var prices=getPrices();
-  if(typeof findAllPriceMatches!=='function')return;
-  var matches=findAllPriceMatches(item.description,prices);
-  if(!matches.length)return;
-  var best=matches[0];
-  var brandEl=document.getElementById('br-b-'+idx+'-'+bi);
-  var partEl=document.getElementById('br-p-'+idx+'-'+bi);
-  var purchEl=document.getElementById('br-pu-'+idx+'-'+bi);
-  var countryEl=document.getElementById('br-c-'+idx+'-'+bi);
-  if(brandEl&&!brandEl.value&&best.brand)brandEl.value=best.brand;
-  if(partEl&&!partEl.value&&best.partNo)partEl.value=best.partNo;
-  if(countryEl&&!countryEl.value&&best.country)countryEl.value=best.country;
-  if(purchEl&&!purchEl.value&&best.purchasePrice>0){purchEl.value=best.purchasePrice;purchEl.style.background='#fffde7';}
-  syncRow(idx,bi);
-}
-
-function showBrandSuggestions(idx,bi){
-  var item=curItems[idx];if(!item)return;
-  var prices=getPrices();
-  if(typeof findAllPriceMatches!=='function'){autoFillRow(idx,bi);return;}
-  var matches=findAllPriceMatches(item.description,prices);
-  if(!matches.length){autoFillRow(idx,bi);return;}
-  var existing=document.getElementById('brand-dd-'+idx+'-'+bi);if(existing)existing.remove();
-  var brandEl=document.getElementById('br-b-'+idx+'-'+bi);if(!brandEl)return;
-  var dd=document.createElement('div');dd.id='brand-dd-'+idx+'-'+bi;
-  dd.style.cssText='position:absolute;background:#fff;border:1px solid #ccc;border-radius:4px;z-index:9999;min-width:200px;box-shadow:0 4px 12px rgba(0,0,0,.15);max-height:200px;overflow-y:auto;';
-  matches.slice(0,5).forEach(function(m){
-    var opt=document.createElement('div');
-    opt.style.cssText='padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #eee;';
-    opt.innerHTML='<b>'+m.brand+'</b>'+(m.partNo?' — '+m.partNo:'')+'<span style="color:#1A6B3C;float:right;">LKR '+(m.purchasePrice||0).toLocaleString()+'</span>';
-    opt.onmousedown=function(e){
-      e.preventDefault();
-      var b2=document.getElementById('br-b-'+idx+'-'+bi);
-      var p2=document.getElementById('br-p-'+idx+'-'+bi);
-      var pu2=document.getElementById('br-pu-'+idx+'-'+bi);
-      var c2=document.getElementById('br-c-'+idx+'-'+bi);
-      if(b2)b2.value=m.brand||'';
-      if(p2)p2.value=m.partNo||'';
-      if(c2&&m.country)c2.value=m.country;
-      if(pu2&&m.purchasePrice>0){pu2.value=m.purchasePrice;pu2.style.background='#fffde7';}
-      syncRow(idx,bi);autoSell(idx,bi);dd.remove();
-      showToast('✅ Auto-filled: '+m.brand,'t-s');
-    };
-    opt.onmouseover=function(){opt.style.background='#f0f7ff';};
-    opt.onmouseout=function(){opt.style.background='';};
-    dd.appendChild(opt);
-  });
-  var rect=brandEl.getBoundingClientRect();
-  dd.style.top=(rect.bottom+window.scrollY)+'px';
-  dd.style.left=rect.left+'px';
-  document.body.appendChild(dd);
-  brandEl.onblur=function(){setTimeout(function(){dd.remove();},200);};
-}
-
 function savePartNo(idx,val){if(curItems[idx])curItems[idx].partNo=val;}
 function saveCountry(idx,val){if(curItems[idx])curItems[idx].country=val;}
 
 function calcTotals(){
-  if(!curItems||!curItems.length) return;
-  curItems.forEach(function(item,idx){if(item.brandRows&&Array.isArray(item.brandRows))item.brandRows.forEach(function(br,bi){syncRow(idx,bi);});});
+  curItems.forEach(function(item,idx){if(item.brandRows)item.brandRows.forEach(function(br,bi){syncRow(idx,bi);});});
   var grand=0;
   curItems.forEach(function(item,idx){
     if(!item.brandRows)return;
@@ -2200,8 +2007,8 @@ function saveToHistory(){
   var g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
   var refNo=g('f-refno'),eqNo=g('f-eqno');
   var quotStatus=curStatus||g('quot-status')||'draft';
-  var hasPricesCheck=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
-  if(hasPricesCheck&&quotStatus==='draft'&&CU&&CU.role!=='admin'){quotStatus='pending';}
+  var hasPrices2=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
+  if(hasPrices2&&quotStatus==='draft'&&CU&&CU.role!=='admin'){quotStatus='pending';}
   var hist=getHist();
   var hasPrices=curItems.some(function(item){
     return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
@@ -2297,7 +2104,9 @@ function renderHistory(){
   let h=getHist();
   var isAdmin=CU&&CU.role==='admin';
   if(!isAdmin&&CU){
+    // Staff sees ONLY their own quotations
     h=h.filter(function(e){
+      // Own quotations
       if(e.owner===CU.username) return true;
       if(e.assignedTo===CU.username) return true;
       // __all__ = old data — all staff can see (vehicle filter)
@@ -2466,7 +2275,6 @@ function autoSavePrices(items){
   items.forEach(function(item){
     if(!item.brandRows||!item.brandRows.length) return;
 
-    if(!item.brandRows||!Array.isArray(item.brandRows)) return;
     item.brandRows.forEach(function(br){
       var price=parseFloat(br.price)||0;
       if(price<=0) return; // Price இல்லாட்டி save பண்ணாதே
@@ -2514,18 +2322,7 @@ function autoSavePrices(items){
 function renderPriceList(){
   const prices=getPrices();
   const q=(document.getElementById('price-search')?.value||'').toLowerCase();
-  const vf=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();
-  const bf=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();
-  var vSel=document.getElementById('price-vehicle-filter');
-  if(vSel&&vSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent='🚗 '+v;vSel.appendChild(o);});}
-  var bSel=document.getElementById('price-brand-filter');
-  if(bSel&&bSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;bSel.appendChild(o);});}
-  const filtered=prices.filter(p=>{
-    var tMatch=!q||(p.description+' '+p.partNo+' '+p.brand+' '+(p.vehicle||'')).toLowerCase().includes(q);
-    var vMatch=!vf||(p.vehicle||'').toLowerCase()===vf;
-    var bMatch=!bf||(p.brand||'').toLowerCase()===bf;
-    return tMatch&&vMatch&&bMatch;
-  });
+  const filtered=q?prices.filter(p=>(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q)):prices;
   const tbody=document.getElementById('price-list-tbody');
   const empty=document.getElementById('price-list-empty');
   if(!filtered.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
@@ -2609,112 +2406,6 @@ function deletePrice(id){
 // ══════════════════════════════════════════════════
 // ANALYTICS
 // ══════════════════════════════════════════════════
-function populateStaffSelect(){
-  var sel=document.getElementById('staff-perf-select');
-  if(!sel) return;
-  var users=getUsers().filter(function(u){return u.active;});
-  var h=getHist();
-  var owners={};
-  users.forEach(function(u){owners[u.username]=u.name;});
-  h.forEach(function(e){if(e.owner&&e.owner!=='__all__'&&!owners[e.owner])owners[e.owner]=e.owner;});
-  var cur=sel.value;
-  sel.innerHTML='<option value="">— Staff Select —</option>';
-  Object.keys(owners).forEach(function(uname){
-    var opt=document.createElement('option');
-    opt.value=uname;opt.textContent=owners[uname];
-    sel.appendChild(opt);
-  });
-  if(cur) sel.value=cur;
-}
-
-function renderStaffPerformance(){
-  var sel=document.getElementById('staff-perf-select');
-  var body=document.getElementById('staff-perf-body');
-  if(!sel||!body) return;
-  var uname=sel.value;
-  if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}
-
-  var h=getHist();
-  var myH=h.filter(function(e){return e.owner===uname;});
-  var user=getUsers().find(function(u){return u.username===uname;})||{name:uname,role:'staff'};
-
-  var uploads=myH.length;
-  var pending=myH.filter(function(e){return e.status==='pending';}).length;
-  var approved=myH.filter(function(e){return e.status==='approved';}).length;
-  var submitted=myH.filter(function(e){return e.status==='submitted';}).length;
-  var awarded=myH.filter(function(e){return e.status==='awarded';}).length;
-  var rejected=myH.filter(function(e){return e.status==='rejected';}).length;
-  var draft=myH.filter(function(e){return !e.status||e.status==='draft';}).length;
-
-  var totalValue=myH.reduce(function(s,e){return s+(e.grandTotal||0);},0);
-  var totalProfit=myH.reduce(function(s,e){
-    if(!e.items||!Array.isArray(e.items)) return s;
-    return s+e.items.reduce(function(ss,item){
-      var br=(item.brandRows&&item.brandRows[0])||{};
-      var sell=parseFloat(br.price)||0;
-      var buy=parseFloat(br.purchasePrice)||0;
-      return ss+(sell-buy)*item.qty;
-    },0);
-  },0);
-
-  var html2='';
-
-  // Header
-  html2+='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">';
-  html2+='<div><div style="font-size:16px;font-weight:700;">'+user.name+'</div>';
-  html2+='<div style="font-size:11px;color:rgba(255,255,255,.6);">@'+uname+' · '+(user.role||'staff')+'</div></div>';
-  html2+='<div style="text-align:right;"><div style="font-size:11px;color:rgba(255,255,255,.6);">Total Quotations</div>';
-  html2+='<div style="font-size:28px;font-weight:700;color:#E8B84B;">'+uploads+'</div></div>';
-  html2+='</div>';
-
-  // Stats grid
-  html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';
-  var stats=[
-    ['📝','Draft',draft,'#888'],
-    ['⏳','Pending',pending,'#E8B84B'],
-    ['✅','Approved',approved,'#1A6B3C'],
-    ['📤','Submitted',submitted,'#2060a0'],
-    ['🏆','Awarded',awarded,'#C9952A'],
-    ['❌','Rejected',rejected,'#B22222']
-  ];
-  stats.forEach(function(s){
-    html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;">';
-    html2+='<div style="font-size:20px;">'+s[0]+'</div>';
-    html2+='<div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div>';
-    html2+='<div style="font-size:10px;color:var(--muted);">'+s[1]+'</div>';
-    html2+='</div>';
-  });
-  html2+='</div>';
-
-  // Financial
-  html2+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">';
-  html2+='<div style="background:#0D2818;color:#fff;border-radius:5px;padding:12px;text-align:center;">';
-  html2+='<div style="font-size:11px;color:rgba(255,255,255,.6);">💰 Total Sales</div>';
-  html2+='<div style="font-size:15px;font-weight:700;color:#4CAF50;margin-top:4px;">LKR '+totalValue.toLocaleString()+'</div></div>';
-  html2+='<div style="background:#0D1B2A;color:#fff;border-radius:5px;padding:12px;text-align:center;">';
-  html2+='<div style="font-size:11px;color:rgba(255,255,255,.6);">📈 Total Profit</div>';
-  html2+='<div style="font-size:15px;font-weight:700;color:#E8B84B;margin-top:4px;">LKR '+totalProfit.toLocaleString()+'</div></div>';
-  html2+='</div>';
-
-  // Recent Activity
-  html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📋 Recent Activity</div>';
-  if(myH.length===0){
-    html2+='<div style="text-align:center;padding:20px;color:var(--muted);">No activity yet</div>';
-  } else {
-    myH.slice(0,10).forEach(function(e){
-      var sc={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';
-      var sl={draft:'Draft',pending:'Pending',submitted:'Submitted',approved:'Approved',awarded:'Awarded',rejected:'Rejected'}[e.status]||e.status;
-      html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;">';
-      html2+='<div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div>';
-      html2+='<div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+' · '+(e.date||'')+'</div></div>';
-      html2+='<span style="font-size:10px;font-weight:700;color:'+sc+';background:'+sc+'18;padding:3px 8px;border-radius:10px;">'+sl+'</span>';
-      html2+='</div>';
-    });
-  }
-
-  body.innerHTML=html2;
-}
-
 function renderAnalytics(){
   setTimeout(populateStaffSelect,100);
   const h=getHist();
@@ -3083,8 +2774,6 @@ function renderDashboard(){
   var prices=getPrices();
   var totalCost=0;
   h.forEach(function(e){
-    if(!e.items) return;
-    if(!e.items||!Array.isArray(e.items)) return;
     if(!e.items||!Array.isArray(e.items)) return;
     e.items.forEach(function(item){
       var br=(item.brandRows&&item.brandRows[0])||{};
@@ -4248,106 +3937,17 @@ function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;c
 // ══════════════════════════════════════════════════
 function getVehicleMaster(){
   var saved=localStorage.getItem('ngrd_vehicles');
-  if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0){
-    // Deduplicate
-    var seen={};return v.filter(function(x){if(!x||seen[x])return false;seen[x]=true;return true;});
-  }}catch(e){}}
-  return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab',
-    'Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van',
-    'Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab',
-    'Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166',
-    'Toyota Cab LN106','Toyota Cab LN107','TATA LPT 1109 TRUCK','TATA WINGER VAN',
-    'Mahindra Bolero (SC TURBO)','TATA 1313 TRUCK','TOYOTA HIACE VAN',
-    'TOYOTA HILUX 1KZ CAB','SCORPIO JEEP'];
+  if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0)return v;}catch(e){}}
+  return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab','Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van','Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab','Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166','Toyota Cab LN106','Toyota Cab LN107','TATA LPT 1109 TRUCK','TATA WINGER VAN','Mahindra Bolero (SC TURBO)','TATA 1313 TRUCK','TOYOTA HIACE VAN','TOYOTA HILUX 1KZ CAB','SCORPIO JEEP'];
 }
-
-function saveVehicleMaster(v){
-  localStorage.setItem('ngrd_vehicles',JSON.stringify(v));
-  if(typeof fbWrite==='function') fbWrite('vehicles',v);
-  if(typeof refreshAllVehicleDropdowns==='function') refreshAllVehicleDropdowns();
-}
-
-function addVehicle(){
-  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
-  var name=prompt('புதிய Vehicle name:','');
-  if(!name||!name.trim())return;
-  name=name.trim();
-  var vehicles=getVehicleMaster();
-  if(vehicles.includes(name)){showToast('Already exists!','t-e');return;}
-  vehicles.push(name);saveVehicleMaster(vehicles);
-  renderVehicleSettings();showToast('✅ '+name+' added!','t-s');
-}
-
-function deleteVehicle(name){
-  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
-  if(!confirm('Delete: '+name+'?'))return;
-  saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==name;}));
-  renderVehicleSettings();showToast('Deleted!','t-i');
-}
-
-function renderVehicleSettings(){
-  var el=document.getElementById('vehicle-settings-list');if(!el)return;
-  var vehicles=getVehicleMaster();
-  if(!vehicles.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles. Add பண்ணுங்கள்!</div>';return;}
-  el.innerHTML=vehicles.map(function(v,i){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'">'
-      +'<span style="font-size:13px;font-weight:600;">🚗 '+v+'</span>'
-      +'<button onclick="deleteVehicle('+JSON.stringify(v)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️ Delete</button>'
-      +'</div>';
-  }).join('');
-}
-
-function syncUploadVehicle(val){
-  var fv=document.getElementById('f-vname');
-  if(fv) fv.value=val;
-}
-
-function refreshAllVehicleDropdowns(){
-  var adminBtns=document.getElementById('vehicle-admin-btns');
-  if(adminBtns) adminBtns.style.display=CU?'flex':'none';
-  var vehicles=getVehicleMaster();
-  var opts=vehicles.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');
-  var uv=document.getElementById('upload-vehicle-select');
-  if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}
-  var fv=document.getElementById('f-vname');
-  if(fv){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}
-}
-
-function uploadPageAddVehicle(){
-  var name=prompt('புதிய Vehicle பெயர்:','');
-  if(!name||!name.trim())return;
-  name=name.trim();
-  var vlist=getVehicleMaster();
-  if(vlist.indexOf(name)>=0){alert('Already exists!');return;}
-  vlist.push(name);saveVehicleMaster(vlist);
-  var sel=document.getElementById('upload-vehicle-select');
-  if(sel){sel.value=name;syncUploadVehicle(name);}
-  showToast('✅ '+name+' added!','t-s');
-}
-
-function uploadPageEditVehicle(){
-  var sel=document.getElementById('upload-vehicle-select');
-  var cur=sel?sel.value:'';
-  if(!cur){showToast('Vehicle select pannungal!','t-e');return;}
-  var newName=prompt('New name:',cur);
-  if(!newName||!newName.trim()||newName===cur)return;
-  var vlist=getVehicleMaster();
-  var idx=vlist.indexOf(cur);
-  if(idx>=0){vlist[idx]=newName.trim();saveVehicleMaster(vlist);refreshAllVehicleDropdowns();}
-  showToast('✅ Updated!','t-s');
-}
-
-function uploadPageDeleteVehicle(){
-  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
-  var sel=document.getElementById('upload-vehicle-select');
-  var cur=sel?sel.value:'';
-  if(!cur){showToast('Vehicle select pannungal!','t-e');return;}
-  if(!confirm('Delete '+cur+'?'))return;
-  saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==cur;}));
-  refreshAllVehicleDropdowns();
-  showToast('Deleted!','t-i');
-}
-
+function saveVehicleMaster(v){localStorage.setItem('ngrd_vehicles',JSON.stringify(v));if(typeof fbWrite==='function')fbWrite('vehicles',v);if(typeof refreshAllVehicleDropdowns==='function')refreshAllVehicleDropdowns();}
+function addVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var name=prompt('Vehicle name:','');if(!name||!name.trim())return;name=name.trim();var vehicles=getVehicleMaster();if(vehicles.includes(name)){showToast('Already exists!','t-e');return;}vehicles.push(name);saveVehicleMaster(vehicles);renderVehicleSettings();showToast('✅ '+name+' added!','t-s');}
+function deleteVehicle(name){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}if(!confirm('Delete: '+name+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==name;}));renderVehicleSettings();showToast('Deleted!','t-i');}
+function renderVehicleSettings(){var el=document.getElementById('vehicle-settings-list');if(!el)return;var vehicles=getVehicleMaster();if(!vehicles.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles!</div>';return;}el.innerHTML=vehicles.map(function(v,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'"><span style="font-size:13px;font-weight:600;">🚗 '+v+'</span><button onclick="deleteVehicle('+JSON.stringify(v)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️</button></div>';}).join('');}
+function syncUploadVehicle(val){var fv=document.getElementById('f-vname');if(fv)fv.value=val;}
+function refreshAllVehicleDropdowns(){var vehicles=getVehicleMaster();var opts=vehicles.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');var uv=document.getElementById('upload-vehicle-select');if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}}
+function populateStaffSelect(){var sel=document.getElementById('staff-perf-select');if(!sel)return;var users=getUsers().filter(function(u){return u.active;});var h=getHist();var owners={};users.forEach(function(u){owners[u.username]=u.name;});h.forEach(function(e){if(e.owner&&e.owner!=='__all__'&&!owners[e.owner])owners[e.owner]=e.owner;});sel.innerHTML='<option value="">— Staff Select —</option>';Object.keys(owners).forEach(function(uname){var opt=document.createElement('option');opt.value=uname;opt.textContent=owners[uname];sel.appendChild(opt);});}
+function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname,role:'staff'};var uploads=myH.length;var pending=myH.filter(function(e){return e.status==='pending';}).length;var approved=myH.filter(function(e){return e.status==='approved';}).length;var submitted=myH.filter(function(e){return e.status==='submitted';}).length;var awarded=myH.filter(function(e){return e.status==='awarded';}).length;var rejected=myH.filter(function(e){return e.status==='rejected';}).length;var draft=myH.filter(function(e){return !e.status||e.status==='draft';}).length;var html2='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.6);">@'+uname+'</div></div><div style="text-align:right;"><div style="font-size:11px;color:rgba(255,255,255,.6);">Total</div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+uploads+'</div></div></div>';var stats=[['📝','Draft',draft,'#888'],['⏳','Pending',pending,'#E8B84B'],['✅','Approved',approved,'#1A6B3C'],['📤','Submitted',submitted,'#2060a0'],['🏆','Awarded',awarded,'#C9952A'],['❌','Rejected',rejected,'#B22222']];html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;">📋 Recent Activity</div>';myH.slice(0,10).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+' · '+(e.date||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
 function resetAll(){window.curEditId=null;
   pdfB64=null;curItems=[];curStatus='draft';
   ['pdf-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
