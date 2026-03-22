@@ -1434,8 +1434,8 @@ function loadExtractedData(parsed){
 
   renderItems();
   setStep(3);
-  st.className='ai-status success';
-  stx.innerHTML='✅ '+curItems.length+' items extracted successfully!';
+  if(st) st.className='ai-status success';
+  if(stx) stx.innerHTML='✅ '+curItems.length+' items extracted successfully!';
   document.getElementById('process-btn').disabled=false;
   showWhatsAppNotify&&typeof showWhatsAppNotify==='function'&&null;
 }
@@ -2001,6 +2001,7 @@ function showPriceHistory(idx, bi){
     var quotRef=entry.eqNo||entry.refNo||'';
     var entity=(entry.entity||'').replace('Sri Lanka ','').substring(0,20);
 
+    if(!entry.items||!Array.isArray(entry.items)) return;
     entry.items.forEach(function(it){
       if(!it.description) return;
       var a=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
