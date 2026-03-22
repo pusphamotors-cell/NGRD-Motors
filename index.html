@@ -1159,12 +1159,19 @@ function handleFile(inp){
   document.getElementById('process-btn').classList.add('show');
   const r=new FileReader();r.onload=e=>{pdfB64=e.target.result.split(',')[1];};r.readAsDataURL(f);
 }
-const dz=document.getElementById('drop-zone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');
-  const f=e.dataTransfer.files[0];
-  if(f&&f.type==='application/pdf'){document.getElementById('pdf-input').files=e.dataTransfer.files;handleFile({files:[f]});}
+document.addEventListener('DOMContentLoaded',function(){
+  var dz=document.getElementById('drop-zone');
+  if(!dz) return;
+  dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});
+  dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});
+  dz.addEventListener('drop',function(e){
+    e.preventDefault();dz.classList.remove('drag');
+    var f=e.dataTransfer.files[0];
+    if(f&&f.type==='application/pdf'){
+      document.getElementById('pdf-input').files=e.dataTransfer.files;
+      handleFile(document.getElementById('pdf-input'));
+    }
+  });
 });
 
 function setStep(n){for(let i=1;i<=4;i++){const el=document.getElementById('step'+i);if(!el)continue;el.className='step'+(i<n?' done':i===n?' active':'');}}
