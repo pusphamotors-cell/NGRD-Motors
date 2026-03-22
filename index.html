@@ -1634,7 +1634,14 @@ async function processFile(){
   document.getElementById('process-btn').disabled=true;
   try{
     var AKEY=getAPIKey();
-    if(!AKEY) throw new Error('API Key இல்லை!');
+    if(!AKEY){
+      promptAPIKey(function(k){
+        localStorage.setItem('ngrd_akey',k);
+        processFile();
+      });
+      document.getElementById('process-btn').disabled=false;
+      return;
+    }
     var pdfBytes=atob(pdfB64);
     var countMatch=(pdfBytes.match(/\/Type\s*\/Page[^s]/g)||[]).length;
     var pageCount=countMatch>0?countMatch:Math.ceil(pdfBytes.length/(1024*50));
@@ -3331,12 +3338,34 @@ function bulkReassign(){
 }
 
 function getAPIKey(){
-  var k=localStorage.getItem('ngrd_akey');
-  if(!k){
-    k=prompt('Anthropic API Key enter பண்ணுங்கள்:\n(ஒரே ஒரு முறை மட்டும் கேட்கும்)');
-    if(k) localStorage.setItem('ngrd_akey',k);
-  }
-  return k||'';
+  return localStorage.getItem('ngrd_akey')||'';
+}
+function promptAPIKey(callback){
+  var existing=document.getElementById('api-key-modal');
+  if(existing) existing.remove();
+  var modal=document.createElement('div');
+  modal.id='api-key-modal';
+  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML='<div style="background:#fff;border-radius:8px;padding:24px;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.3);">'+
+    '<div style="font-size:16px;font-weight:700;color:#0D1B2A;margin-bottom:6px;">🔑 Anthropic API Key</div>'+
+    '<div style="font-size:12px;color:#666;margin-bottom:14px;">ஒரே ஒரு முறை மட்டும் கேட்கும். console.anthropic.com-ல் இருந்து copy பண்ணுங்கள்.</div>'+
+    '<input id="api-key-input" type="password" placeholder="sk-ant-..." style="width:100%;padding:10px;border:2px solid #C8D4E0;border-radius:4px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box;">'+
+    '<div style="display:flex;gap:8px;margin-top:12px;">'+
+    '<button id="api-key-save" style="flex:1;padding:10px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:14px;cursor:pointer;">✅ Save & Extract</button>'+
+    '<button id="api-key-cancel" style="padding:10px 16px;background:#eee;border:none;border-radius:4px;font-size:14px;cursor:pointer;">✕</button>'+
+    '</div></div>';
+  document.body.appendChild(modal);
+  var inp=document.getElementById('api-key-input');
+  setTimeout(function(){if(inp)inp.focus();},100);
+  document.getElementById('api-key-save').onclick=function(){
+    var k=(inp.value||'').trim();
+    if(!k||k.length<20){inp.style.border='2px solid #B22222';showToast('Valid API Key போடுங்கள்!','t-e');return;}
+    localStorage.setItem('ngrd_akey',k);
+    modal.remove();
+    if(callback) callback(k);
+  };
+  document.getElementById('api-key-cancel').onclick=function(){modal.remove();document.getElementById('process-btn').disabled=false;};
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('api-key-save').click();});
 }
 function resetAPIKey(){
   localStorage.removeItem('ngrd_akey');
