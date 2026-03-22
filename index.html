@@ -1266,6 +1266,7 @@ CRITICAL: Extract EVERY SINGLE ITEM. Do not stop at page breaks. Return all item
   var data=await resp.json();
   var raw=data.content[0].text;
   console.log('AI raw (300):', raw.substring(0,300));
+  raw=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
   var s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
   if(s<0||e2<0) throw new Error('No JSON in response');
   return JSON.parse(raw.substring(s,e2+1));
