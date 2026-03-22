@@ -1278,7 +1278,7 @@ function loadExtractedData(parsed){
       brand:_brs[0].brand||item.brand||'',unitPrice:_brs[0].price||0,
       brandRows:_brs};
   });
-  renderItems();setStep(3);
+  renderItems(curItems);setStep(3);
   if(st) st.className='ai-status success';
   if(stx) stx.innerHTML='✅ '+curItems.length+' items extracted!';
   document.getElementById('process-btn').disabled=false;
@@ -1302,7 +1302,7 @@ function importExtractedJSON(){
           return {itemNo:item.itemNo,description:item.description,qty:item.qty||1,unit:item.unit||'Number',
             brand:item.brand||'',unitPrice:0,brandRows:[{brand:'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
         });
-        renderItems();setStep(3);
+        renderItems(curItems);setStep(3);
         var st=document.getElementById('ai-status');var stx=document.getElementById('ai-st');
         if(st){st.style.cssText='';st.className='ai-status success';}
         if(stx) stx.textContent='✅ '+data.items.length+' items imported!';
@@ -1601,38 +1601,6 @@ function startAutoSync(){
       }catch(e){}
     });
   },30000);
-}
-  setInterval(function(){
-    if(!FB_READY||!CU)return;
-    fbRead('history',function(data){
-      try{
-        if(!data||typeof data!=='object')return;
-        var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
-        if(!remote.length)return;
-        var local=getHist();
-        var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
-        var hasNew=remote.some(function(r){return r&&r.id&&localIds.indexOf(String(r.id))<0;});
-        if(!hasNew){if(local.length>0)fbWrite('history',local);return;}
-        var allIds={};
-        local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
-        remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
-        var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
-        var merged=[];
-        Object.keys(allIds).forEach(function(id){
-          var lo=local.find(function(x){return x&&String(x.id)===id;});
-          var re2=remote.find(function(x){return x&&String(x.id)===id;});
-          if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;merged.push(reR>loR?re2:lo);}
-          else if(re2&&!lo)merged.push(re2);
-          else if(lo)merged.push(lo);
-        });
-        merged=merged.filter(function(x){return x&&typeof x==='object';});
-        if(merged.length<local.length){fbWrite('history',local);return;}
-        localStorage.setItem('ngrd_hist',JSON.stringify(merged));
-        fbWrite('history',merged);updatePendingBadge();
-        if(typeof renderDashboard==='function')renderDashboard();
-      }catch(e){}
-    });
-  },30000);
 
 async function processFile(){
   if(!pdfB64){showToast('PDF select pannungal!','t-e');return;}
@@ -1838,12 +1806,14 @@ function remBR(idx,bi){
 }
 
 function renderItems(items){
-  curItems=items;
+  if(items!==undefined) curItems=items;
+  items=curItems||[];
   var tb=document.getElementById('items-tbody');tb.innerHTML='';
   var prices=getPrices();
   var role=getRole();
   var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
 
+  if(!items||!Array.isArray(items)){calcTotals();return;}
   items.forEach(function(item,idx){
     if(!item.brandRows||!item.brandRows.length){
       // Auto-fill from price list
@@ -4089,6 +4059,7 @@ window.onload=()=>{
   setInterval(()=>{if(CU){alarmDismissed=false;checkDeadlineAlarms();}},60000);
 };
 
+}
 </script>
 
 <script>
