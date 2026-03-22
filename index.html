@@ -1206,6 +1206,17 @@ CRITICAL: Extract ALL items. description=Item Name value, qty=Quantity value.`;
   var data=await resp.json();
   var raw=data.content[0].text;
   console.log('AI raw (300):', raw.substring(0,300));
+  // Parse and show items count immediately
+  try{
+    var _test=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    var _s=_test.indexOf('{'),_e=_test.lastIndexOf('}');
+    if(_s>=0&&_e>=0){
+      var _parsed=JSON.parse(_test.substring(_s,_e+1));
+      console.log('✅ Items found:', _parsed.items?_parsed.items.length:0);
+      if(_parsed.items&&_parsed.items.length>0) console.log('First item:', JSON.stringify(_parsed.items[0]));
+      else console.log('⚠️ items array is EMPTY or missing!');
+    }
+  }catch(_ex){console.log('❌ JSON parse error:', _ex.message);}
   raw=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
   var s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
   if(s<0||e2<0) throw new Error('No JSON in response');
