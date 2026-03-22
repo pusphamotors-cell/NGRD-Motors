@@ -1121,9 +1121,9 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 function closeSidebarMobile(){if(isMobile())closeSidebar();}
 
 // ── NAVIGATION ──
-const PAGES=['dashboard','new','history','prices','search','analytics','users','log','backup'];
+const PAGES=['dashboard','new','history','prices','search','analytics','users','vehicles','log','backup'];
 function showPage(pg){
-  if(['analytics','users','log','backup'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
+  if(['analytics','users','vehicles','log','backup'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
   PAGES.forEach(p=>{
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
