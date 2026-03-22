@@ -307,9 +307,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
 
   <!-- Firebase SDK -->
-  
-  
-</head>
+  </head>
 <body>
 
 <!-- ══ LOGIN ══ -->
@@ -379,7 +377,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="nav-sec-lbl">Administration</div>
         <button class="nav-item" id="nav-analytics" onclick="showPage('analytics');closeSidebarMobile()"><span class="nav-icon">📊</span>Analytics</button>
         <button class="nav-item" id="nav-users" onclick="showPage('users');closeSidebarMobile()"><span class="nav-icon">👥</span>Users</button>
-        <button class="nav-item" id="nav-vehicles" onclick="showPage('vehicles');closeSidebarMobile()"><span class="nav-icon">🚗</span>Vehicles</button>
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
@@ -574,8 +571,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       <div id="page-prices" style="display:none;">
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">💰</span><span class="panel-hdr-title">Parts Price Master List</span>
-            <div class="panel-hdr-right" style="display:flex;gap:5px;flex-wrap:wrap;"><button class="btn btn-gold btn-sm" onclick="openAddPrice()">➕ Add</button><button class="btn btn-navy btn-sm" onclick="expCSV()">📥 Export</button><label class="btn btn-navy btn-sm" style="cursor:pointer;margin:0;">📤 Import<input type="file" id="imp-file" accept=".csv" onchange="impCSV(this)" style="display:none;"></label><button class="btn btn-green btn-sm" onclick="loadSX4()">🚗 SX4 (350)</button>
-            <button class="btn btn-sm" onclick="extractPricesFromHistory()" style="background:#1A3A6B;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">📊 History-லிருந்து Extract</button><button onclick="hardReset()" style="padding:5px 11px;background:rgba(178,34,34,.1);color:var(--red);border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear</button></div>
+            <div class="panel-hdr-right" style="display:flex;gap:5px;flex-wrap:wrap;"><button class="btn btn-gold btn-sm" onclick="openAddPrice()">➕ Add</button><button class="btn btn-navy btn-sm" onclick="expCSV()">📥 Export</button><label class="btn btn-navy btn-sm" style="cursor:pointer;margin:0;">📤 Import<input type="file" id="imp-file" accept=".csv" onchange="impCSV(this)" style="display:none;"></label><button class="btn btn-green btn-sm" onclick="loadSX4()">🚗 SX4 (350)</button><button onclick="hardReset()" style="padding:5px 11px;background:rgba(178,34,34,.1);color:var(--red);border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear</button></div>
           </div>
           <div class="panel-body">
             <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:#7A5800;">💡 <b>CSV Format:</b> A=Description, B=PartNo, C=Brand, D=Country, E=Price (Row 1 header)</div>
@@ -732,26 +728,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel" style="margin-top:14px;">
           <div class="panel-hdr"><span class="panel-hdr-icon">📅</span><span class="panel-hdr-title">Monthly Summary</span></div>
           <div class="panel-body" id="chart-monthly"></div>
-        </div>
-      </div>
-
-      
-      <!-- ═ VEHICLES ═ -->
-      <div id="page-vehicles" style="display:none;">
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-hdr-icon">🚗</span>
-            <span class="panel-hdr-title">Vehicle Master List</span>
-            <div class="panel-hdr-right">
-              <button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add Vehicle</button>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#7A5800;">
-              💡 Vehicle add பண்ணினால் எல்லா dropdowns-லும் automatically வரும்!
-            </div>
-            <div id="vehicle-settings-list"></div>
-          </div>
         </div>
       </div>
 
@@ -924,7 +900,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
   </div>
 </div>
 <script>
-
 // ═══════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════
@@ -1074,7 +1049,6 @@ function initApp(){
   startSessionTimer();
   showPage('dashboard');
   setTimeout(checkDeadlineAlarms,500);
-  if(typeof startAutoSync==='function') startAutoSync();
   setTimeout(autoFixGarbage,800);
   setTimeout(function(){if(typeof initFirebaseSync==='function')initFirebaseSync();},1500);
   setTimeout(migrateOwnerField,3000);
@@ -1127,7 +1101,6 @@ function showPage(pg){
   if(pg==='log')renderLog();
   if(pg==='backup')renderBackupPage();
   if(pg==='prices')renderPriceList();
-  if(pg==='vehicles'){renderVehicleSettings();}
   if(pg==='search')runQuickSearch();
   if(pg==='dashboard')renderDashboard();
 }
@@ -1157,492 +1130,120 @@ function setStep(n){for(let i=1;i<=4;i++){const el=document.getElementById('step
 // ══════════════════════════════════════════════════
 // AI PROCESSING
 // ══════════════════════════════════════════════════
-
-// ══ NEW FEATURES ══
-
-async function callAIWithPDF(b64, prompt, akey){
-  const resp=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:16000,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:prompt}]}]})
-  });
-  if(!resp.ok){const e=await resp.json();throw new Error('API '+(e.error?e.error.message:resp.status));}
-  const data=await resp.json();return data.content[0].text;
-}
-
-async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatches){
-  var rangeHint=fromPage?('\nNOTE: Focus on pages '+fromPage+' to '+toPage+' only.'):'';
-  var batchHint=totalBatches>1?('\nBatch '+batchNum+'/'+totalBatches+'.'+(batchNum===1?' Extract header AND items.':' Extract items only.')):'';
-  var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+`
-
-The PDF has items in this EXACT format:
-Item No
-
-1
-
-Item Name
-
-PISTON SET
-
-Unit
-
-Number
-
-Quantity
-
-1.00
-
-Find EVERY "Item No" occurrence and extract each item.
-Return ONLY valid JSON:
-{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"PISTON SET","qty":1,"unit":"Number","brand":""}]}
-CRITICAL: Extract ALL items. description=Item Name value, qty=Quantity value.`;
-
-  var resp=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:16000,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:fullPdfB64}},{type:'text',text:prompt}]}]})
-  });
-  if(!resp.ok){var e=await resp.json();throw new Error('API '+(e.error?e.error.message:resp.status));}
-  var data=await resp.json();
-  var raw=data.content[0].text;
-  console.log('AI raw (300):', raw.substring(0,300));
-  // Parse and show items count immediately
-  try{
-    var _test=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-    var _s=_test.indexOf('{'),_e=_test.lastIndexOf('}');
-    if(_s>=0&&_e>=0){
-      var _parsed=JSON.parse(_test.substring(_s,_e+1));
-      console.log('✅ Items found:', _parsed.items?_parsed.items.length:0);
-      if(_parsed.items&&_parsed.items.length>0) console.log('First item:', JSON.stringify(_parsed.items[0]));
-      else console.log('⚠️ items array is EMPTY or missing!');
-    }
-  }catch(_ex){console.log('❌ JSON parse error:', _ex.message);}
-  raw=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-  var s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
-  if(s<0||e2<0) throw new Error('No JSON in response');
-  return JSON.parse(raw.substring(s,e2+1));
-}
-
-function loadExtractedData(parsed){
-  var st=document.getElementById('ai-status');
-  var stx=document.getElementById('ai-st');
-  if(parsed.refNo) document.getElementById('f-refno').value=parsed.refNo;
-  if(parsed.eqNo) document.getElementById('f-eqno').value=parsed.eqNo;
-  if(parsed.entity) document.getElementById('f-entity').value=parsed.entity;
-  if(parsed.title) document.getElementById('f-title').value=parsed.title;
-  if(parsed.vehicleName) document.getElementById('f-vname').value=parsed.vehicleName;
-  if(parsed.vehicleNo) document.getElementById('f-vno').value=parsed.vehicleNo;
-  if(parsed.engineNo) document.getElementById('f-eng').value=parsed.engineNo;
-  if(parsed.chassisNo) document.getElementById('f-chas').value=parsed.chassisNo;
-  if(parsed.closingDate) document.getElementById('f-close').value=parsed.closingDate.split('T')[0].split(' ')[0];
-  if(parsed.validityPeriod) document.getElementById('f-valid').value=parsed.validityPeriod;
-  if(parsed.deliveryPeriod) document.getElementById('f-deliv').value=parsed.deliveryPeriod;
-  if(parsed.destination) document.getElementById('f-dest').value=parsed.destination;
-  if(!parsed.items||!Array.isArray(parsed.items)||parsed.items.length===0){
-    if(st) st.className='ai-status error';
-    if(stx) stx.innerHTML='⚠️ 0 items extracted — Manual Entry try பண்ணுங்கள்!';
-    document.getElementById('process-btn').disabled=false;
-    document.getElementById('info-panel').style.display='block';
-    setStep(2); return;
-  }
-  // Ensure every item has brandRows array
-  curItems=parsed.items.map(function(item,i){
-    if(!item.brandRows) item.brandRows=[];
-    return {itemNo:item.itemNo||(i+1),description:item.description||'',qty:parseFloat(item.qty)||1,
-      unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,
-      brandRows:[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
-  });
-  renderItems();setStep(3);
-  if(st) st.className='ai-status success';
-  if(stx) stx.innerHTML='✅ '+curItems.length+' items extracted!';
-  document.getElementById('process-btn').disabled=false;
-}
-
-function importExtractedJSON(){
-  var input=document.createElement('input');input.type='file';input.accept='.json';
-  input.onchange=function(e){
-    var file=e.target.files[0];if(!file)return;
-    var reader=new FileReader();
-    reader.onload=function(ev){
-      try{
-        var data=JSON.parse(ev.target.result);
-        if(!data.items||!Array.isArray(data.items)){showToast('Invalid JSON!','t-e');return;}
-        if(data.refNo) document.getElementById('f-refno').value=data.refNo;
-        if(data.eqNo) document.getElementById('f-eqno').value=data.eqNo;
-        if(data.entity) document.getElementById('f-entity').value=data.entity;
-        if(data.vehicleName) document.getElementById('f-vname').value=data.vehicleName;
-        if(data.closingDate) document.getElementById('f-close').value=data.closingDate.split(' ')[0];
-        curItems=data.items.map(function(item){
-          return {itemNo:item.itemNo,description:item.description,qty:item.qty||1,unit:item.unit||'Number',
-            brand:item.brand||'',unitPrice:0,brandRows:[{brand:'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
-        });
-        renderItems();setStep(3);
-        var st=document.getElementById('ai-status');var stx=document.getElementById('ai-st');
-        if(st){st.style.cssText='';st.className='ai-status success';}
-        if(stx) stx.textContent='✅ '+data.items.length+' items imported!';
-        showToast('✅ '+data.items.length+' items imported!','t-s');
-      }catch(e){showToast('JSON error: '+e.message,'t-e');}
-    };reader.readAsText(file);
-  };input.click();
-}
-
-function extractPricesFromHistory(){
-  var hist=getHist();
-  if(!hist||hist.length===0){showToast('History empty!','t-e');return;}
-  var prices=getPrices();var added=0,updated=0;
-  hist.forEach(function(entry){
-    if(!entry.items||!Array.isArray(entry.items)) return;
-    var vehicle=entry.vehicle||'';
-    if(!entry.items||!Array.isArray(entry.items)) return;
-    entry.items.forEach(function(item){
-      if(!item.description) return;
-      var brandRows=item.brandRows||[];
-      if(brandRows.length===0&&item.brand) brandRows=[{brand:item.brand||'',partNo:item.partNo||'',country:'Japan',price:item.unitPrice||0,purchasePrice:item.purchasePrice||0}];
-      if(!brandRows||!Array.isArray(brandRows)) return;
-      brandRows.forEach(function(br){
-        var brand=br.brand||'',price=parseFloat(br.price)||0,pu=parseFloat(br.purchasePrice)||0;
-        if(!brand&&!price) return;
-        var idx=prices.findIndex(function(p){return (p.description||'').toLowerCase()===(item.description||'').toLowerCase()&&(p.brand||'').toLowerCase()===brand.toLowerCase();});
-        var pe={id:idx>=0?prices[idx].id:(Date.now()+Math.random()),description:item.description,vehicle:vehicle,partNo:br.partNo||'',brand:brand,country:br.country||'Japan',price:price,purchasePrice:pu,date:entry.date||new Date().toLocaleDateString('en-LK')};
-        if(idx>=0){if(price>0||pu>0){prices[idx]=pe;updated++;}}else if(brand||price>0){prices.unshift(pe);added++;}
-      });
-    });
-  });
-  setPrices(prices);renderPriceList();
-  if(added>0||updated>0) showToast('✅ '+added+' new + '+updated+' updated!','t-s');
-  else showToast('No price data found','t-i');
-}
-
-function editPriceEntry(id){
-  var prices=getPrices();
-  var p=prices.find(function(x){return String(x.id)===String(id);});if(!p)return;
-  var d=prompt('Description:',p.description||'');if(d===null)return;
-  var b=prompt('Brand:',p.brand||'');if(b===null)return;
-  var pn=prompt('Part No:',p.partNo||'');if(pn===null)return;
-  var pu=prompt('Purchase (LKR):',p.purchasePrice||0);if(pu===null)return;
-  var pr=prompt('Selling (LKR):',p.price||0);if(pr===null)return;
-  var idx=prices.findIndex(function(x){return String(x.id)===String(id);});
-  if(idx>=0){
-    prices[idx].description=d;prices[idx].brand=b;prices[idx].partNo=pn;
-    prices[idx].purchasePrice=parseFloat(pu)||0;prices[idx].price=parseFloat(pr)||0;
-    prices[idx].date=new Date().toLocaleDateString('en-LK');
-    setPrices(prices);renderPriceList();showToast('✅ Updated!','t-s');
-  }
-}
-
-function showPriceHistory(idx,bi){
-  var item=curItems[idx];if(!item)return;
-  var desc=item.description||'';
-  var hist=getHist();var matches=[];
-  hist.forEach(function(entry){
-    if(!entry.items||!Array.isArray(entry.items))return;
-    var date=entry.date||'',quotRef=entry.eqNo||entry.refNo||'',entity=(entry.entity||'').substring(0,20);
-    if(!entry.items||!Array.isArray(entry.items)) return;
-    entry.items.forEach(function(it){
-      if(!it.description)return;
-      var a=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
-      var b=desc.toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
-      var aW=a.split(' ').filter(function(w){return w.length>2;});
-      var bW=b.split(' ').filter(function(w){return w.length>2;});
-      var matched=bW.filter(function(w){return aW.includes(w);}).length;
-      if(bW.length===0||matched/bW.length<0.6)return;
-      var rows=it.brandRows||[];
-      if(rows.length===0&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
-      if(!rows||!Array.isArray(rows)) return;
-      rows.forEach(function(br){
-        if(!br.brand&&!br.price)return;
-        matches.push({date:date,ref:quotRef,entity:entity,brand:br.brand||'',partNo:br.partNo||'',price:br.price||0,purchasePrice:br.purchasePrice||0,status:entry.status||''});
-      });
-    });
-  });
-  if(matches.length===0){autoFillRow(idx,bi);return;}
-  var brandMap={};
-  if(!matches||!matches.length) return;
-  matches.forEach(function(m){
-    var b=m.brand||'No Brand';
-    if(!brandMap[b]) brandMap[b]={count:0,total:0,lastPurchase:0,partNo:m.partNo};
-    brandMap[b].count++;brandMap[b].total+=m.purchasePrice||0;
-    brandMap[b].lastPurchase=m.purchasePrice||0;
-    if(!brandMap[b].partNo) brandMap[b].partNo=m.partNo;
-  });
-  var ex=document.getElementById('price-hist-popup');if(ex)ex.remove();
-  var popup=document.createElement('div');
-  popup.id='price-hist-popup';
-  popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:90vw;max-width:480px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);';
-  var hdr=document.createElement('div');
-  hdr.style.cssText='background:#0D1B2A;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;';
-  hdr.innerHTML='<div><div style="font-weight:700;font-size:13px;">📊 '+desc+'</div><div style="font-size:10px;opacity:.7;">'+matches.length+' records</div></div>';
-  var closeBtn=document.createElement('span');closeBtn.textContent='✕';
-  closeBtn.style.cssText='cursor:pointer;font-size:18px;opacity:.7;';
-  closeBtn.onclick=function(){popup.remove();};
-  hdr.appendChild(closeBtn);popup.appendChild(hdr);
-  var brandDiv=document.createElement('div');brandDiv.style.cssText='padding:12px 16px;border-bottom:2px solid #eee;';
-  var bTitle=document.createElement('div');bTitle.style.cssText='font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;';
-  bTitle.textContent='🏷️ Brands Summary';brandDiv.appendChild(bTitle);
-  Object.keys(brandMap).forEach(function(brand){
-    var bm=brandMap[brand];var avg=bm.count>0?Math.round(bm.total/bm.count):0;
-    var row=document.createElement('div');
-    row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#f7fafd;border-radius:4px;margin-bottom:4px;';
-    var info=document.createElement('div');
-    info.innerHTML='<div style="font-weight:700;font-size:12px;">'+brand+'</div><div style="font-size:10px;color:#666;">'+(bm.partNo||'')+' | '+bm.count+'x | Avg: LKR '+avg.toLocaleString()+'</div>';
-    var useBtn=document.createElement('button');useBtn.textContent='Use ✅';
-    useBtn.style.cssText='padding:5px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;';
-    (function(br,pu,pn){useBtn.onclick=function(){applyPriceHistory(idx,bi,br,pu,pn);popup.remove();};})(brand,bm.lastPurchase,bm.partNo||'');
-    row.appendChild(info);row.appendChild(useBtn);brandDiv.appendChild(row);
-  });
-  popup.appendChild(brandDiv);
-  var recDiv=document.createElement('div');recDiv.style.cssText='padding:12px 16px;';
-  var rTitle=document.createElement('div');rTitle.style.cssText='font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;';
-  rTitle.textContent='📅 Last 5 Quotations';recDiv.appendChild(rTitle);
-  matches.slice(0,5).forEach(function(m){
-    var colors={awarded:'#C9952A',submitted:'#2060a0',approved:'#1A6B3C',rejected:'#B22222'};
-    var c=colors[m.status]||'#888';
-    var rec=document.createElement('div');
-    rec.style.cssText='padding:8px;background:#f9f9f9;border-radius:4px;margin-bottom:6px;border-left:3px solid '+c+';';
-    rec.innerHTML='<div style="display:flex;justify-content:space-between;"><div style="font-size:11px;font-weight:700;">'+m.brand+(m.partNo?' — '+m.partNo:'')+'</div><div style="font-size:11px;color:#1A6B3C;font-weight:700;">LKR '+(m.purchasePrice||0).toLocaleString()+'</div></div><div style="font-size:10px;color:#888;margin-top:2px;">'+m.date+' | '+m.ref+'</div>';
-    recDiv.appendChild(rec);
-  });
-  popup.appendChild(recDiv);document.body.appendChild(popup);
-  setTimeout(function(){document.addEventListener('click',function closePH(e){if(!popup.contains(e.target)){popup.remove();document.removeEventListener('click',closePH);}});},200);
-}
-
-function applyPriceHistory(idx,bi,brand,purchasePrice,partNo){
-  var brandEl=document.getElementById('br-b-'+idx+'-'+bi);
-  var partEl=document.getElementById('br-p-'+idx+'-'+bi);
-  var purchEl=document.getElementById('br-pu-'+idx+'-'+bi);
-  if(brandEl) brandEl.value=brand;
-  if(partEl&&partNo) partEl.value=partNo;
-  if(purchEl&&purchasePrice>0){purchEl.value=purchasePrice;purchEl.style.background='#fffde7';}
-  syncRow(idx,bi);autoSell(idx,bi);
-  var popup=document.getElementById('price-hist-popup');if(popup)popup.remove();
-  showToast('✅ '+brand+' applied!','t-s');
-}
-
-var ADMIN_WA='94765234296';
-function showWhatsAppNotify(entry){
-  if(!entry)return;
-  var msg='🔔 *NGRD Motors — புது Quotation*%0A%0A👤 '+(entry.savedBy||'?')+'%0A🚗 '+(entry.vehicle||'')+'%0A📋 '+(entry.eqNo||entry.refNo||'')+'%0A📦 '+(entry.items?entry.items.length:0)+' parts%0A📅 '+(entry.closingDate||'N/A')+'%0A%0A✅ ngrd-motors.vercel.app';
-  var url='https://wa.me/'+ADMIN_WA+'?text='+msg;
-  var existing=document.getElementById('wa-notify-btn');if(existing)existing.remove();
-  var btn=document.createElement('div');btn.id='wa-notify-btn';btn.style.cssText='position:fixed;bottom:60px;right:12px;z-index:9999;';
-  var closeBtn=document.createElement('div');closeBtn.style.cssText='position:absolute;top:-6px;right:-6px;background:#B22222;color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;font-weight:700;';
-  closeBtn.textContent='✕';closeBtn.onclick=function(){var el=document.getElementById('wa-notify-btn');if(el)el.remove();};
-  var waLink=document.createElement('a');waLink.href=url;waLink.target='_blank';
-  waLink.style.cssText='display:flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:10px 16px;border-radius:25px;text-decoration:none;font-family:var(--fb);font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(37,211,102,.4);';
-  waLink.innerHTML='<span style="font-size:18px;">📱</span> WhatsApp Admin';
-  btn.appendChild(waLink);btn.appendChild(closeBtn);document.body.appendChild(btn);
-  setTimeout(function(){var el=document.getElementById('wa-notify-btn');if(el)el.remove();},30000);
-}
-
-function sendWAClosingAlert(entry){
-  if(!entry)return;
-  var msg='⚠️ *NGRD Motors — Closing Alert*%0A%0A🚗 '+(entry.vehicle||'')+'%0A📋 '+(entry.eqNo||entry.refNo||'')+'%0A📅 Closing: '+(entry.closingDate||'')+'%0AStatus: '+(entry.status||'')+'%0A%0A🔗 ngrd-motors.vercel.app';
-  window.open('https://wa.me/'+ADMIN_WA+'?text='+msg,'_blank');
-}
-
-function initFirebaseSync(){
-  if(!FB_READY) return;
-  var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
-  fbRead('history',function(data){
-    try{
-      var local=getHist();
-      if(!data||typeof data!=='object'){if(local.length>0)fbWrite('history',local);return;}
-      var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
-      if(!remote.length){if(local.length>0)fbWrite('history',local);return;}
-      var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
-      var newItems=remote.filter(function(r){return r&&r.id&&localIds.indexOf(String(r.id))<0;});
-      var statusUpgrades=remote.filter(function(r){
-        if(!r||!r.id)return false;
-        var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-        if(!lo)return false;
-        return (statusOrder[r.status]||0)>(statusOrder[lo.status]||0);
-      });
-      if(newItems.length===0&&statusUpgrades.length===0){
-        var localBehind=remote.some(function(r){
-          if(!r||!r.id)return false;
-          var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-          if(!lo)return false;
-          return (statusOrder[r.status]||0)>(statusOrder[lo.status]||0);
-        });
-        if(!localBehind&&local.length>0)fbWrite('history',local);
-        return;
-      }
-      var allIds={};
-      local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
-      remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
-      var merged=[];
-      Object.keys(allIds).forEach(function(id){
-        var lo=local.find(function(x){return x&&String(x.id)===id;});
-        var re2=remote.find(function(x){return x&&String(x.id)===id;});
-        var statusOrder2={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
-        if(lo&&re2){var loR=statusOrder2[lo.status]||0,reR=statusOrder2[re2.status]||0;merged.push(reR>loR?re2:lo);}
-        else if(re2&&!lo)merged.push(re2);
-        else if(lo)merged.push(lo);
-      });
-      merged=merged.filter(function(x){return x&&typeof x==='object';});
-      if(merged.length<local.length){fbWrite('history',local);return;}
-      localStorage.setItem('ngrd_hist',JSON.stringify(merged));
-      fbWrite('history',merged);
-      updatePendingBadge();
-      if(typeof renderDashboard==='function')renderDashboard();
-      if(typeof renderStaffDashboard==='function')renderStaffDashboard();
-    }catch(e){console.log('Sync error:',e.message);}
-  });
-  var el=document.getElementById('fb-badge');
-  if(!el){
-    el=document.createElement('div');el.id='fb-badge';
-    el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;background:#1A6B3C;color:#fff;cursor:pointer;';
-    el.title='Click to force sync';
-    el.onclick=function(){
-      var h=getHist();var p=getPrices();var u=getUsers();
-      if(h&&h.length>0)fbWrite('history',h);
-      if(p&&p.length>0)fbWrite('prices',p);
-      if(u&&u.length>0)fbWrite('users',u);
-      el.textContent='⬆️ Pushed!';
-      showToast('✅ Firebase push! Staff-க்கு 30sec-ல் வரும்','t-s');
-      setTimeout(function(){el.textContent='🟢 Synced';},3000);
-    };
-    document.body.appendChild(el);
-  }
-  el.textContent='🟢 Synced';
-}
-
-function doAssign(id){var sel=document.getElementById('assign-sel-'+id);if(sel)assignQuot(id,sel.value);}
-function assignQuot(id,toUsername){
-  if(!toUsername){showToast('Staff select pannungal!','t-e');return;}
-  var h=getHist();var idx=h.findIndex(function(e){return e.id===id;});if(idx<0)return;
-  h[idx].assignedTo=toUsername;h[idx].assignedBy=CU.username;h[idx].assignedAt=new Date().toLocaleString('en-LK');
-  if(h[idx].status==='draft')h[idx].status='assigned';
-  setHist(h);
-  var staffUser=getUsers().find(function(u){return u.username===toUsername;});
-  var staffName=staffUser?staffUser.name:toUsername;
-  addLog('Assigned: '+(h[idx].eqNo||h[idx].refNo)+' to '+staffName);
-  showToast('Assigned to '+staffName,'t-s');
-  if(typeof renderDashboard==='function')renderDashboard();
-}
-
-function startAutoSync(){
-  setInterval(function(){
-    if(!FB_READY||!CU)return;
-    fbRead('history',function(data){
-      try{
-        if(!data||typeof data!=='object')return;
-        var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
-        if(!remote.length)return;
-        var local=getHist();
-        var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
-        var statusOrder2={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
-        var hasNew=remote.some(function(r){return r&&r.id&&localIds.indexOf(String(r.id))<0;});
-        var hasUpgrade=remote.some(function(r){
-          if(!r||!r.id)return false;
-          var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-          if(!lo)return false;
-          return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
-        });
-        if(!hasNew&&!hasUpgrade){
-          var localHasLower=remote.some(function(r){
-            if(!r||!r.id)return false;
-            var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-            if(!lo)return false;
-            var remoteR=statusOrder2[r.status]||0;
-            var localR=statusOrder2[lo.status]||0;
-            return remoteR>localR;
-          });
-          if(localHasLower){
-            var merged2=[];
-            local.forEach(function(lo){
-              var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});
-              if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0)){merged2.push(re2);}
-              else{merged2.push(lo);}
-            });
-            remote.forEach(function(re2){
-              if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);})){merged2.push(re2);}
-            });
-            merged2=merged2.filter(function(x){return x&&typeof x==='object';});
-            localStorage.setItem('ngrd_hist',JSON.stringify(merged2));
-            updatePendingBadge();
-            if(typeof renderDashboard==='function')renderDashboard();
-            console.log('Fixed local: pulled approved/submitted from Firebase');
-          }else if(local.length>0){fbWrite('history',local);}
-          return;
-        }
-        var allIds={};
-        local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
-        remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
-        var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
-        var merged=[];
-        Object.keys(allIds).forEach(function(id){
-          var lo=local.find(function(x){return x&&String(x.id)===id;});
-          var re2=remote.find(function(x){return x&&String(x.id)===id;});
-          if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;merged.push(reR>loR?re2:lo);}
-          else if(re2&&!lo)merged.push(re2);
-          else if(lo)merged.push(lo);
-        });
-        merged=merged.filter(function(x){return x&&typeof x==='object';});
-        if(merged.length<local.length){fbWrite('history',local);return;}
-        localStorage.setItem('ngrd_hist',JSON.stringify(merged));
-        fbWrite('history',merged);updatePendingBadge();
-        if(typeof renderDashboard==='function')renderDashboard();
-      }catch(e){}
-    });
-  },30000);
-}
-
 async function processFile(){
-  if(!pdfB64){showToast('PDF select pannungal!','t-e');return;}
+  if(!pdfB64){showToast('Select a PDF first','t-e');return;}
   setStep(2);
-  var st=document.getElementById('ai-status');
-  var stx=document.getElementById('ai-st');
-  if(st) st.className='ai-status loading';
-  if(stx) stx.textContent='AI reading PDF...';
+  const st=document.getElementById('ai-status'),stx=document.getElementById('ai-st');
+  st.className='ai-status loading';stx.textContent='Gemini AI is reading the PDF...';
   document.getElementById('process-btn').disabled=true;
+
   try{
-    var AKEY=getAPIKey();
-    if(!AKEY) throw new Error('API Key இல்லை!');
-    var pdfBytes=atob(pdfB64);
-    var countMatch=(pdfBytes.match(/\/Type\s*\/Page[^s]/g)||[]).length;
-    var pageCount=countMatch>0?countMatch:Math.ceil(pdfBytes.length/(1024*50));
-    if(pageCount===0)pageCount=1;
-    var pdfSizeKB=Math.round(pdfBytes.length/1024);
-    var isLarge=pageCount>60||pdfSizeKB>300;
-    if(stx) stx.textContent='📄 '+pageCount+' pages, '+pdfSizeKB+'KB detected...';
-    if(!isLarge){
-      if(stx) stx.textContent='🤖 AI reading PDF...';
-      var result=await extractBatch(AKEY,pdfB64,null,null,1,1);
-      loadExtractedData(result);return;
+    const AKEY=getAPIKey();
+    const prompt='Extract spare parts from this Sri Lanka Government Promise.lk e-GP quotation PDF. Return ONLY valid JSON (no backticks, no markdown):\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"","qty":1,"unit":"Number","brand":""}]}\n\nPDF format: Each item has "Item No", "Item Name", "Quantity" on separate lines. Find EVERY Item No and extract ALL items. description=Item Name, qty=Quantity. No backticks in response!';
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':AKEY,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:16000,
+        messages:[{role:'user',content:[
+          {type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+    if(!resp.ok){
+      const e=await resp.json();
+      throw new Error('API Error '+(e.error?e.error.type+': '+e.error.message:resp.status));
     }
-    var BATCH_SIZE=45;
-    var MAX_PAGES=Math.min(pageCount,150);
-    var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE);
-    if(stx) stx.textContent='📦 Large PDF: '+pdfSizeKB+'KB, '+pageCount+' pages → '+totalBatches+' batches...';
-    var allItems=[],firstBatchData=null;
-    for(var b=0;b<totalBatches;b++){
-      var batchNum=b+1,fromPage=b*BATCH_SIZE+1,toPage=Math.min((b+1)*BATCH_SIZE,pageCount);
-      if(stx) stx.textContent='📦 Batch '+batchNum+'/'+totalBatches+'...';
+    const data=await resp.json();
+    let raw=data.content[0].text;
+    raw=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    // Better JSON extraction - find outermost { }
+    let parsed=null;
+    let parseErr='';
+    // Try 1: Direct parse
+    try{ parsed=JSON.parse(raw); } catch(e1){
+      // Try 2: Extract between first { and last }
       try{
-        var batchResult=await extractBatch(AKEY,pdfB64,fromPage,toPage,batchNum,totalBatches);
-        if(batchNum===1)firstBatchData=batchResult;
-        if(batchResult&&batchResult.items)if(Array.isArray(batchResult.items)&&batchResult.items.length>0){
-            var newItems=batchResult.items.filter(function(ni){
-              return ni&&ni.itemNo&&!allItems.find(function(ai){return ai.itemNo===ni.itemNo;});
-            });
-            allItems=allItems.concat(newItems.length>0?newItems:batchResult.items);
+        const s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
+        if(s>=0&&e2>s) parsed=JSON.parse(raw.substring(s,e2+1));
+      } catch(e2){
+        // Try 3: Clean and parse - remove control chars
+        try{
+          const s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
+          if(s>=0&&e2>s){
+            const cleaned=raw.substring(s,e2+1)
+              .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F]/g,'')
+              .replace(/,\s*([}\]])/g,'$1');
+            parsed=JSON.parse(cleaned);
           }
-      }catch(batchErr){console.warn('Batch '+batchNum+' failed:',batchErr.message);}
-      if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1000);});
+        } catch(e3){ parseErr=e3.message; }
+      }
     }
-    if(stx) stx.textContent='🔀 Merging '+allItems.length+' items...';
-    if(firstBatchData){firstBatchData.items=allItems;loadExtractedData(firstBatchData);}
-    else throw new Error('No data extracted');
+    if(!parsed||!parsed.items) throw new Error('JSON parse failed: '+parseErr);
+    fillForm(parsed);
+
+    // Duplicate check
+    const dup=findDuplicate(parsed.refNo,parsed.eqNo);
+    if(dup){
+      st.style.cssText='';st.className='ai-status error';
+      st.innerHTML=`<div style="display:flex;gap:10px;width:100%;align-items:flex-start;">
+        <div style="font-size:24px;">🚫</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;color:#B22222;margin-bottom:5px;">Duplicate — Already Uploaded!</div>
+          <div style="font-size:12px;color:#7A1414;margin-bottom:8px;">e-Quotation <strong>${dup.eqNo||dup.refNo}</strong> saved on <strong>${dup.date}</strong> by <strong>${dup.savedBy||'?'}</strong></div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="loadHist(${dup.id});showPage('history')" style="padding:6px 14px;background:var(--navy);border:none;border-radius:3px;color:#fff;font-size:12px;cursor:pointer;font-family:var(--fb);">📂 View Existing</button>
+            <button onclick="resetAll()" style="padding:6px 14px;background:transparent;border:1px solid rgba(178,34,34,.3);border-radius:3px;color:#B22222;font-size:12px;cursor:pointer;font-family:var(--fb);">✕ Cancel</button>
+          </div>
+        </div></div>`;
+      document.getElementById('process-btn').disabled=false;pdfB64=null;
+      document.getElementById('upload-fname').style.display='none';
+      document.getElementById('process-btn').classList.remove('show');setStep(1);return;
+    }
+
+    // Vehicle check
+    if(!vehicleMatchesUser(parsed.vehicleName)){
+      const assigned=vehicleLabel(CU);
+      st.style.cssText='';
+      st.className='ai-status';
+      st.style.cssText='display:flex;background:rgba(201,149,42,.12);border:1px solid rgba(201,149,42,.4);color:#7A5800;padding:12px 16px;border-radius:3px;margin-top:14px;align-items:flex-start;gap:10px;';
+      st.innerHTML=`<div style="font-size:20px;flex-shrink:0;">⚠️</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:13px;margin-bottom:3px;">Vehicle Mismatch Warning</div>
+          <div style="font-size:12px;">PDF: <strong>${parsed.vehicleName||'?'}</strong> | Your vehicles: <strong>${assigned}</strong></div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button onclick="continueExtraction()" style="padding:6px 14px;background:var(--gold);border:none;border-radius:3px;color:var(--navy);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fb);">✅ Continue</button>
+            <button onclick="resetAll()" style="padding:6px 14px;background:transparent;border:1px solid rgba(0,0,0,.15);border-radius:3px;color:#7A5800;font-size:12px;cursor:pointer;font-family:var(--fb);">✕ Cancel</button>
+          </div>
+        </div>`;
+      window._pendingParsed=parsed;
+      document.getElementById('process-btn').disabled=false;return;
+    }
+
+    finishExtraction(parsed);
   }catch(err){
-    if(st) st.className='ai-status error';
-    if(st) st.innerHTML='<div style="width:100%"><div style="font-weight:700;color:#B22222;margin-bottom:8px;">❌ '+(err.message||'Error')+'</div>'+
-      '<button onclick="openME()" style="padding:8px 16px;background:var(--gold);border:none;border-radius:3px;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;">✏️ Manual Entry</button> '+
-      '<button onclick="importExtractedJSON()" style="padding:8px 16px;background:#1A3A6B;border:none;border-radius:3px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">📥 Import JSON</button> '+
-      '<button onclick="resetAll()" style="padding:8px;border:1px solid #ccc;border-radius:3px;font-size:12px;cursor:pointer;">🔄 Reset</button></div>';
+    var errMsg=err.message||'Unknown error';
+    var isApiErr=errMsg.includes('fetch')||errMsg.includes('API')||errMsg.includes('format')||errMsg.includes('JSON')||errMsg.includes('401')||errMsg.includes('403');
+    st.style.cssText='';
+    st.className='ai-status error';
+    st.innerHTML='<div style="width:100%;">'
+      +'<div style="font-weight:700;font-size:14px;color:#B22222;margin-bottom:8px;">❌ Error: '+errMsg+'</div>'
+      +(isApiErr?'<div style="font-size:12px;color:#7A1414;margin-bottom:12px;">API Key தேவை — இல்லாம Manual Entry use பண்ணுங்கள்</div>':'')
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+      +'<button onclick="openME()" style="padding:8px 16px;background:var(--gold);border:none;border-radius:3px;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb);">✏️ Manual Entry Use பண்ணு</button>'
+      +'<button onclick="resetAll()" style="padding:8px 14px;background:transparent;border:1px solid rgba(178,34,34,.3);border-radius:3px;color:#B22222;font-size:12px;cursor:pointer;font-family:var(--fb);">🔄 Reset</button>'
+      +'</div></div>';
     document.getElementById('process-btn').disabled=false;
   }
 }
+
 function finishExtraction(parsed){
   window._uploadedBy=CU?CU.name:'';
   window._pricedBy='';
@@ -1777,15 +1378,12 @@ function remBR(idx,bi){
 }
 
 function renderItems(items){
-  items=items||[];
-  if(!Array.isArray(items)) items=[];
   curItems=items;
-  var tb=document.getElementById('items-tbody');if(!tb)return;tb.innerHTML='';
+  var tb=document.getElementById('items-tbody');tb.innerHTML='';
   var prices=getPrices();
   var role=getRole();
   var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
 
-  if(!items||!items.length){calcTotals();return;}
   items.forEach(function(item,idx){
     if(!item.brandRows||!item.brandRows.length){
       // Auto-fill from price list
@@ -1807,8 +1405,7 @@ function renderItems(items){
       }
     } else {
       // For existing brandRows with no price, try to fill from price list
-      if(!item.brandRows||!Array.isArray(item.brandRows)) return;
-    item.brandRows.forEach(function(br){
+      item.brandRows.forEach(function(br){
         if((!br.price||br.price===0)&&!br.partNo){
           var match=prices.find(function(p){
             return (p.description||'').toLowerCase()===item.description.toLowerCase()&&
@@ -1828,9 +1425,6 @@ function renderItems(items){
     var bg=idx%2===0?'#f7fafd':'#fff';
     var reqBrand=item.brand||'';
 
-    if(reqBrand&&item.brandRows[0]&&!item.brandRows[0].brand){item.brandRows[0].brand=reqBrand;}
-    if(!item.brandRows||!Array.isArray(item.brandRows)) return;
-    if(!item.brandRows||!Array.isArray(item.brandRows)||!item.brandRows.length) return;
     item.brandRows.forEach(function(br,bi){
       var tr=document.createElement('tr');tr.style.background=bg;
       var h='';
@@ -1891,24 +1485,6 @@ function renderItems(items){
 
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-
-var PART_SYNONYMS=[
-  ['lower arm','lower control arm','arm lower','control arm lower','lower arm assy'],
-  ['shock absorber','shock','damper','absorber','strut','shocker'],
-  ['ball joint','ball joint assy','joint ball','balljoint'],
-  ['tie rod','tie rod end','tierod','track rod'],
-  ['brake pad','brake pads','disc pad','disc brake pad','brake shoe'],
-  ['oil filter','engine oil filter','lube filter','oil filter element'],
-  ['air filter','air cleaner','air cleaner element'],
-  ['fuel filter','petrol filter','diesel filter'],
-  ['water pump','coolant pump','water pump assy'],
-  ['timing belt','cam belt','timing belt kit'],
-  ['clutch','clutch plate','clutch disc','clutch kit'],
-  ['bush','bushing','rubber bush','arm bush'],
-  ['wheel bearing','hub bearing','wheel hub bearing'],
-  ['cv joint','cv axle','constant velocity joint'],
-  ['brake disc','brake rotor','disc rotor'],
-];
 
 function findAllPriceMatches(desc,prices,vehicle){
   if(!desc||!prices||!prices.length) return [];
@@ -2001,23 +1577,6 @@ function findAllPriceMatches(desc,prices,vehicle){
   }).slice(0,5).map(function(m){return m.item;});
 }
 
-function autoFillRow(idx,bi){
-  var item=curItems[idx];if(!item)return;
-  var prices=getPrices();
-  var matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(item.description,prices):[];
-  if(!matches.length)return;
-  var best=matches[0];
-  var bEl=document.getElementById('br-b-'+idx+'-'+bi);
-  var pEl=document.getElementById('br-p-'+idx+'-'+bi);
-  var puEl=document.getElementById('br-pu-'+idx+'-'+bi);
-  var cEl=document.getElementById('br-c-'+idx+'-'+bi);
-  if(bEl&&!bEl.value&&best.brand)bEl.value=best.brand;
-  if(pEl&&!pEl.value&&best.partNo)pEl.value=best.partNo;
-  if(cEl&&!cEl.value&&best.country)cEl.value=best.country;
-  if(puEl&&!puEl.value&&best.purchasePrice>0){puEl.value=best.purchasePrice;puEl.style.background='#fffde7';}
-  syncRow(idx,bi);
-}
-
 function getPriceHint(desc,prices){
   var matches=findAllPriceMatches(desc,prices);
   return matches.length>0?matches[0]:null;
@@ -2053,8 +1612,6 @@ function saveToHistory(){
   var g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
   var refNo=g('f-refno'),eqNo=g('f-eqno');
   var quotStatus=curStatus||g('quot-status')||'draft';
-  var hasPrices2=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
-  if(hasPrices2&&quotStatus==='draft'&&CU&&CU.role!=='admin'){quotStatus='pending';}
   var hist=getHist();
   var hasPrices=curItems.some(function(item){
     return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
@@ -2154,7 +1711,6 @@ function renderHistory(){
     h=h.filter(function(e){
       // Own quotations
       if(e.owner===CU.username) return true;
-      if(e.assignedTo===CU.username) return true;
       // __all__ = old data — all staff can see (vehicle filter)
       if(e.owner==='__all__'||!e.owner){
         const list=getVehicleList(CU);
@@ -2453,7 +2009,6 @@ function deletePrice(id){
 // ANALYTICS
 // ══════════════════════════════════════════════════
 function renderAnalytics(){
-  setTimeout(populateStaffSelect,100);
   const h=getHist();
   const total=h.length;
   const awarded=h.filter(x=>x.status==='awarded').length;
@@ -3981,19 +3536,6 @@ function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;c
 // ══════════════════════════════════════════════════
 // RESET & TOAST
 // ══════════════════════════════════════════════════
-function getVehicleMaster(){
-  var saved=localStorage.getItem('ngrd_vehicles');
-  if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0)return v;}catch(e){}}
-  return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab','Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van','Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab','Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166','Toyota Cab LN106','Toyota Cab LN107','TATA LPT 1109 TRUCK','TATA WINGER VAN','Mahindra Bolero (SC TURBO)','TATA 1313 TRUCK','TOYOTA HIACE VAN','TOYOTA HILUX 1KZ CAB','SCORPIO JEEP'];
-}
-function saveVehicleMaster(v){localStorage.setItem('ngrd_vehicles',JSON.stringify(v));if(typeof fbWrite==='function')fbWrite('vehicles',v);if(typeof refreshAllVehicleDropdowns==='function')refreshAllVehicleDropdowns();}
-function addVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var name=prompt('Vehicle name:','');if(!name||!name.trim())return;name=name.trim();var vehicles=getVehicleMaster();if(vehicles.includes(name)){showToast('Already exists!','t-e');return;}vehicles.push(name);saveVehicleMaster(vehicles);renderVehicleSettings();showToast('✅ '+name+' added!','t-s');}
-function deleteVehicle(name){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}if(!confirm('Delete: '+name+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==name;}));renderVehicleSettings();showToast('Deleted!','t-i');}
-function renderVehicleSettings(){var el=document.getElementById('vehicle-settings-list');if(!el)return;var vehicles=getVehicleMaster();if(!vehicles.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles!</div>';return;}el.innerHTML=vehicles.map(function(v,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'"><span style="font-size:13px;font-weight:600;">🚗 '+v+'</span><button onclick="deleteVehicle('+JSON.stringify(v)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️</button></div>';}).join('');}
-function syncUploadVehicle(val){var fv=document.getElementById('f-vname');if(fv)fv.value=val;}
-function refreshAllVehicleDropdowns(){var vehicles=getVehicleMaster();var opts=vehicles.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');var uv=document.getElementById('upload-vehicle-select');if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}}
-function populateStaffSelect(){var sel=document.getElementById('staff-perf-select');if(!sel)return;var users=getUsers().filter(function(u){return u.active;});var h=getHist();var owners={};users.forEach(function(u){owners[u.username]=u.name;});h.forEach(function(e){if(e.owner&&e.owner!=='__all__'&&!owners[e.owner])owners[e.owner]=e.owner;});sel.innerHTML='<option value="">— Staff Select —</option>';Object.keys(owners).forEach(function(uname){var opt=document.createElement('option');opt.value=uname;opt.textContent=owners[uname];sel.appendChild(opt);});}
-function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname,role:'staff'};var uploads=myH.length;var pending=myH.filter(function(e){return e.status==='pending';}).length;var approved=myH.filter(function(e){return e.status==='approved';}).length;var submitted=myH.filter(function(e){return e.status==='submitted';}).length;var awarded=myH.filter(function(e){return e.status==='awarded';}).length;var rejected=myH.filter(function(e){return e.status==='rejected';}).length;var draft=myH.filter(function(e){return !e.status||e.status==='draft';}).length;var html2='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.6);">@'+uname+'</div></div><div style="text-align:right;"><div style="font-size:11px;color:rgba(255,255,255,.6);">Total</div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+uploads+'</div></div></div>';var stats=[['📝','Draft',draft,'#888'],['⏳','Pending',pending,'#E8B84B'],['✅','Approved',approved,'#1A6B3C'],['📤','Submitted',submitted,'#2060a0'],['🏆','Awarded',awarded,'#C9952A'],['❌','Rejected',rejected,'#B22222']];html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';html2+='<div style="font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;">📋 Recent Activity</div>';myH.slice(0,10).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+' · '+(e.date||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
 function resetAll(){window.curEditId=null;
   pdfB64=null;curItems=[];curStatus='draft';
   ['pdf-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -4025,56 +3567,15 @@ window.onload=()=>{
   }
   setInterval(()=>{if(CU){alarmDismissed=false;checkDeadlineAlarms();}},60000);
 };
-
 </script>
 
 <script>
-var FB_READY=false;
-var FB_BASE='https://ngrd-motors-default-rtdb.firebaseio.com/ngrd';
-var _fbRetry=0;
-var _fbQueue={};
-function initFirebase(){
-  var xhr=new XMLHttpRequest();
-  xhr.open('GET','https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/ping.json',true);
-  xhr.timeout=8000;
-  xhr.onload=function(){
-    FB_READY=true;_fbRetry=0;
-    var badge=document.getElementById('fb-badge');
-    if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
-    _flushQueue();
-    if(typeof initFirebaseSync==='function') initFirebaseSync();
-    if(typeof loadAPIKeyFromFirebase==='function') loadAPIKeyFromFirebase();
-  };
-  xhr.onerror=function(){onFbFail();};
-  xhr.ontimeout=function(){onFbFail();};
-  xhr.send();
-}
-function onFbFail(){
-  FB_READY=false;_fbRetry++;
-  var badge=document.getElementById('fb-badge');
-  if(_fbRetry<=8){if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}setTimeout(initFirebase,3000);}
-  else{if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}}
-}
+var FB_READY=false;var FB_BASE='https://ngrd-motors-default-rtdb.firebaseio.com/ngrd';var _fbRetry=0;var _fbQueue={};
+function initFirebase(){var xhr=new XMLHttpRequest();xhr.open('GET','https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/ping.json',true);xhr.timeout=8000;xhr.onload=function(){FB_READY=true;_fbRetry=0;var badge=document.getElementById('fb-badge');if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}_flushQueue();if(typeof initFirebaseSync==='function')initFirebaseSync();};xhr.onerror=function(){onFbFail();};xhr.ontimeout=function(){onFbFail();};xhr.send();}
+function onFbFail(){FB_READY=false;_fbRetry++;var badge=document.getElementById('fb-badge');if(_fbRetry<=8){if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}setTimeout(initFirebase,3000);}else{if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}}}
 function fbWrite(key,val){_fbQueue[key]=val;if(!FB_READY)return;_flushQueue();}
-function _flushQueue(){
-  var keys=Object.keys(_fbQueue);if(!keys.length)return;
-  keys.forEach(function(key){
-    var val=_fbQueue[key];delete _fbQueue[key];
-    var xhr=new XMLHttpRequest();
-    xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
-    xhr.setRequestHeader('Content-Type','application/json');
-    xhr.onerror=function(){_fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);};
-    xhr.send(JSON.stringify(val));
-  });
-}
-function fbRead(key,cb){
-  var xhr=new XMLHttpRequest();
-  xhr.open('GET',FB_BASE+'/'+key+'.json',true);
-  xhr.timeout=8000;
-  xhr.onload=function(){try{var d=JSON.parse(xhr.responseText);cb(d);}catch(e){cb(null);}};
-  xhr.onerror=function(){cb(null);};xhr.ontimeout=function(){cb(null);};
-  xhr.send();
-}
+function _flushQueue(){var keys=Object.keys(_fbQueue);if(!keys.length)return;keys.forEach(function(key){var val=_fbQueue[key];delete _fbQueue[key];var xhr=new XMLHttpRequest();xhr.open('PUT',FB_BASE+'/'+key+'.json',true);xhr.setRequestHeader('Content-Type','application/json');xhr.onerror=function(){_fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);};xhr.send(JSON.stringify(val));});}
+function fbRead(key,cb){var xhr=new XMLHttpRequest();xhr.open('GET',FB_BASE+'/'+key+'.json',true);xhr.timeout=8000;xhr.onload=function(){try{var d=JSON.parse(xhr.responseText);cb(d);}catch(e){cb(null);}};xhr.onerror=function(){cb(null);};xhr.ontimeout=function(){cb(null);};xhr.send();}
 window.addEventListener('load',function(){setTimeout(initFirebase,1500);});
 </script>
 
