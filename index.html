@@ -1261,7 +1261,7 @@ async function processFile(){
   setStep(2);
   const st=document.getElementById('ai-status');
   const stx=document.getElementById('ai-st');
-  st.className='ai-status loading';
+  if(st) st.className='ai-status loading';
   document.getElementById('process-btn').disabled=true;
 
   try{
@@ -1285,18 +1285,18 @@ async function processFile(){
     var BATCH_SIZE=95; // safe under 100 limit
     var totalBatches=Math.ceil(pageCount/BATCH_SIZE);
 
-    stx.innerHTML='📄 '+pageCount+' pages detected — '+totalBatches+' batch'+(totalBatches>1?'es':'');
+    if(stx) stx.innerHTML='📄 '+pageCount+' pages detected — '+totalBatches+' batch'+(totalBatches>1?'es':'');
 
     // For single batch (≤95 pages) — normal flow
     if(totalBatches<=1){
-      stx.innerHTML='🤖 AI reading PDF...';
+      if(stx) stx.innerHTML='🤖 AI reading PDF...';
       var result=await extractBatch(AKEY, pdfB64, null, null, 1, 1);
       loadExtractedData(result);
       return;
     }
 
     // Multi-batch: split PDF and process each batch
-    stx.innerHTML='📦 Splitting PDF into '+totalBatches+' batches...';
+    if(stx) stx.innerHTML='📦 Splitting PDF into '+totalBatches+' batches...';
 
     // Use PDF.js to split if available, else try full PDF with range hint
     var allItems=[];
@@ -1309,7 +1309,7 @@ async function processFile(){
 
       // Update progress
       var pct=Math.round((b/totalBatches)*100);
-      stx.innerHTML=
+      if(stx) stx.innerHTML=
         '<div style="margin-bottom:8px;">📦 Batch '+batchNum+'/'+totalBatches+
         ' (Pages '+fromPage+'–'+toPage+')</div>'+
         '<div style="background:rgba(255,255,255,.2);border-radius:4px;height:8px;overflow:hidden;">'+
@@ -1325,7 +1325,7 @@ async function processFile(){
       }catch(batchErr){
         console.warn('Batch '+batchNum+' failed:',batchErr.message);
         // Continue with next batch
-        stx.innerHTML+='<br><small style="color:#ffcc00;">⚠️ Batch '+batchNum+' partial — continuing...</small>';
+        if(stx) stx.innerHTML+='<br><small style="color:#ffcc00;">⚠️ Batch '+batchNum+' partial — continuing...</small>';
       }
 
       // Small delay between batches
@@ -1333,7 +1333,7 @@ async function processFile(){
     }
 
     // Merge all results
-    stx.innerHTML='🔀 Merging '+allItems.length+' items from '+totalBatches+' batches...';
+    if(stx) stx.innerHTML='🔀 Merging '+allItems.length+' items from '+totalBatches+' batches...';
     await new Promise(r=>setTimeout(r,500));
 
     if(firstBatchData){
@@ -1673,6 +1673,11 @@ function renderItems(items){
     var bg=idx%2===0?'#f7fafd':'#fff';
     var reqBrand=item.brand||'';
 
+    // Auto-set required brand on first row if brand empty
+    if(reqBrand&&item.brandRows[0]&&!item.brandRows[0].brand){
+      item.brandRows[0].brand=reqBrand;
+    }
+
     item.brandRows.forEach(function(br,bi){
       var tr=document.createElement('tr');tr.style.background=bg;
       var h='';
@@ -1695,7 +1700,7 @@ function renderItems(items){
 
       // Purchase Price
       if(role.seePurchase){
-        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
+        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onfocus="showPriceHistory('+idx+','+bi+')" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
         h+='<td style="padding:3px 4px;background:rgba(42,26,10,.04);">'+puInp+'</td>';
       } else {
         h+='<td style="padding:3px 4px;text-align:center;background:rgba(42,26,10,.04);"><span title="Margin role only">🔒</span></td>';
@@ -1982,6 +1987,138 @@ function getPriceHint(desc,prices){
 }
 
 // Auto-fill brand+price from price list when brand input focused
+function showPriceHistory(idx, bi){
+  var item=curItems[idx];
+  if(!item) return;
+  var desc=item.description||'';
+
+  var hist=getHist();
+  var matches=[];
+
+  hist.forEach(function(entry){
+    if(!entry.items) return;
+    var date=entry.date||'';
+    var quotRef=entry.eqNo||entry.refNo||'';
+    var entity=(entry.entity||'').replace('Sri Lanka ','').substring(0,20);
+
+    entry.items.forEach(function(it){
+      if(!it.description) return;
+      var a=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
+      var b=desc.toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
+      var aWords=a.split(' ').filter(function(w){return w.length>2;});
+      var bWords=b.split(' ').filter(function(w){return w.length>2;});
+      var matched=bWords.filter(function(w){return aWords.includes(w);}).length;
+      if(bWords.length===0||matched/bWords.length<0.6) return;
+
+      var rows=it.brandRows||[];
+      if(rows.length===0&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
+      rows.forEach(function(br){
+        if(!br.brand&&!br.price) return;
+        matches.push({date:date,ref:quotRef,entity:entity,brand:br.brand||'',partNo:br.partNo||'',price:br.price||0,purchasePrice:br.purchasePrice||0,status:entry.status||''});
+      });
+    });
+  });
+
+  if(matches.length===0){ autoFillRow(idx,bi); return; }
+
+  var brandMap={};
+  matches.forEach(function(m){
+    var b=m.brand||'No Brand';
+    if(!brandMap[b]) brandMap[b]={count:0,total:0,lastPurchase:0,partNo:m.partNo};
+    brandMap[b].count++;
+    brandMap[b].total+=m.purchasePrice||0;
+    brandMap[b].lastPurchase=m.purchasePrice||0;
+    if(!brandMap[b].partNo) brandMap[b].partNo=m.partNo;
+  });
+
+  var ex=document.getElementById('price-hist-popup');
+  if(ex) ex.remove();
+
+  var popup=document.createElement('div');
+  popup.id='price-hist-popup';
+  popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:90vw;max-width:480px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);';
+
+  var hdr=document.createElement('div');
+  hdr.style.cssText='background:#0D1B2A;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;';
+  hdr.innerHTML='<div><div style="font-weight:700;font-size:13px;">📊 '+desc+'</div><div style="font-size:10px;opacity:.7;">'+matches.length+' records found</div></div>';
+  var closeBtn=document.createElement('span');
+  closeBtn.textContent='✕';
+  closeBtn.style.cssText='cursor:pointer;font-size:18px;opacity:.7;';
+  closeBtn.onclick=function(){popup.remove();};
+  hdr.appendChild(closeBtn);
+  popup.appendChild(hdr);
+
+  // Brand summary
+  var brandDiv=document.createElement('div');
+  brandDiv.style.cssText='padding:12px 16px;border-bottom:2px solid #eee;';
+  var bTitle=document.createElement('div');
+  bTitle.style.cssText='font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;';
+  bTitle.textContent='🏷️ Brands Summary';
+  brandDiv.appendChild(bTitle);
+
+  Object.keys(brandMap).forEach(function(brand){
+    var bm=brandMap[brand];
+    var avg=bm.count>0?Math.round(bm.total/bm.count):0;
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#f7fafd;border-radius:4px;margin-bottom:4px;';
+    var info=document.createElement('div');
+    info.innerHTML='<div style="font-weight:700;font-size:12px;">'+brand+'</div><div style="font-size:10px;color:#666;">'+(bm.partNo||'')+' | Used '+bm.count+'x | Avg: LKR '+avg.toLocaleString()+'</div>';
+    var useBtn=document.createElement('button');
+    useBtn.textContent='Use ✅';
+    useBtn.style.cssText='padding:5px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;';
+    (function(br,pu,pn){
+      useBtn.onclick=function(){applyPriceHistory(idx,bi,br,pu,pn);popup.remove();};
+    })(brand,bm.lastPurchase,bm.partNo||'');
+    row.appendChild(info);
+    row.appendChild(useBtn);
+    brandDiv.appendChild(row);
+  });
+  popup.appendChild(brandDiv);
+
+  // Last 5 records
+  var recDiv=document.createElement('div');
+  recDiv.style.cssText='padding:12px 16px;';
+  var rTitle=document.createElement('div');
+  rTitle.style.cssText='font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;';
+  rTitle.textContent='📅 Last 5 Quotations';
+  recDiv.appendChild(rTitle);
+
+  matches.slice(0,5).forEach(function(m){
+    var colors={awarded:'#C9952A',submitted:'#2060a0',approved:'#1A6B3C',rejected:'#B22222'};
+    var c=colors[m.status]||'#888';
+    var rec=document.createElement('div');
+    rec.style.cssText='padding:8px;background:#f9f9f9;border-radius:4px;margin-bottom:6px;border-left:3px solid '+c+';';
+    rec.innerHTML='<div style="display:flex;justify-content:space-between;"><div style="font-size:11px;font-weight:700;">'+m.brand+(m.partNo?' — '+m.partNo:'')+'</div><div style="font-size:11px;color:#1A6B3C;font-weight:700;">LKR '+(m.purchasePrice||0).toLocaleString()+'</div></div><div style="font-size:10px;color:#888;margin-top:2px;">'+m.date+' | '+m.ref+' | '+m.entity+'</div>';
+    recDiv.appendChild(rec);
+  });
+  popup.appendChild(recDiv);
+  document.body.appendChild(popup);
+
+  setTimeout(function(){
+    document.addEventListener('click',function closePH(e){
+      if(!popup.contains(e.target)){popup.remove();document.removeEventListener('click',closePH);}
+    });
+  },200);
+}
+
+
+function applyPriceHistory(idx, bi, brand, purchasePrice, partNo){
+  var brandEl=document.getElementById('br-b-'+idx+'-'+bi);
+  var partEl=document.getElementById('br-p-'+idx+'-'+bi);
+  var purchEl=document.getElementById('br-pu-'+idx+'-'+bi);
+  if(brandEl) brandEl.value=brand;
+  if(partEl&&partNo) partEl.value=partNo;
+  if(purchEl&&purchasePrice>0){
+    purchEl.value=purchasePrice;
+    purchEl.style.background='#fffde7';
+  }
+  syncRow(idx,bi);
+  autoSell(idx,bi);
+  var popup=document.getElementById('price-hist-popup');
+  if(popup) popup.remove();
+  showToast('✅ '+brand+' applied!','t-s');
+}
+
 function autoFillRow(idx, bi){
   var item=curItems[idx];
   if(!item) return;
@@ -2512,6 +2649,36 @@ function savePartPrice(){
   else prices.unshift(entry);
   setPrices(prices);closeMod();renderPriceList();
   showToast('Part price saved!','t-s');
+}
+
+function editPriceEntry(id){
+  var prices=getPrices();
+  var p=prices.find(function(x){return String(x.id)===String(id);});
+  if(!p) return;
+
+  var newDesc=prompt('Description:',p.description||'');
+  if(newDesc===null) return;
+  var newBrand=prompt('Brand:',p.brand||'');
+  if(newBrand===null) return;
+  var newPartNo=prompt('Part No:',p.partNo||'');
+  if(newPartNo===null) return;
+  var newPurchase=prompt('Purchase Price (LKR):',p.purchasePrice||0);
+  if(newPurchase===null) return;
+  var newPrice=prompt('Selling Price (LKR):',p.price||0);
+  if(newPrice===null) return;
+
+  var idx=prices.findIndex(function(x){return String(x.id)===String(id);});
+  if(idx>=0){
+    prices[idx].description=newDesc;
+    prices[idx].brand=newBrand;
+    prices[idx].partNo=newPartNo;
+    prices[idx].purchasePrice=parseFloat(newPurchase)||0;
+    prices[idx].price=parseFloat(newPrice)||0;
+    prices[idx].date=new Date().toLocaleDateString('en-LK');
+    setPrices(prices);
+    renderPriceList();
+    showToast('✅ Updated!','t-s');
+  }
 }
 
 function deletePrice(id){
