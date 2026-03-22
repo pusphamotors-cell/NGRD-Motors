@@ -1251,20 +1251,26 @@ function loadExtractedData(parsed){
     setStep(2); return;
   }
   // Auto-fill from price history for each item
-  var _prices=getPrices();
-  var _vehicle=(document.getElementById('f-vname')||{}).value||'';
+  var _prices=[];
+  try{_prices=getPrices()||[];}catch(_e){}
+  var _vehicle='';
+  try{_vehicle=(document.getElementById('f-vname')||{value:''}).value||'';}catch(_e){}
 
   curItems=parsed.items.map(function(item,i){
     // Auto-fill from price list
     var _desc=(item.description||'').trim();
-    var _matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(_desc,_prices,_vehicle):[];
     var _brs;
-    if(_matches.length>0){
-      _brs=_matches.slice(0,3).map(function(m){
-        return {brand:m.brand||'',partNo:m.partNo||'',country:m.country||'Japan',
-          marginPct:0,price:m.price||0,purchasePrice:m.purchasePrice||0,totalPrice:0};
-      });
-    } else {
+    try{
+      var _matches=typeof findAllPriceMatches==='function'&&_prices&&_prices.length?
+        findAllPriceMatches(_desc,_prices,_vehicle):[];
+      if(_matches&&Array.isArray(_matches)&&_matches.length>0){
+        _brs=_matches.slice(0,3).map(function(m){
+          return {brand:m.brand||'',partNo:m.partNo||'',country:m.country||'Japan',
+            marginPct:0,price:parseFloat(m.price)||0,purchasePrice:parseFloat(m.purchasePrice)||0,totalPrice:0};
+        });
+      }
+    }catch(_ex){console.warn('Price fill error:',_ex.message);}
+    if(!_brs||!_brs.length){
       _brs=[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}];
     }
     return {itemNo:item.itemNo||(i+1),description:_desc||('Item '+(i+1)),
