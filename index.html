@@ -1626,8 +1626,9 @@ function remBR(idx,bi){
 }
 
 function renderItems(items){
+  items=items||[];
   curItems=items;
-  var tb=document.getElementById('items-tbody');tb.innerHTML='';
+  var tb=document.getElementById('items-tbody');if(!tb)return;tb.innerHTML='';
   var prices=getPrices();
   var role=getRole();
   var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
@@ -1996,12 +1997,11 @@ function showPriceHistory(idx, bi){
   var matches=[];
 
   hist.forEach(function(entry){
-    if(!entry.items) return;
+    if(!entry.items||!Array.isArray(entry.items)) return;
     var date=entry.date||'';
     var quotRef=entry.eqNo||entry.refNo||'';
     var entity=(entry.entity||'').replace('Sri Lanka ','').substring(0,20);
 
-    if(!entry.items||!Array.isArray(entry.items)) return;
     entry.items.forEach(function(it){
       if(!it.description) return;
       var a=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
@@ -2215,6 +2215,7 @@ function savePartNo(idx,val){if(curItems[idx])curItems[idx].partNo=val;}
 function saveCountry(idx,val){if(curItems[idx])curItems[idx].country=val;}
 
 function calcTotals(){
+  if(!curItems||!curItems.length) return;
   curItems.forEach(function(item,idx){if(item.brandRows)item.brandRows.forEach(function(br,bi){syncRow(idx,bi);});});
   var grand=0;
   curItems.forEach(function(item,idx){
