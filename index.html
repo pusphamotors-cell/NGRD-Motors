@@ -433,7 +433,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <!-- Vehicle Select -->
             <div style="margin-bottom:16px;padding:12px;background:#f0f5ff;border:2px solid #2060a0;border-radius:6px;">
               <label style="font-size:12px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">🚗 Step 1 — Vehicle Select பண்ணுங்கள் *</label>
-              <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="width:100%;max-width:400px;padding:9px 12px;border:2px solid #2060a0;border-radius:4px;font-family:var(--fb);font-size:14px;font-weight:700;background:#fff;outline:none;">
+              <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="width:100%;max-width:400px;padding:9px 12px;border:2px solid #2060a0;border-radius:4px;font-family:var(--fb);font-size:14px;font-weight:700;background:#fff;outline:none;max-height:200px;">
                 <option value="">— Vehicle Select பண்ணுங்கள் —</option>
               </select>
               <div id="vehicle-admin-btns" style="display:none;gap:8px;margin-top:8px;max-width:400px;">
@@ -1205,14 +1205,19 @@ async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatc
   var batchHint=totalBatches>1?('\nBatch '+batchNum+'/'+totalBatches+'.'+(batchNum===1?' Extract header AND items.':' Extract items only.')):'';
   var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+`
 
-The PDF has items in this EXACT format:
+The PDF text has items in this EXACT format (each field on separate line with blank lines between):
+
 Item No
 
 1
 
 Item Name
 
-PISTON SET
+FRONT SHOCK ABSORBER MOUNT
+
+CPV Code
+
+34000000-7
 
 Unit
 
@@ -1220,12 +1225,37 @@ Number
 
 Quantity
 
-1.00
+2.00
 
-Find EVERY "Item No" occurrence and extract each item.
-Return ONLY valid JSON:
-{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"PISTON SET","qty":1,"unit":"Number","brand":""}]}
-CRITICAL: Extract ALL items. description=Item Name value, qty=Quantity value.`;
+Item No
+
+2
+
+Item Name
+
+FRONT SHOCK ABSORBER MOUNT PLATE (ACCORDING TO SAMPLE)
+
+Unit
+
+Number
+
+Quantity
+
+2.00
+
+IMPORTANT RULES:
+1. Find EVERY "Item No" in the text
+2. The NUMBER after "Item No" blank line = item number
+3. ALL text after "Item Name" blank line until "CPV Code" = description (may be multi-line, join with space)
+4. Number after "Quantity" blank line = qty
+5. There may be 5, 10, 25, 47 or more items — extract ALL of them
+6. Page breaks do not stop items — continue across pages
+7. Also extract: refNo (Procurement Ref No), eqNo (e-Quotation No), entity (Procurement Entity), vehicleName (from Procurement Title - vehicle name), vehicleNo (registration number from Title), engineNo, chassisNo, closingDate (e-Quotation Closing date)
+
+Return ONLY this JSON, no markdown, no explanation:
+{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"FRONT SHOCK ABSORBER MOUNT","qty":2,"unit":"Number","brand":""}]}
+
+CRITICAL: Extract EVERY SINGLE ITEM. Do not stop at page breaks. Return all items in the items array.`;
 
   var resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
@@ -1258,7 +1288,10 @@ function loadExtractedData(parsed){
   if(parsed.destination) document.getElementById('f-dest').value=parsed.destination;
   if(!parsed.items||!Array.isArray(parsed.items)||parsed.items.length===0){
     if(st) st.className='ai-status error';
-    if(stx) stx.innerHTML='⚠️ 0 items extracted — Manual Entry try பண்ணுங்கள்!';
+    if(stx) stx.innerHTML='<div style="font-weight:700;color:#B22222;margin-bottom:8px;">⚠️ 0 items extracted — AI-க்கு புரியலை!</div>'+
+      '<button onclick="processFile()" style="padding:7px 14px;background:#2060a0;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 Try Again</button>'+
+      '<button onclick="openME()" style="padding:7px 14px;background:var(--gold);color:var(--navy);border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">✏️ Manual Entry</button>'+
+      '<button onclick="importExtractedJSON()" style="padding:7px 14px;background:#1A3A6B;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;">📥 Import JSON</button>';
     document.getElementById('process-btn').disabled=false;
     document.getElementById('info-panel').style.display='block';
     setStep(2); return;
@@ -1640,25 +1673,37 @@ async function processFile(){
     var countMatch=(pdfBytes.match(/\/Type\s*\/Page[^s]/g)||[]).length;
     var pageCount=countMatch>0?countMatch:Math.ceil(pdfBytes.length/(1024*50));
     if(pageCount===0)pageCount=1;
-    var BATCH_SIZE=95;
-    var totalBatches=Math.ceil(pageCount/BATCH_SIZE);
     if(stx) stx.textContent='📄 '+pageCount+' pages detected...';
-    if(totalBatches<=1){
-      if(stx) stx.textContent='🤖 AI reading PDF...';
+
+    // Smart batch: Promise.lk items are in first ~30 pages only
+    // 200-500 page PDFs have tech specs/forms after items - skip them!
+    var BATCH_SIZE=50; // smaller batch = more accurate
+    var MAX_PAGES=Math.min(pageCount,80); // items always in first 80 pages
+    var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE);
+
+    if(pageCount<=BATCH_SIZE){
+      // Small PDF — single call, full PDF
+      if(stx) stx.textContent='🤖 AI reading PDF ('+pageCount+' pages)...';
       var result=await extractBatch(AKEY,pdfB64,null,null,1,1);
       loadExtractedData(result);return;
     }
-    if(stx) stx.textContent='📦 '+totalBatches+' batches...';
+
+    // Large PDF — batch only first 80 pages (items section)
+    if(stx) stx.textContent='📦 Large PDF: '+pageCount+' pages — extracting first '+MAX_PAGES+' pages...';
     var allItems=[],firstBatchData=null;
     for(var b=0;b<totalBatches;b++){
-      var batchNum=b+1,fromPage=b*BATCH_SIZE+1,toPage=Math.min((b+1)*BATCH_SIZE,pageCount);
-      if(stx) stx.textContent='📦 Batch '+batchNum+'/'+totalBatches+'...';
+      var batchNum=b+1;
+      var fromPage=b*BATCH_SIZE+1;
+      var toPage=Math.min((b+1)*BATCH_SIZE,MAX_PAGES);
+      if(stx) stx.textContent='📦 Batch '+batchNum+'/'+totalBatches+' (pages '+fromPage+'-'+toPage+')...';
       try{
         var batchResult=await extractBatch(AKEY,pdfB64,fromPage,toPage,batchNum,totalBatches);
         if(batchNum===1)firstBatchData=batchResult;
-        if(batchResult&&batchResult.items)allItems=allItems.concat(batchResult.items);
+        if(batchResult&&batchResult.items&&batchResult.items.length>0){
+          allItems=allItems.concat(batchResult.items);
+        }
       }catch(batchErr){console.warn('Batch '+batchNum+' failed:',batchErr.message);}
-      if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1000);});
+      if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1200);});
     }
     if(stx) stx.textContent='🔀 Merging '+allItems.length+' items...';
     if(firstBatchData){firstBatchData.items=allItems;loadExtractedData(firstBatchData);}
@@ -1675,6 +1720,20 @@ async function processFile(){
 function finishExtraction(parsed){
   window._uploadedBy=CU?CU.name:'';
   window._pricedBy='';
+  // Check 0 items
+  if(!parsed.items||!Array.isArray(parsed.items)||parsed.items.length===0){
+    var st2=document.getElementById('ai-status');
+    var stx2=document.getElementById('ai-st');
+    if(st2){st2.style.cssText='';st2.className='ai-status error';}
+    if(stx2) stx2.innerHTML='⚠️ 0 items extracted — Manual Entry try பண்ணுங்கள்! <br><small style="color:#888">AI PDF-ஐ படிக்கலை. Import JSON or Manual Entry use பண்ணுங்கள்.</small>';
+    document.getElementById('process-btn').disabled=false;
+    document.getElementById('info-panel').style.display='block';
+    setStep(2); return;
+  }
+  // Use loadExtractedData for consistency
+  loadExtractedData(parsed);
+  return;
+  // Legacy below (kept for reference)
   renderItems(parsed.items||[]);
   const st=document.getElementById('ai-status');
   st.style.cssText='';st.className='ai-status success';
@@ -4178,7 +4237,10 @@ function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;c
 // ══════════════════════════════════════════════════
 function getVehicleMaster(){
   var saved=localStorage.getItem('ngrd_vehicles');
-  if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0)return v;}catch(e){}}
+  if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0){
+    // Deduplicate
+    var seen={};return v.filter(function(x){if(!x||seen[x])return false;seen[x]=true;return true;});
+  }}catch(e){}}
   return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab',
     'Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van',
     'Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab',
