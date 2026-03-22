@@ -582,6 +582,14 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:#7A5800;">💡 <b>CSV Format:</b> A=Description, B=PartNo, C=Brand, D=Country, E=Price (Row 1 header)</div>
             <input type="text" id="price-search" placeholder="Search parts..." oninput="renderPriceList()"
               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;margin-bottom:14px;">
+            <div style="display:flex;gap:8px;margin-top:8px;margin-bottom:6px;">
+              <select id="price-vehicle-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;">
+                <option value="">🚗 All Vehicles</option>
+              </select>
+              <select id="price-brand-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;">
+                <option value="">🏷️ All Brands</option>
+              </select>
+            </div>
             <div class="tbl-wrap">
               <table>
                 <thead><tr>
@@ -2329,7 +2337,19 @@ function autoSavePrices(items){
 function renderPriceList(){
   const prices=getPrices();
   const q=(document.getElementById('price-search')?.value||'').toLowerCase();
-  const filtered=q?prices.filter(p=>(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q)):prices;
+  const vf_price=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();
+  const bf_price=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();
+  // Populate dropdowns
+  var pvSel=document.getElementById('price-vehicle-filter');
+  if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}
+  var pbSel=document.getElementById('price-brand-filter');
+  if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}
+  const filtered=prices.filter(function(p){
+    var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);
+    var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;
+    var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;
+    return tMatch&&pvMatch&&pbMatch;
+  });
   const tbody=document.getElementById('price-list-tbody');
   const empty=document.getElementById('price-list-empty');
   if(!filtered.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
@@ -3404,10 +3424,11 @@ function loadSX4(){
 // ══════════════════════════════════════════════════
 
 function initPartsSearch(){
-  // Populate vehicle dropdown
+  // Populate vehicle dropdown from master list
   var sel=document.getElementById('ps-vehicle');
   if(sel&&sel.options.length<=1){
-    VEHICLES.forEach(function(v){
+    var vList=typeof getVehicleMaster==='function'?getVehicleMaster():VEHICLES;
+    vList.forEach(function(v){
       if(v==='All Vehicles')return;
       var o=document.createElement('option');
       o.value=v;o.textContent=v;sel.appendChild(o);
