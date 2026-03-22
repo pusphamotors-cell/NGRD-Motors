@@ -591,8 +591,16 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           </div>
           <div class="panel-body">
             <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:#7A5800;">💡 <b>CSV Format:</b> A=Description, B=PartNo, C=Brand, D=Country, E=Price (Row 1 header)</div>
-            <input type="text" id="price-search" placeholder="Search parts..." oninput="renderPriceList()"
-              style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;margin-bottom:14px;">
+            <input type="text" id="price-search" placeholder="🔍 Item name / Brand / Part No search..." oninput="renderPriceList()"
+              style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;margin-bottom:8px;">
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+              <select id="price-vehicle-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:12px;">
+                <option value="">🚗 All Vehicles</option>
+              </select>
+              <select id="price-brand-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:12px;">
+                <option value="">🏷️ All Brands</option>
+              </select>
+            </div>
             <div class="tbl-wrap">
               <table>
                 <thead><tr>
@@ -1951,7 +1959,7 @@ function findAllPriceMatches(desc,prices,vehicle){
     }
 
     // Minimum score threshold — STRICT
-    if(score>=55) matches.push({score:score,item:p});
+    if(score>=35) matches.push({score:score,item:p}); // Lower threshold for suggestions
   });
 
   // Sort by score
@@ -2396,7 +2404,40 @@ function autoSavePrices(items){
 function renderPriceList(){
   const prices=getPrices();
   const q=(document.getElementById('price-search')?.value||'').toLowerCase();
-  const filtered=q?prices.filter(p=>(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q)):prices;
+  const vf=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();
+  const bf=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();
+
+  // Populate vehicle filter
+  var vSel=document.getElementById('price-vehicle-filter');
+  if(vSel&&vSel.options.length<=1){
+    var vehs=[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort();
+    vehs.forEach(function(v){
+      var opt=document.createElement('option');
+      opt.value=v; opt.textContent='🚗 '+v;
+      vSel.appendChild(opt);
+    });
+  }
+
+  // Populate brand filter
+  var bSel=document.getElementById('price-brand-filter');
+  if(bSel&&bSel.options.length<=1){
+    var brands=[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort();
+    brands.forEach(function(b){
+      var opt=document.createElement('option');
+      opt.value=b.toLowerCase(); opt.textContent='🏷️ '+b;
+      bSel.appendChild(opt);
+    });
+  }
+
+  const filtered=prices.filter(p=>{
+    // Text search — item name + brand + partNo + vehicle
+    var textMatch=!q||(p.description+' '+p.partNo+' '+p.brand+' '+(p.vehicle||'')).toLowerCase().includes(q);
+    // Vehicle filter
+    var vMatch=!vf||(p.vehicle||'').toLowerCase()===vf;
+    // Brand filter
+    var bMatch=!bf||(p.brand||'').toLowerCase()===bf;
+    return textMatch&&vMatch&&bMatch;
+  });
   const tbody=document.getElementById('price-list-tbody');
   const empty=document.getElementById('price-list-empty');
   if(!filtered.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
