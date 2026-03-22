@@ -1286,6 +1286,8 @@ function loadExtractedData(parsed){
   if(parsed.validityPeriod) document.getElementById('f-valid').value=parsed.validityPeriod;
   if(parsed.deliveryPeriod) document.getElementById('f-deliv').value=parsed.deliveryPeriod;
   if(parsed.destination) document.getElementById('f-dest').value=parsed.destination;
+  console.log('Parsed items count:', parsed.items?parsed.items.length:0);
+  if(parsed.items&&parsed.items.length>0) console.log('First item:', JSON.stringify(parsed.items[0]));
   if(!parsed.items||!Array.isArray(parsed.items)||parsed.items.length===0){
     if(st) st.className='ai-status error';
     if(stx) stx.innerHTML='<div style="font-weight:700;color:#B22222;margin-bottom:8px;">⚠️ 0 items extracted — AI-க்கு புரியலை!</div>'+
@@ -1305,6 +1307,12 @@ function loadExtractedData(parsed){
   });
   renderItems();setStep(3);
   if(st) st.className='ai-status success';
+  if(curItems.length===0){
+    if(st) st.className='ai-status error';
+    if(stx) stx.innerHTML='⚠️ 0 items extracted — AI-க்கு புரியலை! Console F12 பாருங்கள்.';
+    document.getElementById('process-btn').disabled=false;
+    return;
+  }
   if(stx) stx.innerHTML='✅ '+curItems.length+' items extracted!';
   document.getElementById('process-btn').disabled=false;
 }
@@ -1721,6 +1729,8 @@ function finishExtraction(parsed){
   window._uploadedBy=CU?CU.name:'';
   window._pricedBy='';
   // Check 0 items
+  console.log('Parsed items count:', parsed.items?parsed.items.length:0);
+  if(parsed.items&&parsed.items.length>0) console.log('First item:', JSON.stringify(parsed.items[0]));
   if(!parsed.items||!Array.isArray(parsed.items)||parsed.items.length===0){
     var st2=document.getElementById('ai-status');
     var stx2=document.getElementById('ai-st');
