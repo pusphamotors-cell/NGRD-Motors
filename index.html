@@ -735,6 +735,26 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         </div>
       </div>
 
+      
+      <!-- ═ VEHICLES ═ -->
+      <div id="page-vehicles" style="display:none;">
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-hdr-icon">🚗</span>
+            <span class="panel-hdr-title">Vehicle Master List</span>
+            <div class="panel-hdr-right">
+              <button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add Vehicle</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#7A5800;">
+              💡 Vehicle add பண்ணினால் எல்லா dropdowns-லும் automatically வரும்!
+            </div>
+            <div id="vehicle-settings-list"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- ═ USERS ═ -->
       <div id="page-users" style="display:none;">
         <div class="panel">
@@ -1265,6 +1285,7 @@ function extractPricesFromHistory(){
       if(!item.description) return;
       var brandRows=item.brandRows||[];
       if(brandRows.length===0&&item.brand) brandRows=[{brand:item.brand||'',partNo:item.partNo||'',country:'Japan',price:item.unitPrice||0,purchasePrice:item.purchasePrice||0}];
+      if(!brandRows||!Array.isArray(brandRows)) return;
       brandRows.forEach(function(br){
         var brand=br.brand||'',price=parseFloat(br.price)||0,pu=parseFloat(br.purchasePrice)||0;
         if(!brand&&!price) return;
@@ -1314,6 +1335,7 @@ function showPriceHistory(idx,bi){
       if(bW.length===0||matched/bW.length<0.6)return;
       var rows=it.brandRows||[];
       if(rows.length===0&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
+      if(!rows||!Array.isArray(rows)) return;
       rows.forEach(function(br){
         if(!br.brand&&!br.price)return;
         matches.push({date:date,ref:quotRef,entity:entity,brand:br.brand||'',partNo:br.partNo||'',price:br.price||0,purchasePrice:br.purchasePrice||0,status:entry.status||''});
@@ -1322,6 +1344,7 @@ function showPriceHistory(idx,bi){
   });
   if(matches.length===0){autoFillRow(idx,bi);return;}
   var brandMap={};
+  if(!matches||!matches.length) return;
   matches.forEach(function(m){
     var b=m.brand||'No Brand';
     if(!brandMap[b]) brandMap[b]={count:0,total:0,lastPurchase:0,partNo:m.partNo};
@@ -1586,7 +1609,12 @@ async function processFile(){
       try{
         var batchResult=await extractBatch(AKEY,pdfB64,fromPage,toPage,batchNum,totalBatches);
         if(batchNum===1)firstBatchData=batchResult;
-        if(batchResult&&batchResult.items)allItems=allItems.concat(batchResult.items);
+        if(batchResult&&batchResult.items)if(Array.isArray(batchResult.items)&&batchResult.items.length>0){
+            var newItems=batchResult.items.filter(function(ni){
+              return ni&&ni.itemNo&&!allItems.find(function(ai){return ai.itemNo===ni.itemNo;});
+            });
+            allItems=allItems.concat(newItems.length>0?newItems:batchResult.items);
+          }
       }catch(batchErr){console.warn('Batch '+batchNum+' failed:',batchErr.message);}
       if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1000);});
     }
@@ -1763,7 +1791,8 @@ function renderItems(items){
       }
     } else {
       // For existing brandRows with no price, try to fill from price list
-      item.brandRows.forEach(function(br){
+      if(!item.brandRows||!Array.isArray(item.brandRows)) return;
+    item.brandRows.forEach(function(br){
         if((!br.price||br.price===0)&&!br.partNo){
           var match=prices.find(function(p){
             return (p.description||'').toLowerCase()===item.description.toLowerCase()&&
