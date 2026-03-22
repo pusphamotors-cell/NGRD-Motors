@@ -1293,6 +1293,7 @@ function extractPricesFromHistory(){
   hist.forEach(function(entry){
     if(!entry.items||!Array.isArray(entry.items)) return;
     var vehicle=entry.vehicle||'';
+    if(!entry.items||!Array.isArray(entry.items)) return;
     entry.items.forEach(function(item){
       if(!item.description) return;
       var brandRows=item.brandRows||[];
@@ -1335,6 +1336,7 @@ function showPriceHistory(idx,bi){
   hist.forEach(function(entry){
     if(!entry.items||!Array.isArray(entry.items))return;
     var date=entry.date||'',quotRef=entry.eqNo||entry.refNo||'',entity=(entry.entity||'').substring(0,20);
+    if(!entry.items||!Array.isArray(entry.items)) return;
     if(!entry.items||!Array.isArray(entry.items)) return;
     entry.items.forEach(function(it){
       if(!it.description)return;
@@ -2068,7 +2070,8 @@ function savePartNo(idx,val){if(curItems[idx])curItems[idx].partNo=val;}
 function saveCountry(idx,val){if(curItems[idx])curItems[idx].country=val;}
 
 function calcTotals(){
-  curItems.forEach(function(item,idx){if(item.brandRows)item.brandRows.forEach(function(br,bi){syncRow(idx,bi);});});
+  if(!curItems||!curItems.length) return;
+  curItems.forEach(function(item,idx){if(item.brandRows&&Array.isArray(item.brandRows))item.brandRows.forEach(function(br,bi){syncRow(idx,bi);});});
   var grand=0;
   curItems.forEach(function(item,idx){
     if(!item.brandRows)return;
@@ -2870,6 +2873,7 @@ function renderDashboard(){
   var totalCost=0;
   h.forEach(function(e){
     if(!e.items) return;
+    if(!e.items||!Array.isArray(e.items)) return;
     if(!e.items||!Array.isArray(e.items)) return;
     e.items.forEach(function(item){
       var br=(item.brandRows&&item.brandRows[0])||{};
