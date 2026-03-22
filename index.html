@@ -1525,8 +1525,52 @@ function startAutoSync(){
         if(!remote.length)return;
         var local=getHist();
         var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
+        var statusOrder2={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
         var hasNew=remote.some(function(r){return r&&r.id&&localIds.indexOf(String(r.id))<0;});
-        if(!hasNew){if(local.length>0)fbWrite('history',local);return;}
+        // CRITICAL: Check if Firebase has HIGHER status (approved) than local (pending)
+        var hasUpgrade=remote.some(function(r){
+          if(!r||!r.id) return false;
+          var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
+          if(!lo) return false;
+          return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
+        });
+        // If Firebase has upgrades → pull, don't push local
+        // NEVER just push local - always check Firebase status first
+        // If no new items AND no upgrades - still check if local has higher status to push
+        if(!hasNew&&!hasUpgrade){
+          // Safe to push local ONLY if local has no lower-status items than Firebase
+          var localHasLower=remote.some(function(r){
+            if(!r||!r.id) return false;
+            var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
+            if(!lo) return false;
+            var remoteR=statusOrder2[r.status]||0;
+            var localR=statusOrder2[lo.status]||0;
+            return remoteR>localR; // Firebase is higher - don't push!
+          });
+          if(!localHasLower&&local.length>0) fbWrite('history',local);
+          if(localHasLower){
+            // Pull Firebase version to fix local
+            var merged2=[];
+            local.forEach(function(lo){
+              var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});
+              if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0)){
+                merged2.push(re2); // Take Firebase higher status
+              } else {
+                merged2.push(lo);
+              }
+            });
+            remote.forEach(function(re2){
+              if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);})){
+                merged2.push(re2);
+              }
+            });
+            merged2=merged2.filter(function(x){return x&&typeof x==='object';});
+            localStorage.setItem('ngrd_hist',JSON.stringify(merged2));
+            updatePendingBadge();
+            if(typeof renderDashboard==='function') renderDashboard();
+          }
+          return;
+        }
         var allIds={};
         local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
         remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
