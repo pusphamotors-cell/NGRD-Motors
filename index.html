@@ -1146,7 +1146,32 @@ function showPage(pg){
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
   });
   if(pg==='history')renderHistory();
-  if(pg==='users')renderUsers();
+  if(pg==='users'){
+    // Pull latest users from Firebase before rendering
+    if(typeof FB_READY!=='undefined'&&FB_READY){
+      fbRead('users',function(data){
+        try{
+          if(data&&typeof data==='object'){
+            var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+            if(remote.length>0){
+              var local=getUsers();
+              var merged=local.slice();
+              remote.forEach(function(ru){
+                if(!ru||!ru.id) return;
+                var idx=merged.findIndex(function(lu){return lu.id===ru.id;});
+                if(idx<0) merged.push(ru);
+                else merged[idx]=Object.assign({},merged[idx],ru);
+              });
+              localStorage.setItem('ngrd_users',JSON.stringify(merged));
+            }
+          }
+        }catch(e){}
+        renderUsers();
+      });
+    } else {
+      renderUsers();
+    }
+  }
   if(pg==='analytics')renderAnalytics();
   if(pg==='log')renderLog();
   if(pg==='backup')renderBackupPage();
