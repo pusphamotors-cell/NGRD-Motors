@@ -431,13 +431,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="panel-hdr"><span class="panel-hdr-icon">🚗</span><span class="panel-hdr-title">Vehicle Select <span style="color:#B22222;">*</span></span></div>
           <div class="panel-body">
             <div style="display:flex;gap:8px;align-items:center;">
-              <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="flex:1;padding:10px 12px;border:2px solid var(--border);border-radius:4px;font-size:14px;font-family:var(--fb);outline:none;background:#fff;">
-                <option value="">— Vehicle Select பண்ணுங்கள் —</option>
-              </select>
+              <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="flex:1;padding:10px 12px;border:2px solid var(--border);border-radius:4px;font-size:14px;font-family:var(--fb);outline:none;background:#fff;"><option value="">— Vehicle Select பண்ணுங்கள் —</option></select>
               <div id="vehicle-admin-btns" style="display:none;gap:6px;">
-                <button onclick="uploadPageAddVehicle()" title="Add Vehicle" style="padding:9px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:14px;font-weight:700;cursor:pointer;">➕</button>
-                <button onclick="uploadPageEditVehicle()" title="Edit Vehicle" style="padding:9px 12px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:14px;font-weight:700;cursor:pointer;">✏️</button>
-                <button onclick="uploadPageDeleteVehicle()" title="Delete Vehicle" style="padding:9px 12px;background:#B22222;color:#fff;border:none;border-radius:4px;font-size:14px;font-weight:700;cursor:pointer;">🗑️</button>
+                <button onclick="uploadPageAddVehicle()" style="padding:9px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer;">➕</button>
+                <button onclick="uploadPageEditVehicle()" style="padding:9px 12px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer;">✏️</button>
+                <button onclick="uploadPageDeleteVehicle()" style="padding:9px 12px;background:#B22222;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer;">🗑️</button>
               </div>
             </div>
           </div>
@@ -754,7 +752,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       </div>
 
       <!-- ═ USERS ═ -->
-      <div id="page-vehicles" style="display:none;"><div class="panel"><div class="panel-hdr"><span class="panel-hdr-icon">🚗</span><span class="panel-hdr-title">Vehicle Master List</span><div class="panel-hdr-right" id="vehicle-admin-btns" style="display:none;gap:6px;"><button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add</button></div></div><div class="panel-body"><div id="vehicle-settings-list"></div></div></div></div>
+      <div id="page-vehicles" style="display:none;"><div class="panel"><div class="panel-hdr"><span class="panel-hdr-icon">🚗</span><span class="panel-hdr-title">Vehicle Master List</span><div class="panel-hdr-right" id="vehicle-admin-btns-v" style="display:none;gap:6px;"><button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add</button></div></div><div class="panel-body"><div id="vehicle-settings-list"></div></div></div></div>
       <div id="page-users" style="display:none;">
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">👥</span><span class="panel-hdr-title">User Management</span></div>
@@ -1152,18 +1150,10 @@ function handleFile(inp){
   const r=new FileReader();r.onload=e=>{pdfB64=e.target.result.split(',')[1];};r.readAsDataURL(f);
 }
 document.addEventListener('DOMContentLoaded',function(){
-  var dz=document.getElementById('drop-zone');
-  if(!dz) return;
+  var dz=document.getElementById('drop-zone');if(!dz)return;
   dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});
   dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});
-  dz.addEventListener('drop',function(e){
-    e.preventDefault();dz.classList.remove('drag');
-    var f=e.dataTransfer.files[0];
-    if(f&&f.type==='application/pdf'){
-      document.getElementById('pdf-input').files=e.dataTransfer.files;
-      handleFile(document.getElementById('pdf-input'));
-    }
-  });
+  dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('drag');var f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf'){document.getElementById('pdf-input').files=e.dataTransfer.files;handleFile(document.getElementById('pdf-input'));}});
 });
 
 function setStep(n){for(let i=1;i<=4;i++){const el=document.getElementById('step'+i);if(!el)continue;el.className='step'+(i<n?' done':i===n?' active':'');}}
@@ -1249,8 +1239,6 @@ function loadExtractedData(parsed){
     document.getElementById('info-panel').style.display='block';
     setStep(2); return;
   }
-  var _prices=[];try{_prices=getPrices()||[];}catch(_e){}
-  var _vehicle='';try{_vehicle=(document.getElementById('f-vname')||{value:''}).value||'';}catch(_e){}
   curItems=parsed.items.map(function(item,i){
     return {itemNo:item.itemNo||(i+1),description:item.description||'',qty:parseFloat(item.qty)||1,
       unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,
@@ -1355,7 +1343,6 @@ function showPriceHistory(idx,bi){
       if(bW.length===0||matched/bW.length<0.6)return;
       var rows=it.brandRows||[];
       if(rows.length===0&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
-      if(!rows||!Array.isArray(rows)) return;
       rows.forEach(function(br){
         if(!br.brand&&!br.price)return;
         matches.push({date:date,ref:quotRef,entity:entity,brand:br.brand||'',partNo:br.partNo||'',price:br.price||0,purchasePrice:br.purchasePrice||0,status:entry.status||''});
@@ -1448,14 +1435,14 @@ function sendWAClosingAlert(entry){
 }
 
 function initFirebaseSync(){
-  if(!FB_READY) return;
-  var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
+  if(!FB_READY)return;
   fbRead('history',function(data){
     try{
       var local=getHist();
       if(!data||typeof data!=='object'){if(local.length>0)fbWrite('history',local);return;}
       var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       if(!remote.length){if(local.length>0)fbWrite('history',local);return;}
+      var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
       var allIds={};
       local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
       remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
@@ -1464,8 +1451,7 @@ function initFirebaseSync(){
         var lo=local.find(function(x){return x&&String(x.id)===id;});
         var re2=remote.find(function(x){return x&&String(x.id)===id;});
         if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;merged.push(reR>loR?re2:lo);}
-        else if(re2&&!lo)merged.push(re2);
-        else if(lo)merged.push(lo);
+        else if(re2&&!lo)merged.push(re2);else if(lo)merged.push(lo);
       });
       merged=merged.filter(function(x){return x&&typeof x==='object';});
       if(merged.length<local.length){fbWrite('history',local);return;}
@@ -1480,9 +1466,7 @@ function initFirebaseSync(){
     el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;background:#1A6B3C;color:#fff;cursor:pointer;';
     el.onclick=function(){
       var h=getHist();var p=getPrices();var u=getUsers();
-      if(h&&h.length>0)fbWrite('history',h);
-      if(p&&p.length>0)fbWrite('prices',p);
-      if(u&&u.length>0)fbWrite('users',u);
+      if(h&&h.length>0)fbWrite('history',h);if(p&&p.length>0)fbWrite('prices',p);if(u&&u.length>0)fbWrite('users',u);
       el.textContent='⬆️ Pushed!';el.style.background='#C9952A';
       setTimeout(function(){el.textContent='🟢 Synced';el.style.background='#1A6B3C';},3000);
     };
@@ -1491,14 +1475,7 @@ function initFirebaseSync(){
   el.textContent='🟢 Synced';
 }
 function doAssign(id){var sel=document.getElementById('assign-sel-'+id);if(sel)assignQuot(id,sel.value);}
-function assignQuot(id,toUsername){
-  if(!toUsername){showToast('Staff select pannungal!','t-e');return;}
-  var h=getHist();var idx=h.findIndex(function(e){return e.id===id;});if(idx<0)return;
-  h[idx].assignedTo=toUsername;h[idx].assignedBy=CU.username;
-  if(h[idx].status==='draft')h[idx].status='assigned';
-  setHist(h);showToast('Assigned!','t-s');
-  if(typeof renderDashboard==='function')renderDashboard();
-}
+function assignQuot(id,toUsername){if(!toUsername){showToast('Staff select pannungal!','t-e');return;}var h=getHist();var idx=h.findIndex(function(e){return e.id===id;});if(idx<0)return;h[idx].assignedTo=toUsername;h[idx].assignedBy=CU.username;if(h[idx].status==='draft')h[idx].status='assigned';setHist(h);showToast('Assigned!','t-s');if(typeof renderDashboard==='function')renderDashboard();}
 function startAutoSync(){
   setInterval(function(){
     if(!FB_READY||!CU)return;
@@ -1511,30 +1488,9 @@ function startAutoSync(){
         var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
         var statusOrder2={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
         var hasNew=remote.some(function(r){return r&&r.id&&localIds.indexOf(String(r.id))<0;});
-        var hasUpgrade=remote.some(function(r){
-          if(!r||!r.id)return false;
-          var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-          if(!lo)return false;
-          return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
-        });
-        var localHasLower=remote.some(function(r){
-          if(!r||!r.id)return false;
-          var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-          if(!lo)return false;
-          return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
-        });
-        if(!hasNew&&!hasUpgrade){
-          if(localHasLower){
-            var merged2=[];
-            local.forEach(function(lo){var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});
-              if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0))merged2.push(re2);else merged2.push(lo);});
-            remote.forEach(function(re2){if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);}))merged2.push(re2);});
-            merged2=merged2.filter(function(x){return x&&typeof x==='object';});
-            localStorage.setItem('ngrd_hist',JSON.stringify(merged2));
-            updatePendingBadge();if(typeof renderDashboard==='function')renderDashboard();
-          }else if(local.length>0)fbWrite('history',local);
-          return;
-        }
+        var hasUpgrade=remote.some(function(r){if(!r||!r.id)return false;var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});if(!lo)return false;return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);});
+        var localHasLower=remote.some(function(r){if(!r||!r.id)return false;var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});if(!lo)return false;return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);});
+        if(!hasNew&&!hasUpgrade){if(localHasLower){var merged2=[];local.forEach(function(lo){var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0))merged2.push(re2);else merged2.push(lo);});remote.forEach(function(re2){if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);}))merged2.push(re2);});merged2=merged2.filter(function(x){return x&&typeof x==='object';});localStorage.setItem('ngrd_hist',JSON.stringify(merged2));updatePendingBadge();if(typeof renderDashboard==='function')renderDashboard();}else if(local.length>0)fbWrite('history',local);return;}
         var allIds={};
         local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
         remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
@@ -1561,13 +1517,8 @@ async function processFile(){
   if(!pdfB64){showToast('PDF select pannungal!','t-e');return;}
   var uvSel=document.getElementById('upload-vehicle-select');
   var selVeh=uvSel?uvSel.value:'';
-  if(!selVeh){
-    showToast('⚠️ Vehicle select பண்ணுங்கள்!','t-e');
-    if(uvSel){uvSel.style.border='2px solid #B22222';setTimeout(function(){uvSel.style.border='';},3000);}
-    return;
-  }
-  var fv=document.getElementById('f-vname');
-  if(fv&&!fv.value) fv.value=selVeh;
+  if(!selVeh){showToast('⚠️ Vehicle select பண்ணுங்கள்!','t-e');if(uvSel){uvSel.style.border='2px solid #B22222';setTimeout(function(){uvSel.style.border='';},3000);}return;}
+  var fv=document.getElementById('f-vname');if(fv&&!fv.value)fv.value=selVeh;
   setStep(2);
   var st=document.getElementById('ai-status');
   var stx=document.getElementById('ai-st');
@@ -1576,26 +1527,15 @@ async function processFile(){
   document.getElementById('process-btn').disabled=true;
   try{
     var AKEY=getAPIKey();
-    if(!AKEY){
-      promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);processFile();});
-      document.getElementById('process-btn').disabled=false;
-      return;
-    }
+    if(!AKEY){promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);processFile();});document.getElementById('process-btn').disabled=false;return;}
     var pdfBytes=atob(pdfB64);
     var countMatch=(pdfBytes.match(/\/Type\s*\/Page[^s]/g)||[]).length;
     var pageCount=countMatch>0?countMatch:Math.ceil(pdfBytes.length/(1024*50));
     if(pageCount===0)pageCount=1;
-    var pdfSizeKB=Math.round(pdfBytes.length/1024);
-    var isLarge=pageCount>60||pdfSizeKB>300;
-    if(stx) stx.textContent='📄 '+pageCount+' pages, '+pdfSizeKB+'KB detected...';
-    if(!isLarge){
-      if(stx) stx.textContent='🤖 AI reading PDF...';
-      var result=await extractBatch(AKEY,pdfB64,null,null,1,1);
-      loadExtractedData(result);return;
-    }
-    var BATCH_SIZE=45;
-    var MAX_PAGES=Math.min(pageCount,150);
-    var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE);
+    var pdfSizeKB=Math.round(pdfBytes.length/1024);var isLarge=pageCount>60||pdfSizeKB>300;
+    if(stx) stx.textContent='📄 '+pageCount+' pages detected...';
+    if(!isLarge){if(stx)stx.textContent='🤖 AI reading...';var r1=await extractBatch(AKEY,pdfB64,null,null,1,1);loadExtractedData(r1);return;}
+    var BATCH_SIZE=45;var MAX_PAGES=Math.min(pageCount,150);var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE);
     if(totalBatches<=1){
       if(stx) stx.textContent='🤖 AI reading PDF...';
       var result=await extractBatch(AKEY,pdfB64,null,null,1,1);
@@ -1609,7 +1549,7 @@ async function processFile(){
       try{
         var batchResult=await extractBatch(AKEY,pdfB64,fromPage,toPage,batchNum,totalBatches);
         if(batchNum===1)firstBatchData=batchResult;
-        if(batchResult&&batchResult.items)if(Array.isArray(batchResult.items)&&batchResult.items.length>0){var newItems2=batchResult.items.filter(function(ni){return ni&&ni.itemNo&&!allItems.find(function(ai){return ai.itemNo===ni.itemNo;});});allItems=allItems.concat(newItems2.length>0?newItems2:batchResult.items);}
+        if(batchResult&&batchResult.items)if(Array.isArray(batchResult.items)&&batchResult.items.length>0){var ni2=batchResult.items.filter(function(ni){return ni&&ni.itemNo&&!allItems.find(function(ai){return ai.itemNo===ni.itemNo;});});allItems=allItems.concat(ni2.length>0?ni2:batchResult.items);}
       }catch(batchErr){console.warn('Batch '+batchNum+' failed:',batchErr.message);}
       if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1000);});
     }
@@ -1808,7 +1748,6 @@ function renderItems(items){
     var bg=idx%2===0?'#f7fafd':'#fff';
     var reqBrand=item.brand||'';
 
-    if(!item.brandRows||!Array.isArray(item.brandRows)) return;
     item.brandRows.forEach(function(br,bi){
       var tr=document.createElement('tr');tr.style.background=bg;
       var h='';
@@ -1870,7 +1809,7 @@ function renderItems(items){
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
 
-var PART_SYNONYMS=[['lower arm','lower control arm'],['shock absorber','shock','damper','strut'],['ball joint','balljoint'],['tie rod','tie rod end'],['brake pad','disc pad'],['oil filter','lube filter'],['air filter','air cleaner'],['fuel filter'],['water pump','coolant pump'],['timing belt','cam belt'],['clutch','clutch plate'],['bush','bushing'],['wheel bearing','hub bearing'],['cv joint','cv axle'],['brake disc','brake rotor']];
+var PART_SYNONYMS=[['lower arm','lower control arm'],['shock absorber','shock','damper','strut'],['ball joint','balljoint'],['tie rod','tie rod end'],['brake pad','disc pad'],['oil filter'],['air filter','air cleaner'],['fuel filter'],['water pump'],['timing belt','cam belt'],['clutch','clutch plate'],['bush','bushing'],['wheel bearing','hub bearing'],['cv joint'],['brake disc','brake rotor']];
 function findAllPriceMatches(desc,prices,vehicle){
   if(!desc||!prices||!prices.length) return [];
 
@@ -2134,8 +2073,7 @@ function renderHistory(){
   }
   const vf=(document.getElementById('hist-vehicle-filter')?.value||'').toLowerCase();
   const sf=document.getElementById('hist-status-filter')?.value||'';
-  var vfSel=document.getElementById('hist-vehicle-filter');
-  if(vfSel&&vfSel.options.length<=1){var vehs=[...new Set(getHist().map(function(e){return e.vehicle||'';}).filter(Boolean))].sort();vehs.forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;vfSel.appendChild(o);});}
+  var vfSel=document.getElementById('hist-vehicle-filter');if(vfSel&&vfSel.options.length<=1){[...new Set(getHist().map(function(e){return e.vehicle||'';}).filter(Boolean))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;vfSel.appendChild(o);});}
   if(vf) h=h.filter(function(x){return (x.vehicle||'').toLowerCase()===vf;});
   if(sf) h=h.filter(x=>x.status===sf);
   const q=document.getElementById('hist-search')?.value?.toLowerCase()||'';
@@ -2316,11 +2254,7 @@ function autoSavePrices(items){
 function renderPriceList(){
   const prices=getPrices();
   const q=(document.getElementById('price-search')?.value||'').toLowerCase();
-  const vf_price=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();
-  const bf_price=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();
-  var pvSel=document.getElementById('price-vehicle-filter');if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}
-  var pbSel=document.getElementById('price-brand-filter');if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}
-  const filtered=prices.filter(function(p){var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;return tMatch&&pvMatch&&pbMatch;});
+  const vf_price=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();const bf_price=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();var pvSel=document.getElementById('price-vehicle-filter');if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}var pbSel=document.getElementById('price-brand-filter');if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}const filtered=prices.filter(function(p){var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;return tMatch&&pvMatch&&pbMatch;});
   const tbody=document.getElementById('price-list-tbody');
   const empty=document.getElementById('price-list-empty');
   if(!filtered.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
@@ -2404,115 +2338,69 @@ function deletePrice(id){
 // ══════════════════════════════════════════════════
 // ANALYTICS
 // ══════════════════════════════════════════════════
+function renderAllStaffSummary(){
+  var body=document.getElementById('all-staff-summary');if(!body)return;
+  var users=getUsers().filter(function(u){return u.active;});var hist=getHist();
+  if(!users.length){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff இல்லை</div>';return;}
+  var h2='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#0D1B2A;color:#fff;">';
+  ['👤 பெயர்','📄 Total','⏳ Pending','✅ Approved','📤 Submitted','🏆 Awarded','❌ Rejected','💰 Value'].forEach(function(h){h2+='<th style="padding:8px 10px;text-align:center;white-space:nowrap;">'+h+'</th>';});
+  h2+='</tr></thead><tbody>';
+  users.forEach(function(u,i){
+    var myH=hist.filter(function(e){return e.owner===u.username;});
+    var v=myH.reduce(function(s,e){return s+(e.grandTotal||0);},0);
+    var bg=i%2===0?'#f7fafd':'#fff';
+    h2+='<tr style="background:'+bg+';border-bottom:1px solid #eee;">';
+    h2+='<td style="padding:8px 10px;"><div style="font-weight:700;">'+u.name+'</div><div style="font-size:10px;color:var(--muted);">@'+u.username+'</div></td>';
+    h2+='<td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--navy);">'+myH.length+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#E8B84B;font-weight:700;">'+myH.filter(function(e){return e.status==='pending';}).length+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#1A6B3C;font-weight:700;">'+myH.filter(function(e){return e.status==='approved';}).length+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#2060a0;font-weight:700;">'+myH.filter(function(e){return e.status==='submitted';}).length+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#C9952A;font-weight:700;">'+myH.filter(function(e){return e.status==='awarded';}).length+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#B22222;font-weight:700;">'+myH.filter(function(e){return e.status==='rejected';}).length+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#1A6B3C;">'+lkr(v)+'</td>';
+    h2+='</tr>';
+  });
+  h2+='</tbody></table></div>';
+  body.innerHTML=h2;
+}
+function renderLoginActivity(){
+  var body=document.getElementById('login-activity-body');if(!body)return;
+  var log=getLog().slice(0,20);
+  if(!log.length){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Activity இல்லை</div>';return;}
+  body.innerHTML=log.map(function(l){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #eee;"><div><span style="font-weight:700;font-size:12px;">👤 '+l.user+'</span><span style="font-size:11px;color:var(--muted);margin-left:8px;">'+l.msg+'</span></div><div style="font-size:10px;color:var(--muted);white-space:nowrap;">'+l.time+'</div></div>';
+  }).join('');
+}
+function renderSystemInfo(){
+  var body=document.getElementById('system-info-body');if(!body)return;
+  var hist=getHist();var prices=getPrices();var users=getUsers();
+  var h2='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">';
+  [['📄 Total Quotations',hist.length,'var(--navy)'],['💰 Price List',prices.length,'#1A6B3C'],['👥 Active Users',users.filter(function(u){return u.active;}).length,'#2060a0'],['🔄 Firebase',typeof FB_READY!=='undefined'&&FB_READY?'🟢 Connected':'🔴 Offline',FB_READY?'#1A6B3C':'#B22222']].forEach(function(item){h2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;display:flex;justify-content:space-between;align-items:center;"><div style="font-size:12px;color:var(--muted);">'+item[0]+'</div><div style="font-size:18px;font-weight:700;color:'+item[2]+';">'+item[1]+'</div></div>';});
+  h2+='</div>';
+  var staffStats={};hist.forEach(function(e){if(!e.owner||e.owner==='__all__')return;if(!staffStats[e.owner])staffStats[e.owner]={name:e.savedBy||e.owner,count:0,awarded:0};staffStats[e.owner].count++;if(e.status==='awarded')staffStats[e.owner].awarded++;});
+  var best=Object.values(staffStats).sort(function(a,b){return b.count-a.count;})[0];
+  if(best){h2+='<div style="margin-top:12px;background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:11px;color:rgba(255,255,255,.6);">🏆 Best Performer</div><div style="font-size:16px;font-weight:700;margin-top:4px;">'+best.name+'</div></div><div style="text-align:right;"><div style="font-size:24px;font-weight:700;color:#E8B84B;">'+best.count+'</div><div style="font-size:10px;color:rgba(255,255,255,.6);">quotations</div></div></div>';}
+  body.innerHTML=h2;
+}
 function renderAnalytics(){
-  const h=getHist();
-  const total=h.length;
-  const awarded=h.filter(x=>x.status==='awarded').length;
-  const submitted=h.filter(x=>x.status==='submitted').length;
-  const totalVal=h.reduce((s,x)=>s+(x.grandTotal||0),0);
-  const winRate=submitted>0?Math.round(awarded/h.filter(x=>['awarded','rejected'].includes(x.status)).length*100)||0:0;
-
-  document.getElementById('analytics-stats').innerHTML=`
-    <div class="stat-card"><div class="stat-icon">📄</div><div class="stat-val">${total}</div><div class="stat-lbl">Total Quotations</div></div>
-    <div class="stat-card" style="border-top-color:var(--green);"><div class="stat-icon">✅</div><div class="stat-val">${awarded}</div><div class="stat-lbl">Awarded</div></div>
-    <div class="stat-card" style="border-top-color:var(--steel);"><div class="stat-icon">📤</div><div class="stat-val">${submitted}</div><div class="stat-lbl">Submitted</div></div>
-    <div class="stat-card" style="border-top-color:var(--gold);"><div class="stat-icon">💰</div><div class="stat-val">${totalVal>0?'LKR '+(totalVal/1000000).toFixed(1)+'M':'LKR 0'}</div><div class="stat-lbl">Total Value</div></div>`;
-
-  // Vehicle chart
-  const vMap={};
-  h.forEach(e=>{const v=e.vehicle||'Unknown';vMap[v]=(vMap[v]||0)+1;});
-  const maxV=Math.max(...Object.values(vMap),1);
-  document.getElementById('chart-vehicle').innerHTML='<div class="chart-bar-wrap">'+
-    Object.entries(vMap).sort((a,b)=>b[1]-a[1]).map(([v,c])=>`
-      <div class="chart-row">
-        <div class="chart-label" title="${v}">${v}</div>
-        <div class="chart-bar-bg"><div class="chart-bar" style="width:${(c/maxV*100).toFixed(1)}%"></div></div>
-        <div class="chart-val">${c} quotations</div>
-      </div>`).join('')+'</div>';
-
-  // Win/Loss chart
-  const wl={awarded:0,rejected:0,submitted:0,draft:0,pending:0};
-  h.forEach(e=>wl[e.status||'draft']=(wl[e.status||'draft']||0)+1);
-  const maxWL=Math.max(...Object.values(wl),1);
-  const wlColors={awarded:'win',rejected:'loss',submitted:'',draft:'',pending:''};
-  const wlLabels={awarded:'✅ Awarded',rejected:'❌ Rejected',submitted:'📤 Submitted',draft:'📝 Draft',pending:'⏳ Pending'};
-  document.getElementById('chart-winloss').innerHTML='<div class="chart-bar-wrap">'+
-    Object.entries(wl).filter(([,v])=>v>0).map(([k,v])=>`
-      <div class="chart-row">
-        <div class="chart-label">${wlLabels[k]}</div>
-        <div class="chart-bar-bg"><div class="chart-bar ${wlColors[k]}" style="width:${(v/maxWL*100).toFixed(1)}%"></div></div>
-        <div class="chart-val">${v}</div>
-      </div>`).join('')+'</div>';
-
-  // Monthly chart
-  const mMap={};
-  h.forEach(e=>{
-    const d=new Date(e.id);if(isNaN(d))return;
-    const key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
-    mMap[key]=(mMap[key]||0)+1;
-  });
-  const months=Object.keys(mMap).sort().slice(-6);
-  const maxM=Math.max(...months.map(m=>mMap[m]),1);
-  document.getElementById('chart-monthly').innerHTML=months.length?'<div class="chart-bar-wrap">'+
-    months.map(m=>`<div class="chart-row">
-      <div class="chart-label">${m}</div>
-      <div class="chart-bar-bg"><div class="chart-bar" style="width:${(mMap[m]/maxM*100).toFixed(1)}%"></div></div>
-      <div class="chart-val">${mMap[m]} quotations</div>
-    </div>`).join('')+'</div>':'<div style="text-align:center;padding:20px;color:var(--muted);">No data yet</div>';
+  setTimeout(populateStaffSelect,100);
+  renderAllStaffSummary();renderLoginActivity();renderSystemInfo();
+  var h=getHist();
+  var total=h.length,awarded=h.filter(function(x){return x.status==='awarded';}).length,submitted=h.filter(function(x){return x.status==='submitted';}).length;
+  var totalVal=h.reduce(function(s,x){return s+(x.grandTotal||0);},0);
+  document.getElementById('analytics-stats').innerHTML='<div class="stat-card"><div class="stat-icon">📄</div><div class="stat-val">'+total+'</div><div class="stat-lbl">Total</div></div><div class="stat-card" style="border-top-color:var(--green);"><div class="stat-icon">✅</div><div class="stat-val">'+awarded+'</div><div class="stat-lbl">Awarded</div></div><div class="stat-card" style="border-top-color:var(--steel);"><div class="stat-icon">📤</div><div class="stat-val">'+submitted+'</div><div class="stat-lbl">Submitted</div></div><div class="stat-card" style="border-top-color:var(--gold);"><div class="stat-icon">💰</div><div class="stat-val">'+(totalVal>0?'LKR '+(totalVal/1000000).toFixed(1)+'M':'0')+'</div><div class="stat-lbl">Value</div></div>';
+  var vMap={};h.forEach(function(e){var v=e.vehicle||'Unknown';vMap[v]=(vMap[v]||0)+1;});
+  var maxV=Math.max.apply(null,Object.values(vMap).concat([1]));
+  document.getElementById('chart-vehicle').innerHTML='<div class="chart-bar-wrap">'+Object.entries(vMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8).map(function(kv){return '<div class="chart-row"><div class="chart-label" title="'+kv[0]+'">'+kv[0]+'</div><div class="chart-bar-bg"><div class="chart-bar" style="width:'+(kv[1]/maxV*100).toFixed(1)+'%"></div></div><div class="chart-val">'+kv[1]+'</div></div>';}).join('')+'</div>';
+  var wl={awarded:0,rejected:0,submitted:0,draft:0,pending:0};h.forEach(function(e){wl[e.status||'draft']=(wl[e.status||'draft']||0)+1;});
+  var maxWL=Math.max.apply(null,Object.values(wl).concat([1]));
+  var wlL={awarded:'✅ Awarded',rejected:'❌ Rejected',submitted:'📤 Submitted',draft:'📝 Draft',pending:'⏳ Pending'};
+  document.getElementById('chart-winloss').innerHTML='<div class="chart-bar-wrap">'+Object.entries(wl).filter(function(kv){return kv[1]>0;}).map(function(kv){return '<div class="chart-row"><div class="chart-label">'+wlL[kv[0]]+'</div><div class="chart-bar-bg"><div class="chart-bar '+(kv[0]==='awarded'?'win':kv[0]==='rejected'?'loss':'')+'" style="width:'+(kv[1]/maxWL*100).toFixed(1)+'%"></div></div><div class="chart-val">'+kv[1]+'</div></div>';}).join('')+'</div>';
+  var mMap={};h.forEach(function(e){var d=new Date(e.id);if(isNaN(d))return;var key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');mMap[key]=(mMap[key]||0)+1;});
+  var months=Object.keys(mMap).sort().slice(-6);var maxM=Math.max.apply(null,months.map(function(m){return mMap[m];}).concat([1]));
+  document.getElementById('chart-monthly').innerHTML=months.length?'<div class="chart-bar-wrap">'+months.map(function(m){return '<div class="chart-row"><div class="chart-label">'+m+'</div><div class="chart-bar-bg"><div class="chart-bar" style="width:'+(mMap[m]/maxM*100).toFixed(1)+'%"></div></div><div class="chart-val">'+mMap[m]+'</div></div>';}).join('')+'</div>':'<div style="text-align:center;padding:20px;color:var(--muted);">Data இல்லை</div>';
 }
 
-// ══════════════════════════════════════════════════
-// DEADLINE ALARMS
-// ══════════════════════════════════════════════════
-function parseClosingDate(str){
-  if(!str) return null;
-  const s=str.replace(/at\s*/i,'').replace(/\s+/g,' ').trim();
-  const d=new Date(s);if(!isNaN(d))return d;
-  const m=s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if(m)return new Date(+m[3],+m[2]-1,+m[1]);
-  return null;
-}
-function getDaysUntil(ds){
-  const d=parseClosingDate(ds);if(!d)return null;
-  const now=new Date();now.setHours(0,0,0,0);d.setHours(0,0,0,0);
-  return Math.ceil((d-now)/(1000*60*60*24));
-}
-function getDeadlineBadge(cd){
-  const days=getDaysUntil(cd);if(days===null)return '';
-  if(days<0)return `<span class="deadline-badge db-past">⏰ Closed ${Math.abs(days)}d ago</span>`;
-  if(days===0)return `<span class="deadline-badge db-urgent">🚨 TODAY</span>`;
-  if(days===1)return `<span class="deadline-badge db-urgent">🚨 TOMORROW</span>`;
-  if(days<=3)return `<span class="deadline-badge db-warn">⚠️ ${days}d left</span>`;
-  return `<span class="deadline-badge db-ok">✅ ${days}d</span>`;
-}
-let alarmDismissed=false;
-function checkDeadlineAlarms(){
-  if(alarmDismissed)return;
-  const h=getHist();
-  const urgent=[],warning=[];
-  h.forEach(e=>{const days=getDaysUntil(e.closingDate);if(days===null)return;
-    if(days>=0&&days<=1)urgent.push({...e,days});
-    else if(days>1&&days<=3)warning.push({...e,days});
-  });
-  const banner=document.getElementById('alarm-banner');
-  const title=document.getElementById('alarm-title');
-  const msg=document.getElementById('alarm-msg');
-  if(urgent.length>0){
-    banner.className='alarm-banner show critical';
-    title.textContent='🚨 URGENT — CLOSING VERY SOON!';
-    msg.textContent=urgent.map(e=>`${e.vehicle||e.eqNo} (${e.days===0?'TODAY':'TOMORROW'})`).join(', ');
-  }else if(warning.length>0){
-    banner.className='alarm-banner show';
-    title.textContent=`⚠️ ${warning.length} quotation(s) closing within 3 days`;
-    msg.textContent=warning.map(e=>`${e.vehicle||e.eqNo} (${e.days}d)`).join(', ');
-  }else banner.className='alarm-banner';
-}
-function dismissAlarm(){alarmDismissed=true;document.getElementById('alarm-banner').className='alarm-banner';}
-function checkAfterSave(){alarmDismissed=false;checkDeadlineAlarms();}
-
-// ══════════════════════════════════════════════════
-// ACTIVITY LOG
-// ══════════════════════════════════════════════════
 function renderLog(){
   const log=getLog();
   const c=document.getElementById('activity-log-list');
@@ -3264,23 +3152,15 @@ function bulkReassign(){
   renderHistory();
 }
 
-function getAPIKey(){
-  return localStorage.getItem('ngrd_akey')||'';
-}
-function promptAPIKey(callback){
-  var existing=document.getElementById('api-key-modal');if(existing)existing.remove();
-  var modal=document.createElement('div');modal.id='api-key-modal';
-  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
-  modal.innerHTML='<div style="background:#fff;border-radius:8px;padding:24px;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.3);"><div style="font-size:16px;font-weight:700;color:#0D1B2A;margin-bottom:6px;">🔑 Anthropic API Key</div><div style="font-size:12px;color:#666;margin-bottom:14px;">console.anthropic.com → API Keys → Copy</div><input id="api-key-input" type="password" placeholder="sk-ant-..." style="width:100%;padding:10px;border:2px solid #C8D4E0;border-radius:4px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box;"><div style="display:flex;gap:8px;margin-top:12px;"><button id="api-key-save" style="flex:1;padding:10px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:14px;cursor:pointer;">✅ Save & Extract</button><button id="api-key-cancel" style="padding:10px 16px;background:#eee;border:none;border-radius:4px;font-size:14px;cursor:pointer;">✕</button></div></div>';
-  document.body.appendChild(modal);
-  var inp=document.getElementById('api-key-input');
-  setTimeout(function(){if(inp)inp.focus();},100);
-  document.getElementById('api-key-save').onclick=function(){
-    var k=(inp.value||'').trim();
-    if(!k||k.length<20){inp.style.border='2px solid #B22222';showToast('Valid API Key போடுங்கள்!','t-e');return;}
-    localStorage.setItem('ngrd_akey',k);modal.remove();if(callback)callback(k);
-  };
-  document.getElementById('api-key-cancel').onclick=function(){modal.remove();document.getElementById('process-btn').disabled=false;};
+function getAPIKey(){return localStorage.getItem('ngrd_akey')||'';}
+function promptAPIKey(cb){
+  var m=document.createElement('div');m.id='api-key-modal';
+  m.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  m.innerHTML='<div style="background:#fff;border-radius:8px;padding:24px;width:90%;max-width:420px;"><div style="font-size:16px;font-weight:700;margin-bottom:12px;">🔑 Anthropic API Key</div><input id="api-key-inp" type="password" placeholder="sk-ant-..." style="width:100%;padding:10px;border:2px solid #C8D4E0;border-radius:4px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box;"><div style="display:flex;gap:8px;margin-top:12px;"><button id="api-key-save" style="flex:1;padding:10px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">✅ Save</button><button id="api-key-cancel" style="padding:10px 16px;background:#eee;border:none;border-radius:4px;cursor:pointer;">✕</button></div></div>';
+  document.body.appendChild(m);
+  var inp=document.getElementById('api-key-inp');setTimeout(function(){if(inp)inp.focus();},100);
+  document.getElementById('api-key-save').onclick=function(){var k=(inp.value||'').trim();if(!k||k.length<20){inp.style.border='2px solid #B22222';return;}localStorage.setItem('ngrd_akey',k);m.remove();if(cb)cb(k);};
+  document.getElementById('api-key-cancel').onclick=function(){m.remove();document.getElementById('process-btn').disabled=false;};
   inp.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('api-key-save').click();});
 }
 function resetAPIKey(){
@@ -3943,18 +3823,18 @@ function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;c
 // ══════════════════════════════════════════════════
 // RESET & TOAST
 // ══════════════════════════════════════════════════
-function getVehicleMaster(){var saved=localStorage.getItem('ngrd_vehicles');if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0)return v;}catch(e){}}return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab','Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van','Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab','Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166','Toyota Cab LN106','Toyota Cab LN107','TATA LPT 1109 TRUCK','TATA WINGER VAN','Mahindra Bolero (SC TURBO)','TATA 1313 TRUCK','TOYOTA HIACE VAN','TOYOTA HILUX 1KZ CAB','SCORPIO JEEP'];}
+function getVehicleMaster(){var s=localStorage.getItem('ngrd_vehicles');if(s){try{var v=JSON.parse(s);if(v&&v.length>0)return v;}catch(e){}}return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab','Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van','Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab','Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166','Toyota Cab LN106','Toyota Cab LN107','TATA LPT 1109 TRUCK','TATA WINGER VAN','Mahindra Bolero (SC TURBO)','TATA 1313 TRUCK','TOYOTA HIACE VAN','TOYOTA HILUX 1KZ CAB','SCORPIO JEEP'];}
 function saveVehicleMaster(v){localStorage.setItem('ngrd_vehicles',JSON.stringify(v));if(typeof fbWrite==='function')fbWrite('vehicles',v);if(typeof refreshAllVehicleDropdowns==='function')refreshAllVehicleDropdowns();}
-function addVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var name=prompt('Vehicle name:','');if(!name||!name.trim())return;name=name.trim();var v=getVehicleMaster();if(v.includes(name)){showToast('Already exists!','t-e');return;}v.push(name);saveVehicleMaster(v);renderVehicleSettings();showToast('✅ '+name+' added!','t-s');}
+function addVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var n=prompt('Vehicle name:','');if(!n||!n.trim())return;n=n.trim();var v=getVehicleMaster();if(v.includes(n)){showToast('Already exists!','t-e');return;}v.push(n);saveVehicleMaster(v);renderVehicleSettings();showToast('✅ '+n+' added!','t-s');}
 function deleteVehicle(name){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}if(!confirm('Delete: '+name+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==name;}));renderVehicleSettings();showToast('Deleted!','t-i');}
 function renderVehicleSettings(){var el=document.getElementById('vehicle-settings-list');if(!el)return;var v=getVehicleMaster();if(!v.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles!</div>';return;}el.innerHTML=v.map(function(x,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'"><span style="font-size:13px;font-weight:600;">🚗 '+x+'</span><button onclick="deleteVehicle('+JSON.stringify(x)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️</button></div>';}).join('');}
 function syncUploadVehicle(val){var fv=document.getElementById('f-vname');if(fv)fv.value=val;}
-function refreshAllVehicleDropdowns(){var adminBtns=document.getElementById('vehicle-admin-btns');if(adminBtns)adminBtns.style.display=(CU&&CU.role==='admin')?'flex':'none';var v=getVehicleMaster();var opts=v.map(function(x){return '<option value="'+x+'">'+x+'</option>';}).join('');var uv=document.getElementById('upload-vehicle-select');if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}var fv=document.getElementById('f-vname');if(fv&&fv.tagName==='SELECT'){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}}
-function uploadPageAddVehicle(){var name=prompt('Vehicle:','');if(!name||!name.trim())return;name=name.trim();var v=getVehicleMaster();if(v.indexOf(name)>=0){alert('Already exists!');return;}v.push(name);saveVehicleMaster(v);var sel=document.getElementById('upload-vehicle-select');if(sel){sel.value=name;syncUploadVehicle(name);}showToast('✅ '+name+' added!','t-s');}
+function refreshAllVehicleDropdowns(){var ab=document.getElementById('vehicle-admin-btns');if(ab)ab.style.display=(CU&&CU.role==='admin')?'flex':'none';var v=getVehicleMaster();var opts=v.map(function(x){return '<option value="'+x+'">'+x+'</option>';}).join('');var uv=document.getElementById('upload-vehicle-select');if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}var fv=document.getElementById('f-vname');if(fv&&fv.tagName==='SELECT'){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}}
+function uploadPageAddVehicle(){var n=prompt('Vehicle:','');if(!n||!n.trim())return;n=n.trim();var v=getVehicleMaster();if(v.indexOf(n)>=0){alert('Already exists!');return;}v.push(n);saveVehicleMaster(v);var sel=document.getElementById('upload-vehicle-select');if(sel){sel.value=n;syncUploadVehicle(n);}showToast('✅ '+n+' added!','t-s');}
 function uploadPageEditVehicle(){var sel=document.getElementById('upload-vehicle-select');var cur=sel?sel.value:'';if(!cur){showToast('Select vehicle!','t-e');return;}var n=prompt('New name:',cur);if(!n||!n.trim()||n===cur)return;var v=getVehicleMaster();var i=v.indexOf(cur);if(i>=0){v[i]=n.trim();saveVehicleMaster(v);refreshAllVehicleDropdowns();}showToast('✅ Updated!','t-s');}
 function uploadPageDeleteVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var sel=document.getElementById('upload-vehicle-select');var cur=sel?sel.value:'';if(!cur){showToast('Select vehicle!','t-e');return;}if(!confirm('Delete '+cur+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==cur;}));refreshAllVehicleDropdowns();showToast('Deleted!','t-i');}
 function populateStaffSelect(){var sel=document.getElementById('staff-perf-select');if(!sel)return;var users=getUsers().filter(function(u){return u.active;});var owners={};users.forEach(function(u){owners[u.username]=u.name;});getHist().forEach(function(e){if(e.owner&&e.owner!=='__all__'&&!owners[e.owner])owners[e.owner]=e.owner;});sel.innerHTML='<option value="">— Staff Select —</option>';Object.keys(owners).forEach(function(uname){var opt=document.createElement('option');opt.value=uname;opt.textContent=owners[uname];sel.appendChild(opt);});}
-function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname};var stats=[['📝','Draft',myH.filter(function(e){return !e.status||e.status==='draft';}).length,'#888'],['⏳','Pending',myH.filter(function(e){return e.status==='pending';}).length,'#E8B84B'],['✅','Approved',myH.filter(function(e){return e.status==='approved';}).length,'#1A6B3C'],['📤','Submitted',myH.filter(function(e){return e.status==='submitted';}).length,'#2060a0'],['🏆','Awarded',myH.filter(function(e){return e.status==='awarded';}).length,'#C9952A'],['❌','Rejected',myH.filter(function(e){return e.status==='rejected';}).length,'#B22222']];var html2='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div></div><div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+myH.length+'</div></div></div>';html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';myH.slice(0,10).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
+function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname};var stats=[['📝','Draft',myH.filter(function(e){return !e.status||e.status==='draft';}).length,'#888'],['⏳','Pending',myH.filter(function(e){return e.status==='pending';}).length,'#E8B84B'],['✅','Approved',myH.filter(function(e){return e.status==='approved';}).length,'#1A6B3C'],['📤','Submitted',myH.filter(function(e){return e.status==='submitted';}).length,'#2060a0'],['🏆','Awarded',myH.filter(function(e){return e.status==='awarded';}).length,'#C9952A'],['❌','Rejected',myH.filter(function(e){return e.status==='rejected';}).length,'#B22222']];var html2='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div></div><div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+myH.length+'</div></div></div>';html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';myH.slice(0,8).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
 function autoFillRow(idx,bi){var item=curItems[idx];if(!item)return;var prices=getPrices();var matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(item.description,prices):[];if(!matches||!matches.length)return;var best=matches[0];var bEl=document.getElementById('br-b-'+idx+'-'+bi);var pEl=document.getElementById('br-p-'+idx+'-'+bi);var puEl=document.getElementById('br-pu-'+idx+'-'+bi);var cEl=document.getElementById('br-c-'+idx+'-'+bi);if(bEl&&!bEl.value&&best.brand)bEl.value=best.brand;if(pEl&&!pEl.value&&best.partNo)pEl.value=best.partNo;if(cEl&&!cEl.value&&best.country)cEl.value=best.country;if(puEl&&!puEl.value&&best.purchasePrice>0){puEl.value=best.purchasePrice;puEl.style.background='#fffde7';}syncRow(idx,bi);}
 function sendWAClosingAlert(entry){if(!entry)return;var msg='⚠️ *NGRD Motors*%0A🚗 '+(entry.vehicle||'')+'%0A📋 '+(entry.eqNo||entry.refNo||'')+'%0A📅 '+(entry.closingDate||'')+'%0AStatus: '+(entry.status||'')+'%0A🔗 ngrd-motors.vercel.app';window.open('https://wa.me/94765234296?text='+msg,'_blank');}
 function resetAll(){
