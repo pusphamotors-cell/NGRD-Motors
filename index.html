@@ -1230,29 +1230,7 @@ async function callAIWithPDF(b64, prompt, akey){
 async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatches){
   var rangeHint=fromPage?('\nNOTE: Focus on pages '+fromPage+' to '+toPage+' only.'):'';
   var batchHint=totalBatches>1?('\nBatch '+batchNum+'/'+totalBatches+'.'+(batchNum===1?' Extract header AND items.':' Extract items only.')):'';
-  var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+`
-
-The PDF has items in this EXACT format:
-Item No
-
-1
-
-Item Name
-
-PISTON SET
-
-Unit
-
-Number
-
-Quantity
-
-1.00
-
-Find EVERY "Item No" occurrence and extract each item.
-Return ONLY valid JSON:
-{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"PISTON SET","qty":1,"unit":"Number","brand":""}]}
-CRITICAL: Extract ALL items. description=Item Name value, qty=Quantity value.`;
+  var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+'\n\nThe PDF has items in this EXACT format:\nItem No\n\n1\n\nItem Name\n\nPISTON SET\n\nUnit\n\nNumber\n\nQuantity\n\n1.00\n\nFind EVERY "Item No" occurrence and extract each item.\nReturn ONLY valid JSON:\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"PISTON SET","qty":1,"unit":"Number","brand":""}]}\nCRITICAL: Extract ALL items. description=Item Name value, qty=Quantity value.';
 
   var resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
@@ -1292,15 +1270,12 @@ function loadExtractedData(parsed){
     document.getElementById('info-panel').style.display='block';
     setStep(2); return;
   }
-  // Auto-fill from Price List using smart matching
   var _prices=[];try{_prices=getPrices()||[];}catch(_e){}
   var _vehicle='';
   try{
-    // Get vehicle from form or from upload select
     var _vEl=document.getElementById('f-vname')||document.getElementById('upload-vehicle-select');
     _vehicle=(_vEl&&_vEl.value)||parsed.vehicleName||'';
   }catch(_e){}
-
   curItems=parsed.items.map(function(item,i){
     var _desc=(item.description||'').trim();
     var _brs;
@@ -1309,15 +1284,7 @@ function loadExtractedData(parsed){
         var _matches=findAllPriceMatches(_desc,_prices,_vehicle);
         if(_matches&&Array.isArray(_matches)&&_matches.length>0){
           _brs=_matches.slice(0,3).map(function(m){
-            return {
-              brand:m.brand||'',
-              partNo:m.partNo||'',
-              country:m.country||'Japan',
-              marginPct:0,
-              price:parseFloat(m.price)||0,
-              purchasePrice:parseFloat(m.purchasePrice)||0,
-              totalPrice:0
-            };
+            return {brand:m.brand||'',partNo:m.partNo||'',country:m.country||'Japan',marginPct:0,price:parseFloat(m.price)||0,purchasePrice:parseFloat(m.purchasePrice)||0,totalPrice:0};
           });
         }
       }
@@ -1325,15 +1292,7 @@ function loadExtractedData(parsed){
     if(!_brs||!_brs.length){
       _brs=[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}];
     }
-    return {
-      itemNo:item.itemNo||(i+1),
-      description:_desc||('Item '+(i+1)),
-      qty:parseFloat(item.qty)||1,
-      unit:item.unit||'Number',
-      brand:_brs[0].brand||item.brand||'',
-      unitPrice:_brs[0].price||0,
-      brandRows:_brs
-    };
+    return {itemNo:item.itemNo||(i+1),description:_desc||('Item '+(i+1)),qty:parseFloat(item.qty)||1,unit:item.unit||'Number',brand:_brs[0].brand||item.brand||'',unitPrice:_brs[0].price||0,brandRows:_brs};
   });
   renderItems(curItems);setStep(3);
   if(st){st.style.cssText='';st.className='ai-status success';}
@@ -1359,8 +1318,7 @@ function importExtractedJSON(){
         if(data.vehicleName) document.getElementById('f-vname').value=data.vehicleName;
         if(data.closingDate) document.getElementById('f-close').value=data.closingDate.split(' ')[0];
         curItems=data.items.map(function(item){
-          return {itemNo:item.itemNo,description:item.description,qty:item.qty||1,unit:item.unit||'Number',
-            brand:item.brand||'',unitPrice:0,brandRows:[{brand:'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
+          return {itemNo:item.itemNo,description:item.description,qty:item.qty||1,unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,brandRows:[{brand:'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
         });
         renderItems(curItems);setStep(3);
         var st=document.getElementById('ai-status');var stx=document.getElementById('ai-st');
@@ -1379,7 +1337,6 @@ function extractPricesFromHistory(){
   hist.forEach(function(entry){
     if(!entry.items||!Array.isArray(entry.items)) return;
     var vehicle=entry.vehicle||'';
-    if(!entry.items||!Array.isArray(entry.items)) return;
     entry.items.forEach(function(item){
       if(!item.description) return;
       var brandRows=item.brandRows||[];
@@ -1419,7 +1376,6 @@ function editPriceEntry(id){
 function _applyHistMatch(itemIdx,brandIdx,matchIdx){
   var popup=document.getElementById('purchase-hist-popup');
   if(!popup) return;
-  // Get histMatches from popup data
   var hist=getHist();
   var desc=(curItems[itemIdx]||{}).description||'';
   var vehicle=(document.getElementById('f-vname')||{value:''}).value||'';
@@ -1449,9 +1405,7 @@ function showPurchaseHistory(itemIdx,brandIdx){
   var desc=item.description||'';
   var vehicle=(document.getElementById('f-vname')||{value:''}).value||'';
   var role=getRole();
-  if(!role.seePurchase) return; // Only price-enter/admin can see purchase prices
-
-  // Collect history matches
+  if(!role.seePurchase) return;
   var hist=getHist();
   var histMatches=[];
   hist.forEach(function(entry){
@@ -1471,23 +1425,16 @@ function showPurchaseHistory(itemIdx,brandIdx){
       });
     });
   });
-
-  // Price list matches
   var prices=getPrices();
   var priceMatches=typeof findAllPriceMatches==='function'?findAllPriceMatches(desc,prices,vehicle):[];
-
-  // Build popup
   var ex=document.getElementById('purchase-hist-popup');if(ex)ex.remove();
   var popup=document.createElement('div');
   popup.id='purchase-hist-popup';
   popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:92vw;max-width:500px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3);';
-
   var h2='<div style="background:#0D1B2A;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">';
   h2+='<div><div style="font-weight:700;font-size:13px;">💰 '+desc+'</div>';
   h2+='<div style="font-size:10px;opacity:.7;">'+vehicle+'</div></div>';
   h2+='<span onclick="dismissPHPopup()" style="cursor:pointer;font-size:20px;opacity:.7;padding:0 4px;">✕</span></div>';
-
-  // Price List brands section
   if(priceMatches.length>0){
     h2+='<div style="padding:12px 16px;border-bottom:2px solid #eee;">';
     h2+='<div style="font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;">🏷️ Price Master List</div>';
@@ -1503,8 +1450,6 @@ function showPurchaseHistory(itemIdx,brandIdx){
     });
     h2+='</div>';
   }
-
-  // Last 5 quotations history
   var last5=histMatches.slice(0,5);
   if(last5.length>0){
     h2+='<div style="padding:12px 16px;">';
@@ -1523,11 +1468,9 @@ function showPurchaseHistory(itemIdx,brandIdx){
     });
     h2+='</div>';
   }
-
   if(priceMatches.length===0&&last5.length===0){
     h2+='<div style="text-align:center;padding:24px;color:#888;">⚠️ No price history for this part</div>';
   }
-
   popup.innerHTML=h2;
   document.body.appendChild(popup);
   setTimeout(function(){
@@ -1554,7 +1497,6 @@ function applyPriceHistory(idx,bi,brand,purchasePrice,partNo,country,sellingPric
   showToast('✅ '+brand+' applied!','t-s');
 }
 
-var ADMIN_WA='94765234296';
 function showWhatsAppNotify(entry){
   if(!entry)return;
   var msg='🔔 *NGRD Motors — புது Quotation*%0A%0A👤 '+(entry.savedBy||'?')+'%0A🚗 '+(entry.vehicle||'')+'%0A📋 '+(entry.eqNo||entry.refNo||'')+'%0A📦 '+(entry.items?entry.items.length:0)+' parts%0A📅 '+(entry.closingDate||'N/A')+'%0A%0A✅ ngrd-motors.vercel.app';
@@ -1570,12 +1512,7 @@ function showWhatsAppNotify(entry){
   setTimeout(function(){var el=document.getElementById('wa-notify-btn');if(el)el.remove();},30000);
 }
 
-function sendWAClosingAlert(entry){
-  if(!entry)return;
-  var msg='⚠️ *NGRD Motors — Closing Alert*%0A%0A🚗 '+(entry.vehicle||'')+'%0A📋 '+(entry.eqNo||entry.refNo||'')+'%0A📅 Closing: '+(entry.closingDate||'')+'%0AStatus: '+(entry.status||'')+'%0A%0A🔗 ngrd-motors.vercel.app';
-  window.open('https://wa.me/'+ADMIN_WA+'?text='+msg,'_blank');
-}
-
+var ADMIN_WA='94765234296';
 function initFirebaseSync(){
   if(!FB_READY)return;
   fbRead('history',function(data){
@@ -1604,14 +1541,12 @@ function initFirebaseSync(){
       if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none')renderHistory();
     }catch(e){}
   });
-  // Sync users from Firebase too
   fbRead('users',function(udata){
     try{
       if(!udata||typeof udata!=='object') return;
       var remoteUsers=Array.isArray(udata)?udata:Object.values(udata).filter(function(x){return x&&typeof x==='object';});
       if(!remoteUsers.length) return;
       var localUsers=getUsers();
-      // Merge: keep local admin, add remote users
       var merged=localUsers.slice();
       remoteUsers.forEach(function(ru){
         if(!ru||!ru.id) return;
@@ -1624,7 +1559,6 @@ function initFirebaseSync(){
       }
     }catch(e){}
   });
-
   var el=document.getElementById('fb-badge');
   if(!el){
     el=document.createElement('div');el.id='fb-badge';
@@ -1641,6 +1575,7 @@ function initFirebaseSync(){
 }
 function doAssign(id){var sel=document.getElementById('assign-sel-'+id);if(sel)assignQuot(id,sel.value);}
 function assignQuot(id,toUsername){if(!toUsername){showToast('Staff select pannungal!','t-e');return;}var h=getHist();var idx=h.findIndex(function(e){return e.id===id;});if(idx<0)return;h[idx].assignedTo=toUsername;h[idx].assignedBy=CU.username;if(h[idx].status==='draft')h[idx].status='assigned';setHist(h);showToast('Assigned!','t-s');if(typeof renderDashboard==='function')renderDashboard();}
+
 function startAutoSync(){
   setInterval(function(){
     if(!FB_READY||!CU)return;
@@ -1741,7 +1676,7 @@ function finishExtraction(parsed){
   document.getElementById('info-panel').style.display='block';
   document.getElementById('items-panel').style.display='block';
   showToast('Extracted! Enter prices.','t-s');
-  addLog(`PDF extracted: ${parsed.eqNo||parsed.refNo} (${parsed.vehicleName})`);
+  addLog('PDF extracted: '+(parsed.eqNo||parsed.refNo)+' ('+(parsed.vehicleName)+')');
 }
 
 function continueExtraction(){
@@ -1776,19 +1711,16 @@ function updateQuotStatus(){curStatus=document.getElementById('quot-status')?.va
 // ══════════════════════════════════════════════════
 // ITEMS TABLE
 // ══════════════════════════════════════════════════
-
-// Workflow roles
 var ROLES={
-  uploader: {seePurchase:false,canPurchase:false,canMargin:false,canSave:false,canExport:false,canUpload:true, canPrice:false,canSubmit:false,viewOnly:false,canApprove:false},
-  price:    {seePurchase:true, canPurchase:true, canMargin:true, canSave:false,canExport:false,canUpload:false,canPrice:true, canSubmit:false,viewOnly:false,canApprove:false},
-  submitter:{seePurchase:false,canPurchase:false,canMargin:false,canSave:true, canExport:true, canUpload:false,canPrice:false,canSubmit:true, viewOnly:false,canApprove:false},
-  viewer:   {seePurchase:true, canPurchase:false,canMargin:false,canSave:false,canExport:false,canUpload:false,canPrice:false,canSubmit:false,viewOnly:true, canApprove:false},
-  staff:    {seePurchase:false,canPurchase:false,canMargin:false,canSave:true, canExport:true, canUpload:true, canPrice:true, canSubmit:true, viewOnly:false,canApprove:false},
-  admin:    {seePurchase:true, canPurchase:true, canMargin:true, canSave:true, canExport:true, canUpload:true, canPrice:true, canSubmit:true, viewOnly:false,canApprove:true}
+  uploader: {seePurchase:false,canPurchase:false,canMargin:false,canSave:false,canExport:false,canUpload:true,canPrice:false,canSubmit:false,viewOnly:false,canApprove:false},
+  price:    {seePurchase:true, canPurchase:true, canMargin:true, canSave:false,canExport:false,canUpload:false,canPrice:true,canSubmit:false,viewOnly:false,canApprove:false},
+  submitter:{seePurchase:false,canPurchase:false,canMargin:false,canSave:true, canExport:true, canUpload:false,canPrice:false,canSubmit:true,viewOnly:false,canApprove:false},
+  viewer:   {seePurchase:true, canPurchase:false,canMargin:false,canSave:false,canExport:false,canUpload:false,canPrice:false,canSubmit:false,viewOnly:true,canApprove:false},
+  staff:    {seePurchase:false,canPurchase:false,canMargin:false,canSave:true, canExport:true, canUpload:true,canPrice:true,canSubmit:true,viewOnly:false,canApprove:false},
+  admin:    {seePurchase:true, canPurchase:true, canMargin:true, canSave:true, canExport:true, canUpload:true,canPrice:true,canSubmit:true,viewOnly:false,canApprove:true}
 };
 function getRole(){
   if(!CU) return ROLES.staff;
-  // If user has permissions array, build custom role
   if(CU.permissions&&CU.permissions.length>0){
     var p=CU.permissions;
     var isAdmin=p.includes('admin');
@@ -1831,7 +1763,6 @@ function syncRow(idx,bi){
   var priceVal=g('br-s-'+idx+'-'+bi);
   var purchaseVal=g('br-pu-'+idx+'-'+bi);
   var marginVal=g('br-m-'+idx+'-'+bi);
-  // Only update if DOM element exists and has value
   if(brandVal!==undefined) br.brand=brandVal;
   if(partNoVal!==undefined) br.partNo=partNoVal;
   if(countryVal) br.country=countryVal;
@@ -1871,49 +1802,30 @@ function renderItems(items){
   var role=getRole();
   var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
   var isAdmin=CU&&CU.role==='admin';
-  // Lock rules:
-  // awarded → everyone locked
-  // submitted/approved → admin can edit, staff locked
-  // draft/pending → everyone can edit
   var isFullyLocked=curStatus==='awarded';
   var isLocked=isFullyLocked||((['submitted','approved'].indexOf(curStatus)>=0)&&!isAdmin);
-  // Admin sees edit warning but can still edit submitted/approved
   var isAdminWarning=isAdmin&&['submitted','approved'].indexOf(curStatus)>=0;
 
   if(!items||!Array.isArray(items)){calcTotals();return;}
   items.forEach(function(item,idx){
     if(!item.brandRows||!item.brandRows.length){
-      // Auto-fill from price list
       var curVeh=document.getElementById('f-vname')?document.getElementById('f-vname').value||'':'';
       var matches=findAllPriceMatches(item.description,prices,curVeh);
       if(matches&&matches.length>0){
         item.brandRows=matches.map(function(m){
-          return {
-            brand:m.brand||'',
-            partNo:m.partNo||'',
-            country:m.country||'Japan',
-            price:parseFloat(m.price)||0,
-            purchasePrice:parseFloat(m.purchasePrice)||0,
-            marginPct:0
-          };
+          return {brand:m.brand||'',partNo:m.partNo||'',country:m.country||'Japan',price:parseFloat(m.price)||0,purchasePrice:parseFloat(m.purchasePrice)||0,marginPct:0};
         });
       } else {
         item.brandRows=[{brand:item.brand||'',partNo:item.partNo||'',country:item.country||'Japan',price:parseFloat(item.unitPrice)||0,purchasePrice:0,marginPct:0}];
       }
     } else {
-      // For existing brandRows with no price, try to fill from price list
       item.brandRows.forEach(function(br){
         if((!br.price||br.price===0)&&!br.partNo){
           var match=prices.find(function(p){
             return (p.description||'').toLowerCase()===item.description.toLowerCase()&&
                    (p.brand||'').toLowerCase()===(br.brand||'').toLowerCase();
           });
-          if(match){
-            br.partNo=match.partNo||br.partNo;
-            br.price=parseFloat(match.price)||br.price;
-            br.country=match.country||br.country;
-            br.purchasePrice=parseFloat(match.purchasePrice)||br.purchasePrice;
-          }
+          if(match){br.partNo=match.partNo||br.partNo;br.price=parseFloat(match.price)||br.price;br.country=match.country||br.country;br.purchasePrice=parseFloat(match.purchasePrice)||br.purchasePrice;}
         }
       });
     }
@@ -1921,11 +1833,9 @@ function renderItems(items){
     var hint=getPriceHint(item.description,prices);
     var bg=idx%2===0?'#f7fafd':'#fff';
     var reqBrand=item.brand||'';
-
     item.brandRows.forEach(function(br,bi){
       var tr=document.createElement('tr');tr.style.background=bg;
       var h='';
-
       if(bi===0){
         h+='<td class="tc" rowspan="'+rc+'" style="font-weight:700;color:var(--navy);vertical-align:middle;border-right:2px solid #ddd;padding:5px 3px;">'+item.itemNo+'</td>';
         h+='<td rowspan="'+rc+'" style="font-size:11px;vertical-align:middle;border-right:2px solid #ddd;padding:5px 7px;">'+item.description+'</td>';
@@ -1934,52 +1844,37 @@ function renderItems(items){
         var rb=reqBrand?'<span style="display:inline-block;padding:2px 7px;background:#1A3A1A;color:#6FCF6F;border-radius:3px;font-size:11px;font-weight:700;">'+reqBrand+'</span>':'<span style="color:var(--muted);font-size:11px;font-style:italic;">Any</span>';
         h+='<td rowspan="'+rc+'" style="vertical-align:middle;padding:4px 5px;background:rgba(26,58,26,.04);border-right:2px solid #ddd;">'+rb+'</td>';
       }
-
-      // Our Brand
-      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:var(--fb);outline:none;"></td>';
-      // Part No
+      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"></td>';
       h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"></td>';
-      // Country
-      h+='<td style="padding:3px 4px;"><select id="br-c-'+idx+'-'+bi+'" onchange="syncRow('+idx+','+bi+');calcTotals()" style="width:73px;padding:4px 3px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:var(--fb);outline:none;"><option value="">—</option>'+co+'</select></td>';
-
-      // Purchase Price
+      h+='<td style="padding:3px 4px;"><select id="br-c-'+idx+'-'+bi+'" onchange="syncRow('+idx+','+bi+');calcTotals()" style="width:73px;padding:4px 3px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"><option value="">—</option>'+co+'</select></td>';
       if(role.seePurchase){
-        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onclick="showPurchaseHistory('+idx+','+bi+')" title="Click to see price history" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;cursor:pointer;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
+        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onclick="showPurchaseHistory('+idx+','+bi+')" title="Click for history" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;cursor:pointer;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
         h+='<td style="padding:3px 4px;background:rgba(42,26,10,.04);">'+puInp+'</td>';
       } else {
         h+='<td style="padding:3px 4px;text-align:center;background:rgba(42,26,10,.04);"><span title="Margin role only">🔒</span></td>';
       }
-
-      // Margin %
       h+='<td style="padding:3px 4px;background:rgba(26,42,58,.04);">';
       if(role.canMargin){
         h+='<input id="br-m-'+idx+'-'+bi+'" value="'+(br.marginPct||'')+'" type="number" min="0" max="999" step="1" placeholder="%" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" style="width:58px;padding:4px 4px;border:1px solid #2060a0;border-radius:2px;font-size:11px;background:#f0f5ff;outline:none;text-align:center;">';
       } else {h+='<span style="color:var(--muted);font-size:11px;">—</span>';}
       h+='</td>';
-
-      // Selling Price
       var daysOld=hint?getPriceDaysOld(hint.date):null;
       var hintHtml='';
       if(bi===0&&hint){
         if(daysOld!==null&&daysOld>30) hintHtml='<div style="font-size:9px;color:#B22222;font-weight:700;margin-top:1px;">⚠️ '+daysOld+'d Recheck!</div>';
         else hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hint.price||0)+' ('+hint.date+')</div>';
       }
-      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');calcTotals()" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:var(--fb);outline:none;">'+hintHtml+'</td>';
-      // Total
+      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');calcTotals()" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;">'+hintHtml+'</td>';
       h+='<td class="tr" id="rt-'+idx+'-'+bi+'" style="font-weight:700;color:var(--navy2);font-size:12px;padding:3px 6px;">—</td>';
-      // ± buttons
       h+='<td class="tc" style="padding:3px 3px;white-space:nowrap;"><button onclick="addBR('+idx+')" style="width:22px;height:22px;background:var(--light);border:1px solid var(--border);border-radius:2px;cursor:pointer;font-size:12px;">➕</button>';
       if(rc>1) h+='<button onclick="remBR('+idx+','+bi+')" style="width:22px;height:22px;background:rgba(178,34,34,.07);border:1px solid rgba(178,34,34,.2);border-radius:2px;cursor:pointer;font-size:10px;color:var(--red);display:block;margin-top:2px;">✕</button>';
       h+='</td>';
-
       tr.innerHTML=h;tb.appendChild(tr);
       var csel=tr.querySelector('#br-c-'+idx+'-'+bi);
       if(csel) csel.value=br.country||'Japan';
     });
   });
   calcTotals();
-  // Lock all inputs if submitted/approved/awarded
-  // Show appropriate banner
   setTimeout(function(){
     var lockBanner=document.getElementById('lock-banner');
     if(!lockBanner){
@@ -1992,25 +1887,17 @@ function renderItems(items){
       lockBanner.innerHTML='🏆 Awarded — View Only. யாரும் edit பண்ண முடியாது.';
     } else if(isAdminWarning){
       lockBanner.style.cssText='background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#856404;display:block;';
-      lockBanner.innerHTML='⚠️ '+curStatus.charAt(0).toUpperCase()+curStatus.slice(1)+' — Admin edit mode. கவனமாக மாற்றுங்கள்!';
+      lockBanner.innerHTML='⚠️ '+curStatus.charAt(0).toUpperCase()+curStatus.slice(1)+' — Admin edit mode.';
     } else if(isLocked){
       lockBanner.style.cssText='background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#856404;display:block;';
-      lockBanner.innerHTML='🔒 '+curStatus.charAt(0).toUpperCase()+curStatus.slice(1)+' — View Only. Admin மட்டும் edit பண்ணலாம்.';
-    } else {
-      lockBanner.style.display='none';
-    }
+      lockBanner.innerHTML='🔒 '+curStatus.charAt(0).toUpperCase()+curStatus.slice(1)+' — View Only.';
+    } else {lockBanner.style.display='none';}
   },10);
-
   if(isLocked){
     setTimeout(function(){
       var panel=document.getElementById('items-panel');
       if(panel){
-        panel.querySelectorAll('input,select').forEach(function(el){
-          el.disabled=true;
-          el.style.background='#f0f0f0';
-          el.style.color='#999';
-          el.style.cursor='not-allowed';
-        });
+        panel.querySelectorAll('input,select').forEach(function(el){el.disabled=true;el.style.background='#f0f0f0';el.style.color='#999';el.style.cursor='not-allowed';});
         panel.querySelectorAll('button').forEach(function(el){
           var txt=(el.textContent||'').toLowerCase();
           var keep=txt.includes('pdf')||txt.includes('export')||txt.includes('excel')||txt.includes('👁')||txt.includes('view');
@@ -2030,11 +1917,10 @@ function renderItems(items){
 
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-
 var PART_SYNONYMS=[['lower arm','lower control arm'],['shock absorber','shock','damper','strut'],['ball joint','balljoint'],['tie rod','tie rod end'],['brake pad','disc pad'],['oil filter'],['air filter','air cleaner'],['fuel filter'],['water pump'],['timing belt','cam belt'],['clutch','clutch plate'],['bush','bushing'],['wheel bearing','hub bearing'],['cv joint'],['brake disc','brake rotor']];
+
 function findAllPriceMatches(desc,prices,vehicle){
   if(!desc) return [];
-  // Combine prices + history prices
   var allPrices=prices||[];
   try{
     var hist=getHist();
@@ -2048,32 +1934,17 @@ function findAllPriceMatches(desc,prices,vehicle){
         if(!rows.length&&item.brand) rows=[{brand:item.brand,partNo:item.partNo||'',country:item.country||'Japan',price:item.unitPrice||0,purchasePrice:item.purchasePrice||0}];
         rows.forEach(function(br){
           if(!br.brand&&!br.price) return;
-          histPrices.push({
-            id:'h_'+entry.id+'_'+item.itemNo,
-            description:item.description,
-            vehicle:v,
-            brand:br.brand||'',
-            partNo:br.partNo||'',
-            country:br.country||'Japan',
-            price:parseFloat(br.price)||0,
-            purchasePrice:parseFloat(br.purchasePrice)||0
-          });
+          histPrices.push({id:'h_'+entry.id+'_'+item.itemNo,description:item.description,vehicle:v,brand:br.brand||'',partNo:br.partNo||'',country:br.country||'Japan',price:parseFloat(br.price)||0,purchasePrice:parseFloat(br.purchasePrice)||0});
         });
       });
     });
-    // Merge: price list first, then history (deduplicate by desc+brand+vehicle)
     histPrices.forEach(function(hp){
-      var exists=allPrices.find(function(p){
-        return (p.description||'').toLowerCase()===(hp.description||'').toLowerCase()
-          && (p.brand||'').toLowerCase()===(hp.brand||'').toLowerCase()
-          && (p.vehicle||'').toLowerCase()===(hp.vehicle||'').toLowerCase();
-      });
+      var exists=allPrices.find(function(p){return (p.description||'').toLowerCase()===(hp.description||'').toLowerCase()&&(p.brand||'').toLowerCase()===(hp.brand||'').toLowerCase()&&(p.vehicle||'').toLowerCase()===(hp.vehicle||'').toLowerCase();});
       if(!exists) allPrices=allPrices.concat([hp]);
     });
   }catch(e){}
   if(!allPrices.length) return [];
 
-  // SYNONYMS — same part different names
   var SYNONYMS=[
     ['lower arm','arm lower','lower control arm','arm assy lower','lower arm assy','control arm lower','arm lwr'],
     ['upper arm','arm upper','upper control arm','arm assy upper','upper arm assy','arm upr'],
@@ -2116,162 +1987,75 @@ function findAllPriceMatches(desc,prices,vehicle){
     ['head lamp','headlight','head light','front lamp'],
     ['fog lamp','fog light'],
     ['compressor','ac compressor','aircon compressor','air condition compressor'],
-    ['condenser','ac condenser','aircon condenser'],
+    ['condenser','ac condenser','aircon condenser']
   ];
-
-  // NOISE WORDS to remove before matching
-  var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
-             'upper','lower','inner','outer','set','kit','no','for','the','and',
-             'with','type','x','mm','pcs','pair','nr','fr','rr','frt','rr','mtd',
-             'oe','oem','genuine','original'];
-
-  function cleanDesc(s){
-    return s.toLowerCase()
-      .replace(/[.\-_\/\[\]()]/g,' ')
-      .replace(/\s+/g,' ').trim();
-  }
-
-  function getCoreWords(s){
-    var words=cleanDesc(s).split(' ');
-    return words.filter(function(w){
-      return w.length>1 && NOISE.indexOf(w)===-1;
-    });
-  }
-
+  var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right','upper','lower','inner','outer','set','kit','no','for','the','and','with','type','x','mm','pcs','pair','nr','fr','rr','frt','mtd','oe','oem','genuine','original'];
+  function cleanDesc(s){return s.toLowerCase().replace(/[.\-_\/\[\]()]/g,' ').replace(/\s+/g,' ').trim();}
+  function getCoreWords(s){return cleanDesc(s).split(' ').filter(function(w){return w.length>1&&NOISE.indexOf(w)===-1;});}
   function getSynonymGroup(words){
-    // Find if any synonym group matches
     var joined=words.join(' ');
     for(var i=0;i<SYNONYMS.length;i++){
       var group=SYNONYMS[i];
       for(var j=0;j<group.length;j++){
-        if(joined.includes(group[j])||group[j].split(' ').every(function(w){return words.indexOf(w)>=0;})){
-          return group; // return whole group
-        }
+        if(joined.includes(group[j])||group[j].split(' ').every(function(w){return words.indexOf(w)>=0;})){return group;}
       }
     }
     return null;
   }
-
   var dClean=cleanDesc(desc);
   var dWords=getCoreWords(desc);
   var dSynGroup=getSynonymGroup(dWords);
   var vClean=vehicle?(vehicle.toLowerCase().trim()):'';
-
-  // Extract vehicle key identifier (e.g. "sx4", "l200", "lh113")
   var vKey='';
-  if(vClean){
-    var vParts=vClean.split(' ');
-    // Use last meaningful word as key (sx4, l200, etc.)
-    vParts.forEach(function(p){if(p.length>2&&isNaN(p))vKey=p;});
-    if(!vKey) vKey=vClean;
-  }
-
+  if(vClean){var vParts=vClean.split(' ');vParts.forEach(function(p){if(p.length>2&&isNaN(p))vKey=p;});if(!vKey)vKey=vClean;}
   var matches=[];
-
   prices.forEach(function(p){
     if(!p.description) return;
-
     var pVeh=(p.vehicle||'').toLowerCase().trim();
     var pVehKey='';
-    if(pVeh){
-      var pvParts=pVeh.split(' ');
-      pvParts.forEach(function(pp){if(pp.length>2&&isNaN(pp))pVehKey=pp;});
-      if(!pVehKey) pVehKey=pVeh;
-    }
-
-    // STRICT VEHICLE MATCH — only same vehicle!
+    if(pVeh){var pvParts=pVeh.split(' ');pvParts.forEach(function(pp){if(pp.length>2&&isNaN(pp))pVehKey=pp;});if(!pVehKey)pVehKey=pVeh;}
     if(vKey){
-      // We have a vehicle — price must match this vehicle
-      if(pVehKey){
-        // Price has vehicle — must match
-        if(pVehKey!==vKey&&!pVeh.includes(vKey)&&!vClean.includes(pVehKey)) return;
-      } else {
-        // Price has NO vehicle tag — allow as fallback
-        // Will only be used if no vehicle-specific match found
-        // Mark as low priority
-        p._noVehicle = true;
-      }
-    } else {
-      // No vehicle selected → don't auto-fill (avoid wrong data)
-      return;
-    }
-
+      if(pVehKey){if(pVehKey!==vKey&&!pVeh.includes(vKey)&&!vClean.includes(pVehKey)) return;}
+      else {p._noVehicle=true;}
+    } else {return;}
     var pWords=getCoreWords(p.description);
     var pSynGroup=getSynonymGroup(pWords);
     var score=0;
-
-    // SYNONYM GROUP MATCH — highest priority
-    if(dSynGroup&&pSynGroup){
-      // Check if both belong to same synonym group
-      var dPrimary=dSynGroup[0];
-      var pPrimary=pSynGroup[0];
-      if(dPrimary===pPrimary){
-        score=95; // Same synonym group!
-      }
-    }
-
+    if(dSynGroup&&pSynGroup&&dSynGroup[0]===pSynGroup[0]){score=95;}
     if(score===0){
       var pClean=cleanDesc(p.description);
-      // Exact
       if(dClean===pClean) score=100;
-      // Contains
       else if(dClean.includes(pClean)||pClean.includes(dClean)) score=85;
       else {
-        // Word matching with core words
         var matched=0;
-        dWords.forEach(function(w){
-          if(pWords.some(function(pw){
-            return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));
-          })) matched++;
-        });
-        var totalD=dWords.length;
-        var totalP=pWords.length;
+        dWords.forEach(function(w){if(pWords.some(function(pw){return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));})){ matched++; }});
+        var totalD=dWords.length,totalP=pWords.length;
         if(totalD>0&&totalP>0){
-          var ratioD=matched/totalD;
-          var ratioP=matched/totalP;
-          if(ratioD>=0.8&&ratioP>=0.6) score=75;
-          else if(ratioD>=0.6&&matched>=2) score=55;
+          if(matched/totalD>=0.8&&matched/totalP>=0.6) score=75;
+          else if(matched/totalD>=0.6&&matched>=2) score=55;
         }
       }
     }
-
     if(score>=55) matches.push({score:score,item:p});
   });
-
   matches.sort(function(a,b){return b.score-a.score;});
-
-  // TWO-PASS: vehicle-specific first, fallback to no-vehicle
   var vehicleMatches=matches.filter(function(m){return m.item.vehicle&&m.item.vehicle.length>0;});
   var noVehicleMatches=matches.filter(function(m){return !m.item.vehicle||m.item.vehicle.length===0;});
-  var finalMatches=vehicleMatches.length>0 ? vehicleMatches : noVehicleMatches;
-
-  // LH/RH PAIRING: if desc has lh/rh, try to find LH+RH pair from price list
+  var finalMatches=vehicleMatches.length>0?vehicleMatches:noVehicleMatches;
   var descHasLHRH=/\b(lh|rh|lh\/rh|l\/h|r\/h|left|right)\b/i.test(desc);
   if(descHasLHRH){
     var lhMatch=finalMatches.find(function(m){return /\blh\b|\bleft\b/i.test(m.item.description||'');});
     var rhMatch=finalMatches.find(function(m){return /\brh\b|\bright\b/i.test(m.item.description||'');});
-    if(lhMatch&&rhMatch&&lhMatch.item!==rhMatch.item){
-      // Return LH + RH as separate results
-      return [lhMatch.item, rhMatch.item];
-    }
+    if(lhMatch&&rhMatch&&lhMatch.item!==rhMatch.item){return [lhMatch.item,rhMatch.item];}
   }
-
-  // Remove duplicate brands — keep highest score per brand
   var seen={};
-  return finalMatches.filter(function(m){
-    var key=(m.item.brand||'__').toLowerCase();
-    if(seen[key]) return false;
-    seen[key]=true;
-    return true;
-  }).slice(0,3).map(function(m){return m.item;});
+  return finalMatches.filter(function(m){var key=(m.item.brand||'__').toLowerCase();if(seen[key])return false;seen[key]=true;return true;}).slice(0,3).map(function(m){return m.item;});
 }
-
 
 function getPriceHint(desc,prices){
   var matches=findAllPriceMatches(desc,prices);
   return matches.length>0?matches[0]:null;
 }
-
 
 function savePartNo(idx,val){if(curItems[idx])curItems[idx].partNo=val;}
 function saveCountry(idx,val){if(curItems[idx])curItems[idx].country=val;}
@@ -2287,18 +2071,15 @@ function calcTotals(){
       if(bi===0){grand+=t;item.unitPrice=p;item.brand=br.brand||'';}
     });
   });
-  document.getElementById('tot-sub').textContent=lkr(grand);
-  document.getElementById('tot-grand').textContent=lkr(grand);
+  var ts=document.getElementById('tot-sub');if(ts)ts.textContent=lkr(grand);
+  var tg=document.getElementById('tot-grand');if(tg)tg.textContent=lkr(grand);
   if(grand>0)setStep(4);
 }
 
 function lkr(n){return 'LKR '+n.toLocaleString('en-LK',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
-// ══════════════════════════════════════════════════
-// HISTORY
-// ══════════════════════════════════════════════════
+
 function submitToPromise(){
-  // Save with submitted status
   if(!curItems.length){showToast('Nothing to save','t-e');return;}
   var hasPrices=curItems.some(function(item){
     return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
@@ -2324,28 +2105,20 @@ function saveToHistory(){
     return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
   });
   var now=new Date().toLocaleString('en-LK');
-
-  // ── EDIT MODE: Update existing ──
   if(window.curEditId){
     var idx=hist.findIndex(function(e){return e.id===window.curEditId;});
     if(idx>=0){
       var orig=hist[idx];
       if(!orig.steps) orig.steps={};
-      if(hasPrices&&!orig.steps.priced){
-        orig.steps.priced={by:CU.name,role:CU.role,at:now};
-      }
+      if(hasPrices&&!orig.steps.priced){orig.steps.priced={by:CU.name,role:CU.role,at:now};}
       hist[idx]=Object.assign({},orig,{
-        refNo:refNo,eqNo:eqNo,
-        vehicle:g('f-vname'),vNo:g('f-vno'),
+        refNo:refNo,eqNo:eqNo,vehicle:g('f-vname'),vNo:g('f-vno'),
         entity:g('f-entity'),title:g('f-title'),closingDate:g('f-close'),
         validityPeriod:g('f-valid'),deliveryPeriod:g('f-deliv'),destination:g('f-dest'),
         engineNo:g('f-eng'),chassisNo:g('f-chas'),
         items:JSON.parse(JSON.stringify(curItems)),
         grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
-        status:quotStatus,
-        updatedBy:CU.name,
-        updatedAt:now,
-        steps:orig.steps
+        status:quotStatus,updatedBy:CU.name,updatedAt:now,steps:orig.steps
       });
       setHist(hist);
       autoSavePrices(curItems);
@@ -2357,8 +2130,6 @@ function saveToHistory(){
       return;
     }
   }
-
-  // ── NEW QUOTATION ──
   var dup=findDuplicate(refNo,eqNo);
   if(dup){showToast('🚫 Duplicate! "'+(eqNo||refNo)+'" already saved','t-e');return;}
   var steps={uploaded:{by:CU.name,role:CU.role,at:now}};
@@ -2371,8 +2142,7 @@ function saveToHistory(){
     engineNo:g('f-eng'),chassisNo:g('f-chas'),
     items:JSON.parse(JSON.stringify(curItems)),
     grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
-    status:quotStatus,
-    steps:steps
+    status:quotStatus,steps:steps
   };
   hist.unshift(entry);
   if(hist.length>200) hist.pop();
@@ -2392,18 +2162,13 @@ function updatePendingBadge(){
   if(b){b.textContent=pending;b.style.display=pending>0?'inline-block':'none';}
 }
 
-
 function markSubmitted(id){
   if(!confirm('Promise.lk-ல் submit பண்ணிவிட்டீர்களா?')) return;
   var h=getHist();
   var idx=h.findIndex(function(e){return e.id===id;});
   if(idx<0) return;
   if(!h[idx].steps) h[idx].steps={};
-  h[idx].steps.submitted={
-    by:CU.name,
-    role:CU.role,
-    at:new Date().toLocaleString('en-LK')
-  };
+  h[idx].steps.submitted={by:CU.name,role:CU.role,at:new Date().toLocaleString('en-LK')};
   h[idx].status='submitted';
   setHist(h);
   renderHistory();
@@ -2411,17 +2176,10 @@ function markSubmitted(id){
   showToast('✅ Submitted by '+CU.name+' marked!','t-s');
 }
 function autoFixStatus(hist){
-  // Auto-upgrade status based on steps
   var changed=false;
   hist.forEach(function(e){
     if(e.steps){
-      if(e.steps.submitted&&(e.status==='draft'||e.status==='pending'||!e.status)){
-        e.status='submitted'; changed=true;
-      }
-      if(e.steps.approved&&(e.status==='draft'||e.status==='pending'||e.status==='submitted')){
-        // Only upgrade if steps.approved is explicitly set
-        // (don't auto-approve - that's admin action)
-      }
+      if(e.steps.submitted&&(e.status==='draft'||e.status==='pending'||!e.status)){e.status='submitted'; changed=true;}
     }
   });
   if(changed){
@@ -2436,12 +2194,9 @@ function renderHistory(){
   h=autoFixStatus(h);
   var isAdmin=CU&&CU.role==='admin';
   if(!isAdmin&&CU){
-    // Staff sees ONLY their own quotations
     h=h.filter(function(e){
-      // Own quotations
       if(e.owner===CU.username) return true;
       if(e.assignedTo===CU.username) return true;
-      // __all__ = old data — all staff can see (vehicle filter)
       if(e.owner==='__all__'||!e.owner){
         const list=getVehicleList(CU);
         if(list.includes('All Vehicles')) return true;
@@ -2451,25 +2206,15 @@ function renderHistory(){
       return false;
     });
   }
-  // Admin bulk reassign button — show only for admin
   var bulkBtn=document.getElementById('btn-bulk-reassign');
   if(bulkBtn) bulkBtn.style.display=isAdmin?'block':'none';
   if(CU&&CU.role!=='admin'){
     const list=getVehicleList(CU);
-    const role=getRole();
-    const isAdmin=false;
-
-    // Filter by OWN uploads only (non-admin staff sees only what they uploaded)
-    // Unless they have 'All Vehicles' — then they can see all their vehicle quotations
     h=h.filter(e=>{
-      // Check if this user uploaded it
       var myUpload=(e.savedBy===CU.name)||(e.steps&&e.steps.uploaded&&e.steps.uploaded.by===CU.name);
-      // Also show if they are the updatedBy (price staff who edited)
       var myEdit=(e.updatedBy===CU.name);
       return myUpload||myEdit;
     });
-
-    // Also apply vehicle filter
     if(!list.includes('All Vehicles')){
       h=h.filter(e=>{const ev=(e.vehicle||'').toLowerCase();return list.some(v=>ev.includes(v.toLowerCase())||v.toLowerCase().includes((ev.split(' ')[0])));});
     }
@@ -2491,7 +2236,7 @@ function renderHistory(){
       <div class="hist-info">
         <div class="hist-title">${e.vehicle||'Vehicle'} — ${e.vNo||''} &nbsp;|&nbsp; ${e.eqNo||e.refNo}</div>
         <div class="hist-meta">${e.entity||''} &nbsp;•&nbsp; ${e.items?.length||0} items &nbsp;•&nbsp; ${lkr(e.grandTotal||0)} &nbsp;${sb}</div>
-        <div class="hist-by">By: ${e.savedBy||'?'} &nbsp; ${getDeadlineBadge(e.closingDate)}</div>
+        <div class="hist-by">By: ${e.savedBy||'?'} &nbsp; ${getDeadlineBadge(e.closingDate,e.status)}</div>
         <div style="font-size:10px;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
           ${e.steps&&e.steps.uploaded?'<span style="background:#1A3A6B;color:#fff;padding:1px 7px;border-radius:10px;">📤 Upload: '+e.steps.uploaded.by+'</span>':''}
           ${e.steps&&e.steps.priced?'<span style="background:#1A4A2A;color:#fff;padding:1px 7px;border-radius:10px;">💰 Price: '+e.steps.priced.by+'</span>':'<span style="background:#7A1414;color:#fff;padding:1px 7px;border-radius:10px;">⚠️ No Price</span>'}
@@ -2500,8 +2245,8 @@ function renderHistory(){
       </div>
       <div class="hist-date">${e.date}</div>
       <div class="hist-btns">
-        <button class="hist-btn" onclick="openQV(${e.id})">👁️</button>
-        <button class="hist-btn" onclick="loadHist(${e.id})">📂</button>
+        <button class="hist-btn" onclick="openQV(${e.id})" title="View">👁️</button>
+        <button class="hist-btn" onclick="${['submitted','approved','awarded'].indexOf(e.status||'')<0?'loadHist('+e.id+')':'openQV('+e.id+')'}" title="${['submitted','approved','awarded'].indexOf(e.status||'')<0?'Edit':'View'}">📂</button>
         <button class="hist-btn" onclick="changeStatus(${e.id})" title="Change Status">🔄</button>
         <button class="hist-btn" onclick="markSubmitted(${e.id})" title="Mark Submitted to Promise.lk" style="color:#1A6B3C;">📤</button>
         <button class="hist-btn" onclick="reExport(${e.id})">📥Q</button>
@@ -2512,6 +2257,48 @@ function renderHistory(){
       </div>
     </div>`;}).join('');
 }
+
+function saveUsers(users){
+  localStorage.setItem('ngrd_users',JSON.stringify(users));
+  if(typeof fbWrite==='function') fbWrite('users',users);
+}
+
+function checkAfterSave(){
+  if(typeof showWhatsAppNotify==='function'&&CU&&curItems.length>0){
+    var hist=getHist();
+    if(hist.length>0) showWhatsAppNotify(hist[0]);
+  }
+}
+
+
+function renderUsers(){
+  const users=getUsers();
+  const c=document.getElementById('users-list');if(!c)return;
+  const isAdmin=CU&&CU.role==='admin';
+  if(!isAdmin){c.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Admin only</div>';return;}
+  if(!users.length){c.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No users</div>';return;}
+  c.innerHTML=users.map(u=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);background:${u.active?'#fff':'#fafafa'}">
+      <div>
+        <div style="font-weight:700;font-size:13px;">${u.name} <span style="font-size:11px;color:var(--muted);">(${u.username})</span>
+          ${u.active?'':'<span style="background:#B22222;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px;">Inactive</span>'}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+          Role: ${u.role||'staff'} &nbsp;|&nbsp; 
+          Perms: ${(u.permissions||[]).join(', ')||'—'} &nbsp;|&nbsp;
+          Vehicles: ${(u.vehicles||[u.vehicle]||['All']).join(', ')||'All'}
+        </div>
+        ${u.lastLogin?'<div style="font-size:10px;color:var(--muted);">Last login: '+u.lastLogin+'</div>':''}
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0;">
+        ${u.id!==1?`<button class="hist-btn" onclick="toggleUser(${u.id})" title="${u.active?'Disable':'Enable'}">${u.active?'🔴':'🟢'}</button>`:''}
+        <button class="hist-btn" onclick="openPw(${u.id})" title="Change Password">🔑</button>
+        <button class="hist-btn" onclick="openVehicle(${u.id})" title="Set Vehicles">🚗</button>
+        ${u.id!==1?`<button class="hist-btn" onclick="removeUser(${u.id})" style="color:var(--red);" title="Remove">🗑️</button>`:''}
+      </div>
+    </div>`).join('');
+}
+
 
 function getStatusBadge(status){
   const map={draft:'sb-draft 📝 Draft',submitted:'sb-submitted 📤 Submitted',awarded:'sb-awarded ✅ Awarded',rejected:'sb-rejected ❌ Rejected',pending:'sb-pending ⏳ Pending'};
@@ -2526,7 +2313,7 @@ function changeStatus(id){
   const cur=e.status||'draft';
   const next=opts[(opts.indexOf(cur)+1)%opts.length];
   e.status=next;setHist(h);renderHistory();
-  addLog(`Status changed: ${e.eqNo||e.refNo} → ${next}`);
+  addLog('Status changed: '+(e.eqNo||e.refNo)+' → '+next);
   showToast(`Status: ${next}`,'t-i');
   updatePendingBadge();
 }
@@ -2559,18 +2346,54 @@ function delHist(id){
 // ── QUICK VIEW ──
 function openQV(id){
   const e=getHist().find(x=>x.id===id);if(!e)return;
+  // Silently load into curItems so PDF download works
+  window.curEditId=id;
+  curItems=JSON.parse(JSON.stringify(e.items||[]));
+  curStatus=e.status||'draft';
+  fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,
+    vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,
+    closingDate:e.closingDate,validityPeriod:e.validityPeriod,
+    deliveryPeriod:e.deliveryPeriod,destination:e.destination});
   document.getElementById('qv-title').textContent=`${e.vehicle||'Vehicle'} — ${e.eqNo||e.refNo}`;
-  const rows=e.items?.map((item,i)=>`
-    <tr style="background:${i%2===0?'#f7fafd':'#fff'}">
-      <td style="padding:5px 7px;border:1px solid #ddd;text-align:center;font-weight:700;font-size:11px;">${item.itemNo}</td>
-      <td style="padding:5px 7px;border:1px solid #ddd;font-size:11px;">${item.description}</td>
-      <td style="padding:5px 7px;border:1px solid #ddd;text-align:center;font-size:11px;">${item.qty}</td>
-      <td style="padding:5px 7px;border:1px solid #ddd;font-size:11px;">${item.partNo||'—'}</td>
-      <td style="padding:5px 7px;border:1px solid #ddd;font-size:11px;">${item.country||'—'}</td>
-      <td style="padding:5px 7px;border:1px solid #ddd;text-align:right;font-size:11px;">${item.unitPrice>0?lkr(item.unitPrice):'—'}</td>
-      <td style="padding:5px 7px;border:1px solid #ddd;text-align:right;font-weight:700;font-size:11px;">${item.totalPrice>0?lkr(item.totalPrice):'—'}</td>
-      <td style="padding:5px 7px;border:1px solid #ddd;font-size:10px;">${item.brand||'—'}</td>
-    </tr>`).join('')||'';
+  const canSeePu=getRole().seePurchase;
+  const rows=(e.items||[]).map((item,i)=>{
+    // Get first brand row data
+    var br=(item.brandRows&&item.brandRows[0])||{};
+    var brand=br.brand||item.brand||'—';
+    var partNo=br.partNo||item.partNo||'—';
+    var country=br.country||item.country||'—';
+    var unitPrice=parseFloat(br.price)||item.unitPrice||0;
+    var totalPrice=unitPrice*(item.qty||1);
+    var purchasePrice=parseFloat(br.purchasePrice)||0;
+    // If multiple brand rows, show all
+    var extraRows='';
+    if(item.brandRows&&item.brandRows.length>1){
+      for(var b=1;b<item.brandRows.length;b++){
+        var xbr=item.brandRows[b];
+        var xup=parseFloat(xbr.price)||0;
+        extraRows+=`<tr style="background:${i%2===0?'#edf5fb':'#f5f5f5'}">
+          <td style="padding:3px 7px;border:1px solid #ddd;"></td>
+          <td style="padding:3px 7px;border:1px solid #ddd;font-size:10px;color:#666;font-style:italic;">↳ Alt: ${xbr.brand||'—'}</td>
+          <td style="padding:3px 7px;border:1px solid #ddd;"></td>
+          <td style="padding:3px 7px;border:1px solid #ddd;font-size:10px;">${xbr.partNo||'—'}</td>
+          <td style="padding:3px 7px;border:1px solid #ddd;font-size:10px;">${xbr.country||'—'}</td>
+          <td style="padding:3px 7px;border:1px solid #ddd;text-align:right;font-size:10px;">${xup>0?lkr(xup):'—'}</td>
+          <td style="padding:3px 7px;border:1px solid #ddd;text-align:right;font-size:10px;">${xup>0?lkr(xup*(item.qty||1)):'—'}</td>
+          <td style="padding:3px 7px;border:1px solid #ddd;font-size:10px;">${xbr.brand||'—'}</td>
+        </tr>`;
+      }
+    }
+    return `<tr style="background:${i%2===0?'#f7fafd':'#fff'}">
+      <td style="padding:5px 7px;border:1px solid #ddd;text-align:center;font-weight:700;font-size:11px;">${item.itemNo||i+1}</td>
+      <td style="padding:5px 7px;border:1px solid #ddd;font-size:11px;font-weight:600;">${item.description||'—'}</td>
+      <td style="padding:5px 7px;border:1px solid #ddd;text-align:center;font-size:11px;">${item.qty||1}</td>
+      <td style="padding:5px 7px;border:1px solid #ddd;font-size:11px;">${partNo}</td>
+      <td style="padding:5px 7px;border:1px solid #ddd;font-size:11px;">${country}</td>
+      <td style="padding:5px 7px;border:1px solid #ddd;text-align:right;font-size:11px;">${unitPrice>0?lkr(unitPrice):'—'}</td>
+      <td style="padding:5px 7px;border:1px solid #ddd;text-align:right;font-weight:700;font-size:11px;">${totalPrice>0?lkr(totalPrice):'—'}</td>
+      <td style="padding:5px 7px;border:1px solid #ddd;font-size:10px;font-weight:700;">${brand}</td>
+    </tr>`+extraRows;
+  }).join('')||'';
   document.getElementById('qv-body').innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:12px;">
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Ref No:</b> ${e.refNo||'—'}</div>
@@ -2593,7 +2416,15 @@ function openQV(id){
         <th style="padding:7px 7px;color:#fff;font-size:10px;">Brand</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>`;
+    </table></div>
+    <div style="margin-top:14px;padding:12px 16px;background:#f0f4f8;border-radius:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;gap:8px;">
+        <button onclick="loadHist(${e.id});closeQV();" style="padding:7px 14px;background:#1A3A6B;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px;">📂 Edit</button>
+        <button onclick="(function(){loadHist(${e.id});setTimeout(downloadPDFDirect,600);})()" style="padding:7px 14px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px;">💾 PDF</button>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:#0D1B2A;">Grand Total: ${lkr((e.items||[]).reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};return s+(parseFloat(br.price)||item.unitPrice||0)*(item.qty||1);},0)||e.grandTotal||0)}</div>
+    </div>`;
+
   document.getElementById('qv-popup').classList.add('open');
   document.getElementById('qv-overlay').style.display='block';
 }
@@ -2690,20 +2521,19 @@ function renderPriceList(){
     const canSeePu=getRole().seePurchase;
     const canEdit=CU&&(CU.role==='admin'||(CU.permissions&&(CU.permissions.includes('admin')||CU.permissions.includes('price'))));
     const isAdmin=CU&&CU.role==='admin';
-    return `<tr>
-      <td style="font-weight:600;font-size:12px;">${p.description||'—'}</td>
-      <td style="font-size:10px;color:var(--navy);">${p.vehicle||'<span style="color:var(--muted);">All</span>'}</td>
-      <td style="font-family:monospace;font-size:10px;">${p.partNo||'—'}</td>
-      <td><span class="brand-badge" style="font-size:10px;">${p.brand||'—'}</span></td>
-      ${canSeePu?`<td style="text-align:right;font-size:11px;color:#c47020;font-weight:700;">${purchase>0?lkr(purchase):'—'}</td>`:''}
-      <td style="text-align:right;font-weight:700;color:var(--navy);font-size:11px;">${lkr(selling)}</td>
-      ${isAdmin?`<td style="text-align:right;font-size:11px;color:${profit>0?'#1A6B3C':'#B22222'};font-weight:700;">${purchase>0?(profit>0?'+':'')+lkr(profit)+' ('+margin+'%)':'—'}</td>`:''}
-      ${canEdit?`<td style="font-size:10px;color:${stale?'#B22222':'var(--muted)'};">${stale?'⚠️ '+daysOld+'d':p.date||'—'}</td>`:''}
-      ${canEdit?`<td style="text-align:center;">
-        <button class="hist-btn" onclick="openEditPrice(${JSON.stringify(p.id)})">✏️</button>
-        <button class="hist-btn" onclick="deletePrice(${JSON.stringify(p.id)})" style="color:var(--red);">🗑️</button>
-      </td>`:''}
-    </tr>`;
+    var row='<tr>';
+    row+='<td style="font-weight:600;font-size:12px;">'+(p.description||'—')+'</td>';
+    row+='<td style="font-size:10px;color:var(--navy);">'+(p.vehicle||'<span style="color:var(--muted);">All</span>')+'</td>';
+    row+='<td style="font-family:monospace;font-size:10px;">'+(p.partNo||'—')+'</td>';
+    row+='<td><span class="brand-badge" style="font-size:10px;">'+(p.brand||'—')+'</span></td>';
+    if(canSeePu) row+='<td style="text-align:right;font-size:11px;color:#c47020;font-weight:700;">'+(purchase>0?lkr(purchase):'—')+'</td>';
+    row+='<td style="text-align:right;font-weight:700;color:var(--navy);font-size:11px;">'+lkr(selling)+'</td>';
+    if(isAdmin) row+='<td style="text-align:right;font-size:11px;color:'+(profit>0?'#1A6B3C':'#B22222')+';font-weight:700;">'+(purchase>0?(profit>0?'+':'')+lkr(profit)+' ('+margin+'%)':'—')+'</td>';
+    if(canEdit) row+='<td style="font-size:10px;color:'+(stale?'#B22222':'var(--muted)')+';">'+(stale?'⚠️ '+daysOld+'d':p.date||'—')+'</td>';
+    if(canEdit) row+='<td style="text-align:center;"><button class="hist-btn" onclick="openEditPrice('+JSON.stringify(p.id)+')">✏️</button><button class="hist-btn" onclick="deletePrice('+JSON.stringify(p.id)+')" style="color:var(--red);">🗑️</button></td>';
+    row+='</tr>';
+    return row;
+    // PLACEHOLDER_canSeePu_
   }).join('');
 }
 
@@ -2882,56 +2712,25 @@ function renderLog(){
   const log=getLog();
   const c=document.getElementById('activity-log-list');
   if(!log.length){c.innerHTML='<div class="hist-empty">📋 No activity recorded yet.</div>';return;}
-  c.innerHTML=log.map(l=>`
-    <div class="log-item">
-      <div class="log-time">${l.time}</div>
-      <div class="log-user">${l.user}</div>
-      <div class="log-msg">${l.msg}</div>
-    </div>`).join('');
+  c.innerHTML=log.map(function(l){return '<div class="log-item"><div class="log-time">'+l.time+'</div><div class="log-user">'+l.user+'</div><div class="log-msg">'+l.msg+'</div></div>';}).join('');
 }
 
 // ══════════════════════════════════════════════════
 // USER MANAGEMENT
 // ══════════════════════════════════════════════════
 function renderVehicleChecks(cid,selected){
-  const c=document.getElementById(cid);if(!c)return;
+  const c=document.getElementById(cid);
+  if(!c)return;
   c.innerHTML='';
-  VEHICLES.forEach(v=>{
+  VEHICLES.forEach(function(v){
     const chk=selected.includes(v)?'checked':'';
-    c.innerHTML+=`<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:3px 5px;border-radius:2px;" onmouseover="this.style.background='rgba(44,74,110,.08)'" onmouseout="this.style.background=''">
-      <input type="checkbox" value="${v}" ${chk} style="accent-color:var(--gold);"> ${v}</label>`;
+    const lbl=document.createElement('label');
+    lbl.style.cssText='display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:3px 5px;border-radius:2px;';
+    lbl.onmouseover=function(){this.style.background='rgba(44,74,110,.08)';};
+    lbl.onmouseout=function(){this.style.background='';};
+    lbl.innerHTML='<input type="checkbox" value="'+v+'" '+(chk)+' style="cursor:pointer;"> '+v;
+    c.appendChild(lbl);
   });
-}
-function getCheckedVehicles(cid){
-  const c=document.getElementById(cid);if(!c)return['All Vehicles'];
-  const ch=[...c.querySelectorAll('input:checked')].map(x=>x.value);
-  return ch.length?ch:['All Vehicles'];
-}
-function renderUsers(){
-  const nc=document.getElementById('nu-vehicle-checks');
-  if(nc&&!nc.children.length) renderVehicleChecks('nu-vehicle-checks',['All Vehicles']);
-  const users=getUsers();
-  document.getElementById('users-grid').innerHTML=users.map(u=>{
-    const vlist=getVehicleList(u);
-    const vb=vlist.map(v=>'<span style="display:inline-block;padding:2px 7px;font-size:10px;font-weight:700;color:var(--steel);background:rgba(44,74,110,.1);border:1px solid rgba(44,74,110,.2);border-radius:10px;margin:1px;">'+v+'</span>').join('');
-    const toggleBtn=u.id!==CU?.id?'<button class="btn btn-sm btn-red" onclick="toggleUser('+u.id+')">'+(u.active?'Deactivate':'Activate')+'</button>':'';
-    const delBtn=u.id!==1?'<button class="btn btn-sm btn-red" onclick="removeUser('+u.id+')">🗑️</button>':'';
-    return '<div class="user-card">'
-      +'<div class="uc-top">'
-      +'<div class="uc-av '+(u.role==='admin'?'av-admin':'av-staff')+'">'+u.name.charAt(0)+'</div>'
-      +'<div class="uc-info"><h4>'+u.name+'</h4><p>@'+u.username+'</p></div>'
-      +'<div style="margin-left:auto;display:flex;flex-direction:column;gap:3px;align-items:flex-end;">'
-      +'<span class="badge '+(u.role==='admin'?'b-admin':'b-staff')+'">'+u.role+'</span>'
-      +'<span class="badge '+(u.active?'b-active':'b-inactive')+'">'+(u.active?'● Active':'○ Inactive')+'</span>'
-      +'</div></div>'
-      +'<div style="font-size:10px;color:var(--muted);margin-bottom:5px;">Created: '+(u.created||'')+'</div>'
-      +'<div style="margin-bottom:7px;flex-wrap:wrap;">'+vb+'</div>'
-      +'<div class="uc-actions">'
-      +'<button class="btn btn-sm btn-outline" onclick="openPw('+u.id+')">🔑 PW</button> '
-      +'<button class="btn btn-sm btn-outline" onclick="openVehicle('+u.id+')">🚗 Vehicles</button> '
-      +toggleBtn+' '+delBtn
-      +'</div></div>';
-  }).join('');
 }
 function addUser(){
   const un=document.getElementById('nu-user').value.trim().toLowerCase();
@@ -2959,14 +2758,14 @@ function addUser(){
 function toggleUser(id){
   const u=getUsers();const x=u.find(v=>v.id===id);
   if(x){x.active=!x.active;saveUsers(u);renderUsers();
-    addLog(`User ${x.active?'enabled':'disabled'}: ${x.name}`);
+    addLog('User '+(x.active?'enabled':'disabled')+': '+x.name);
     showToast(x.active?'User enabled':'User disabled','t-i');}
 }
 function removeUser(id){
   if(!confirm('Remove this user permanently?'))return;
   const u=getUsers();const x=u.find(v=>v.id===id);
   saveUsers(u.filter(v=>v.id!==id));renderUsers();
-  addLog(`User removed: ${x?.name}`);showToast('User removed','t-i');
+  addLog('User removed: '+(x&&x.name?x.name:''));showToast('User removed','t-i');
 }
 function openPw(id){
   document.getElementById('pw-uid').value=id;
@@ -2995,7 +2794,7 @@ function saveVehicle(){
   if(x){x.vehicles=vehs;x.vehicle=vehs.join(', ');saveUsers(u);
     if(CU&&CU.id===id){CU.vehicles=vehs;CU.vehicle=x.vehicle;LS.set('ngrd_s',CU);
       const vt=document.getElementById('top-vehicle');if(vt)vt.textContent='🚗 '+vehicleLabel(CU);}
-    closeMod();renderUsers();addLog(`Vehicles updated for ${x.name}: ${vehs.join(', ')}`);
+    closeMod();renderUsers();addLog('Vehicles updated for '+x.name+': '+vehs.join(','));
     showToast('Vehicles updated','t-s');}
 }
 function closeMod(){['modal-pw','modal-veh','modal-price','modal-me'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('open');});}
@@ -3910,24 +3709,19 @@ function copyWhatsApp(desc,brand,partNo,country,price){
 function renderBackupPage(){
   const h=getHist(),u=getUsers(),p=getPrices();
   const s=document.getElementById('backup-summary');
-  if(s) s.innerHTML=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;">
-    ${[['Quotations',h.length],['Users',u.length],['Parts',p.length]].map(([l,v])=>`
-      <div style="background:var(--light);border:1px solid var(--border);border-radius:3px;padding:10px;text-align:center;">
-        <div style="font-size:20px;font-weight:700;color:var(--navy);">${v}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;">${l}</div>
-      </div>`).join('')}
-    </div>`;
+  if(s){
+    var _si=[['Quotations',h.length],['Users',u.length],['Parts',p.length]];
+    s.innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;">'+
+      _si.map(function(kv){return '<div style="background:#f0f4f8;border-radius:4px;padding:8px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#0D1B2A;">'+kv[1]+'</div><div style="font-size:10px;color:#666;">'+kv[0]+'</div></div>';}).join('')+'</div>';
+  }
   const lb=LS.get('ngrd_last_backup');
   const lbEl=document.getElementById('last-backup-info');
   if(lbEl){
     if(lb){
       const days=Math.floor((Date.now()-lb.ts)/(1000*60*60*24));
       const warn=days>=7;
-      lbEl.innerHTML=`<div style="padding:10px 14px;background:${warn?'rgba(178,34,34,.06)':'rgba(26,107,60,.06)'};border:1px solid ${warn?'rgba(178,34,34,.2)':'rgba(26,107,60,.2)'};border-radius:3px;">
-        <div style="font-weight:700;font-size:13px;color:${warn?'var(--red)':'var(--green)'};">${warn?'⚠️ Backup Overdue!':'✅ Backup Recent'}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Last: <b>${lb.date}</b> — ${lb.count} quotations — ${days} day(s) ago</div>
-      </div>`;
-    }else lbEl.innerHTML=`<div style="padding:10px 14px;background:rgba(178,34,34,.06);border:1px solid rgba(178,34,34,.2);border-radius:3px;color:var(--red);font-weight:600;font-size:13px;">⚠️ No backup yet! Please backup now.</div>`;
+      lbEl.innerHTML='<div style="padding:10px 14px;background:'+(warn?'rgba(178,34,34,.06)':'rgba(26,107,60,.06)')+';border:1px solid '+(warn?'rgba(178,34,34,.2)':'rgba(26,107,60,.2)')+';border-radius:3px;"><div style="font-weight:700;font-size:13px;color:'+(warn?'var(--red)':'var(--green)')+';">'+(warn?'⚠️ Last backup '+days+'d ago':'✅ Last backup: '+days+'d ago')+'</div><div style="font-size:12px;color:var(--muted);margin-top:4px;">Last: <b>'+lb.date+'</b> — '+lb.by+' ('+lb.count+' quotations)</div></div>';
+    }else lbEl.innerHTML='<div style="padding:10px 14px;background:rgba(178,34,34,.06);border:1px solid rgba(178,34,34,.2);border-radius:3px;color:var(--red);font-weight:600;font-size:13px;">⚠️ No backup yet! Please backup now.</div>';
   }
 }
 function exportBackup(){
@@ -3936,10 +3730,10 @@ function exportBackup(){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download=`NGRD_Backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.href=url;a.download='NGRD_Backup_'+new Date().toISOString().slice(0,10)+'.json';
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
   LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:getHist().length});
-  addLog('Backup exported');showToast(`Backup downloaded! (${getHist().length} quotations)`,'t-s');
+  addLog('Backup exported');showToast('Backup downloaded! ('+getHist().length+' quotations)','t-s');
   renderBackupPage();
 }
 let _restoreData=null;
@@ -3952,14 +3746,16 @@ function previewRestore(inp){
       _restoreData=data;
       const existing=getHist();
       const toAdd=data.history.filter(e=>!existing.find(x=>x.eqNo===e.eqNo&&x.refNo===e.refNo));
-      document.getElementById('restore-preview').innerHTML=`<div style="background:#fff;border:1px solid var(--border);border-radius:3px;padding:12px;font-size:13px;">
-        <b>Backup:</b> ${new Date(data.exportedAt||0).toLocaleDateString()} by ${data.exportedBy||'?'}<br>
-        <span style="color:var(--green);">✅ ${toAdd.length} new quotations</span> &nbsp;|&nbsp; <span style="color:var(--muted);">⏭️ ${data.history.length-toAdd.length} duplicates skip</span>
-        ${data.prices?`<br><span style="color:var(--steel);">💰 ${data.prices.length} part prices</span>`:''}
-      </div>`;
+      document.getElementById('restore-preview').innerHTML='<div style="background:#fff;border:1px solid var(--border);border-radius:3px;padding:12px;font-size:13px;">'
+        +'<b>Backup:</b> '+new Date(data.exportedAt||0).toLocaleDateString()+' by '+(data.exportedBy||'?')+'<br>'
+        +'<span style="color:var(--green);">✅ '+toAdd.length+' new quotations</span> &nbsp;|&nbsp; '
+        +'<span style="color:var(--muted);">⏭️ '+(data.history.length-toAdd.length)+' duplicates skip</span> &nbsp;|&nbsp; '
+        +'<span style="color:#c47020;">💰 '+(data.prices?data.prices.length:0)+' part prices</span> &nbsp;|&nbsp; '
+        +'<span style="color:#1A3A6B;">👥 '+(data.users?data.users.length:0)+' users</span>'
+        +'</div>';
       document.getElementById('restore-preview').style.display='block';
       const btn=document.getElementById('restore-btn');btn.disabled=false;btn.style.opacity='1'; // Always enable — users may need restore even if 0 new quotations
-    }catch(err){document.getElementById('restore-preview').innerHTML=`<div style="color:var(--red);">❌ ${err.message}</div>`;document.getElementById('restore-preview').style.display='block';}
+    }catch(err){document.getElementById('restore-preview').innerHTML='<div style="color:var(--red);">❌ '+err.message+'</div>';document.getElementById('restore-preview').style.display='block';}
   };r.readAsText(f);
 }
 function importBackup(){
@@ -3985,8 +3781,8 @@ function importBackup(){
   _restoreData=null;document.getElementById('restore-file').value='';
   document.getElementById('restore-preview').style.display='none';
   const btn=document.getElementById('restore-btn');btn.disabled=true;btn.style.opacity='.5';
-  addLog(`Restored backup: ${toAdd.length} quotations added`);
-  showToast(`Restored! ${toAdd.length} quotations added.`,'t-s');
+  addLog('Restored backup: '+toAdd.length+' quotations added');
+  showToast('Restored! '+toAdd.length+' quotations added.','t-s');
   renderBackupPage();updatePendingBadge();
 }
 
@@ -3997,8 +3793,8 @@ function downloadExcel(){
   if(!curItems.length){showToast('No items','t-e');return;}
   const g=id=>document.getElementById(id)?.value||'';
   const esc=v=>String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const sc=(v,sid)=>`<Cell${sid?` ss:StyleID="${sid}"`:''}><Data ss:Type="String">${esc(v)}</Data></Cell>`;
-  const nc=(v,sid)=>`<Cell${sid?` ss:StyleID="${sid}"`:''}><Data ss:Type="Number">${+v||0}</Data></Cell>`;
+  const sc=(v,sid)=>('<Cell'+(sid?' ss:StyleID="'+String(sid)+'"':'')+'>'+"<Data ss:Type=\"String\">"+esc(v)+"</Data></Cell>");
+  const nc=(v,sid)=>'<Cell'+(sid?' ss:StyleID="'+sid+'"':'')+"><Data ss:Type=\"Number\">"+(+v||0)+'</Data></Cell>';
   let grand=0;
   const itemRows=curItems.map((item,i)=>{
     var br=(item.brandRows&&item.brandRows[0])||{};
@@ -4008,7 +3804,7 @@ function downloadExcel(){
     var price=parseFloat(br.price)||item.unitPrice||0;
     var t=price*item.qty;grand+=t;
     var bg=i%2===0?'alt':'';
-    return `<Row ss:Height="17">${sc(item.itemNo,'c')}${sc(item.description,'w')}${sc(item.qty,'c')}${sc(item.unit,'')}${sc(partNo,'')}${sc(country,'')}${nc(price,bg)}${nc(t,bg+'b')}${sc(brand,'')}</Row>`;
+    return '<Row ss:Height="17">'+sc(item.itemNo,'c')+sc(item.description,'w')+sc(item.qty,'c')+sc(item.unit||'Nos','')+sc(partNo,'')+sc(brand,'')+sc(country,'')+nc(unitPrice,'n')+nc(totalPrice,'n')+'</Row>';
   }).join('');
   const xml=`<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
@@ -4047,7 +3843,7 @@ function downloadExcel(){
   <Row ss:Height="14"><Cell ss:MergeAcross="8" ss:StyleID="sh"><Data ss:Type="String">Prepared by: ${esc(CU?.name||'')} | Date: ${new Date().toLocaleDateString('en-LK')} | Warranty: 6 months | Prices in LKR</Data></Cell></Row>
 </Table></Worksheet></Workbook>`;
   _downloadBlob(xml,'application/vnd.ms-excel','NGRD_'+(g('f-eqno')||'Q').replace(/\s/g,'_')+'.xls');
-  addLog(`Excel exported: ${g('f-eqno')||g('f-refno')}`);showToast('Excel downloaded!','t-s');
+  addLog('Excel exported: '+(g('f-eqno')||g('f-refno')));showToast('Excel downloaded!','t-s');
 }
 
 // ══════════════════════════════════════════════════
@@ -4187,7 +3983,7 @@ function generatePDFHtml(d){
 </body></html>`;
 }
 
-function downloadPDF(){if(!curItems.length){showToast('No items','t-e');return;}const d=buildQData();_printWithIframe(generatePDFHtml(d));addLog(`PDF exported: ${d.eqNo||d.refNo}`);}
+function downloadPDF(){if(!curItems.length){showToast('No items','t-e');return;}const d=buildQData();_printWithIframe(generatePDFHtml(d));addLog('PDF exported: '+(d.eqNo||d.refNo));}
 
 function downloadPDFDirect(){
   if(!curItems.length){showToast('No items','t-e');return;}
@@ -4298,8 +4094,8 @@ function downloadArmyExcel(){
   if(!curItems.length){showToast('No items','t-e');return;}
   const g=id=>document.getElementById(id)?.value||'';
   const esc=v=>String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const sc=(v,sid)=>`<Cell${sid?` ss:StyleID="${sid}"`:''}><Data ss:Type="String">${esc(v)}</Data></Cell>`;
-  const nc=(v,sid)=>`<Cell${sid?` ss:StyleID="${sid}"`:''}><Data ss:Type="Number">${+v||0}</Data></Cell>`;
+  const sc=(v,sid)=>('<Cell'+(sid?' ss:StyleID="'+String(sid)+'"':'')+'>'+"<Data ss:Type=\"String\">"+esc(v)+"</Data></Cell>");
+    const nc=(v,sid)=>('<Cell'+(sid?' ss:StyleID="'+sid+'"':'')+"><Data ss:Type=\"Number\">"+(+v||0)+"</Data></Cell>");
   const today=new Date().toLocaleDateString('en-LK');
   let grand=0;
   const itemRows=curItems.map((item,i)=>{
@@ -4349,7 +4145,7 @@ function downloadArmyExcel(){
   <Row/><Row ss:Height="15"><Cell ss:StyleID="val"><Data ss:Type="String">Prepared by: ${esc(CU?.name||'')} | Date: ${today}</Data></Cell><Cell/><Cell/><Cell/><Cell/><Cell/>${sc('For N.G.R.D. Motors','lbl')}<Cell/><Cell/></Row>
 </Table></Worksheet></Workbook>`;
   _downloadBlob(xml,'application/vnd.ms-excel','NGRD_ArmyLetter_'+(g('f-eqno')||'Letter').replace(/\s/g,'_')+'.xls');
-  addLog(`Army Letter Excel: ${g('f-eqno')||g('f-refno')}`);showToast('Army Letter Excel!','t-s');
+  addLog('Army Letter Excel: '+(g('f-eqno')||g('f-refno')));showToast('Army Letter Excel!','t-s');
 }
 
 function reExport(id){const e=getHist().find(x=>x.id===id);if(!e)return;const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});downloadExcel();curItems=s;}
