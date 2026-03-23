@@ -4056,15 +4056,40 @@ function resetAll(){window.curEditId=null;
 // ══════════════════════════════════════════════════
 // SESSION CHECK & INIT
 // ══════════════════════════════════════════════════
+function getDaysUntil(dateStr){
+  if(!dateStr) return null;
+  try{
+    var d=new Date(dateStr);
+    if(isNaN(d.getTime())) return null;
+    var now=new Date();
+    now.setHours(0,0,0,0);
+    d.setHours(0,0,0,0);
+    return Math.round((d-now)/(1000*60*60*24));
+  }catch(e){return null;}
+}
 function checkDeadlineAlarms(){
   if(typeof alarmDismissed!=='undefined'&&alarmDismissed)return;
   var h=getHist();var urgent=[],warning=[];
-  h.forEach(function(e){var days=getDaysUntil(e.closingDate);if(days===null)return;
-    if(days>=0&&days<=1)urgent.push(e);else if(days>1&&days<=3)warning.push(e);});
+  // Only alarm for active quotations (not submitted/awarded/rejected)
+  var ACTIVE=['draft','pending','approved','assigned'];
+  h.forEach(function(e){
+    if(ACTIVE.indexOf(e.status||'draft')<0) return; // skip submitted/awarded/rejected
+    var days=getDaysUntil(e.closingDate);if(days===null)return;
+    if(days>=0&&days<=1)urgent.push(e);else if(days>1&&days<=3)warning.push(e);
+  });
   var banner=document.getElementById('alarm-banner');if(!banner)return;
   var title=document.getElementById('alarm-title');var msg=document.getElementById('alarm-msg');
-  if(urgent.length>0){banner.className='alarm-banner show critical';if(title)title.textContent='🚨 URGENT — CLOSING VERY SOON!';if(msg)msg.textContent=urgent.map(function(e){return (e.vehicle||e.eqNo||'');}).join(', ');}
-  else if(warning.length>0){banner.className='alarm-banner show';if(title)title.textContent='⚠️ '+warning.length+' closing within 3 days';if(msg)msg.textContent=warning.map(function(e){return (e.vehicle||e.eqNo||'');}).join(', ');}
+  if(urgent.length>0){banner.className='alarm-banner show critical';if(title)title.textContent='🚨 URGENT — CLOSING VERY SOON!';if(msg)msg.textContent=urgent.map(function(e){
+        var v=e.vehicle||'';var q=e.eqNo||e.refNo||'';
+        var d=getDaysUntil(e.closingDate);
+        var dStr=d===0?'TODAY':d===1?'TOMORROW':'';
+        return (v?(v+' '):'')+q+(dStr?' ('+dStr+')':'');
+      }).join(' | ');}
+  else if(warning.length>0){banner.className='alarm-banner show';if(title)title.textContent='⚠️ '+warning.length+' closing within 3 days';if(msg)msg.textContent=warning.map(function(e){
+        var v=e.vehicle||'';var q=e.eqNo||e.refNo||'';
+        var d=getDaysUntil(e.closingDate);
+        return (v?(v+' '):'')+q+(d!==null?' ('+d+'d)':'');
+      }).join(' | ');}
   else banner.className='alarm-banner';
 }
 function dismissAlarm(){if(typeof alarmDismissed!=='undefined')alarmDismissed=true;var b=document.getElementById('alarm-banner');if(b)b.className='alarm-banner';}
@@ -4077,7 +4102,13 @@ window.onload=()=>{
     if(valid){CU=valid;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='flex';initApp();}
     else LS.del('ngrd_s');
   }
-  setInterval(()=>{if(CU){alarmDismissed=false;checkDeadlineAlarms();}},60000);
+  setInterval(()=>{
+    if(CU){
+      // Only re-check alarm, don't reset dismissed flag every minute
+      // Reset only once per hour to allow new urgent items to show
+      checkDeadlineAlarms();
+    }
+  },60000);
 };
 
 }
