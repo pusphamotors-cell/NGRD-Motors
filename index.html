@@ -3861,6 +3861,18 @@ function resetAll(){window.curEditId=null;
 // ══════════════════════════════════════════════════
 // SESSION CHECK & INIT
 // ══════════════════════════════════════════════════
+function checkDeadlineAlarms(){
+  if(typeof alarmDismissed!=='undefined'&&alarmDismissed)return;
+  var h=getHist();var urgent=[],warning=[];
+  h.forEach(function(e){var days=getDaysUntil(e.closingDate);if(days===null)return;
+    if(days>=0&&days<=1)urgent.push(e);else if(days>1&&days<=3)warning.push(e);});
+  var banner=document.getElementById('alarm-banner');if(!banner)return;
+  var title=document.getElementById('alarm-title');var msg=document.getElementById('alarm-msg');
+  if(urgent.length>0){banner.className='alarm-banner show critical';if(title)title.textContent='🚨 URGENT — CLOSING VERY SOON!';if(msg)msg.textContent=urgent.map(function(e){return (e.vehicle||e.eqNo||'');}).join(', ');}
+  else if(warning.length>0){banner.className='alarm-banner show';if(title)title.textContent='⚠️ '+warning.length+' closing within 3 days';if(msg)msg.textContent=warning.map(function(e){return (e.vehicle||e.eqNo||'');}).join(', ');}
+  else banner.className='alarm-banner';
+}
+function dismissAlarm(){if(typeof alarmDismissed!=='undefined')alarmDismissed=true;var b=document.getElementById('alarm-banner');if(b)b.className='alarm-banner';}
 window.onload=()=>{
   const s=LS.get('ngrd_s');
   if(s){
