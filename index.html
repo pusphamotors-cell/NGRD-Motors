@@ -427,6 +427,22 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="step" id="step4"><div class="step-num">4</div><div class="step-lbl">Export</div></div>
         </div>
 
+        <div class="panel" style="margin-bottom:10px;">
+          <div class="panel-hdr"><span class="panel-hdr-icon">🚗</span><span class="panel-hdr-title">Vehicle Select <span style="color:#B22222;">*</span></span></div>
+          <div class="panel-body">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="flex:1;padding:10px 12px;border:2px solid var(--border);border-radius:4px;font-size:14px;font-family:var(--fb);outline:none;background:#fff;">
+                <option value="">— Vehicle Select பண்ணுங்கள் —</option>
+              </select>
+              <div id="vehicle-admin-btns" style="display:none;gap:6px;">
+                <button onclick="uploadPageAddVehicle()" title="Add Vehicle" style="padding:9px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:14px;font-weight:700;cursor:pointer;">➕</button>
+                <button onclick="uploadPageEditVehicle()" title="Edit Vehicle" style="padding:9px 12px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:14px;font-weight:700;cursor:pointer;">✏️</button>
+                <button onclick="uploadPageDeleteVehicle()" title="Delete Vehicle" style="padding:9px 12px;background:#B22222;color:#fff;border:none;border-radius:4px;font-size:14px;font-weight:700;cursor:pointer;">🗑️</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
           <div class="panel-body" style="text-align:center;">
