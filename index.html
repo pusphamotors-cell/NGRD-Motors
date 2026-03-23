@@ -1475,6 +1475,7 @@ function initFirebaseSync(){
       });
       merged=merged.filter(function(x){return x&&typeof x==='object';});
       if(merged.length<local.length){fbWrite('history',local);return;}
+      if(typeof autoFixStatus==='function') autoFixStatus(merged);
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
       fbWrite('history',merged);updatePendingBadge();
       if(typeof renderDashboard==='function')renderDashboard();
@@ -2143,8 +2144,30 @@ function markSubmitted(id){
   addLog('Submitted: '+(h[idx].eqNo||h[idx].refNo)+' by '+CU.name);
   showToast('✅ Submitted by '+CU.name+' marked!','t-s');
 }
+function autoFixStatus(hist){
+  // Auto-upgrade status based on steps
+  var changed=false;
+  hist.forEach(function(e){
+    if(e.steps){
+      if(e.steps.submitted&&(e.status==='draft'||e.status==='pending'||!e.status)){
+        e.status='submitted'; changed=true;
+      }
+      if(e.steps.approved&&(e.status==='draft'||e.status==='pending'||e.status==='submitted')){
+        // Only upgrade if steps.approved is explicitly set
+        // (don't auto-approve - that's admin action)
+      }
+    }
+  });
+  if(changed){
+    localStorage.setItem('ngrd_hist',JSON.stringify(hist));
+    if(typeof fbWrite==='function') fbWrite('history',hist);
+  }
+  return hist;
+}
+
 function renderHistory(){
   let h=getHist();
+  h=autoFixStatus(h);
   var isAdmin=CU&&CU.role==='admin';
   if(!isAdmin&&CU){
     // Staff sees ONLY their own quotations
