@@ -4187,6 +4187,29 @@ function initFirebase(){
     _flushQueue();
     if(typeof initFirebaseSync==='function') initFirebaseSync();
     if(typeof loadAPIKeyFromFirebase==='function') loadAPIKeyFromFirebase();
+    // Immediately fetch users from Firebase and refresh users page
+    fbRead('users',function(udata){
+      try{
+        if(udata&&typeof udata==='object'){
+          var ru=Array.isArray(udata)?udata:Object.values(udata).filter(function(x){return x&&typeof x==='object';});
+          if(ru.length>0){
+            var lu=JSON.parse(localStorage.getItem('ngrd_users')||'[]');
+            if(!Array.isArray(lu))lu=[];
+            var merged=lu.slice();
+            ru.forEach(function(r){
+              if(!r||!r.id)return;
+              var i=merged.findIndex(function(l){return l.id===r.id;});
+              if(i<0)merged.push(r);
+              else merged[i]=Object.assign({},merged[i],r);
+            });
+            localStorage.setItem('ngrd_users',JSON.stringify(merged));
+            // If users page is open, refresh it
+            var up=document.getElementById('page-users');
+            if(up&&up.style.display!=='none'&&typeof renderUsers==='function')renderUsers();
+          }
+        }
+      }catch(e){}
+    });
   };
   xhr.onerror=function(){onFbFail();};
   xhr.ontimeout=function(){onFbFail();};
