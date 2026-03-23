@@ -874,7 +874,8 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       <div class="form-grid" style="gap:10px;margin-bottom:10px;">
         <div class="form-field full"><label>Part Description *</label><input id="mp-desc" placeholder="e.g. Ball Joint"></div>
         <div class="form-field full"><label>Vehicle</label><select id="mp-veh" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;"><option value="">All Vehicles</option><option>Suzuki SX4</option><option>Mitsubishi L200 K34 Japan Cab</option><option>Mitsubishi L200 K14 Japan Cab</option><option>Mitsubishi KB40</option><option>Mitsubishi KB70</option><option>Mitsubishi Thailand Cab</option><option>Mitsubishi Van</option><option>Mitsubishi Pajero Jeep V36</option><option>Mitsubishi Pajero Palathsabha Jeep</option><option>Isuzu TFR Cab</option><option>Toyota LH113 Dolphin Van</option><option>Toyota KDH Van</option><option>Toyota Cab LN85</option><option>Toyota Cab LN166</option><option>Toyota Cab LN106</option><option>Toyota Cab LN107</option></select></div>
-        <div class="form-field"><label>Part Number</label><input id="mp-partno"></div>
+        <div class="form-field"><label>Part Number (LH or Single)</label><input id="mp-partno" placeholder="e.g. 51360-M55K00"></div>
+        <div class="form-field"><label>RH Part Number <span style="font-size:10px;color:#888;">(different from LH only)</span></label><input id="mp-partno-rh" placeholder="e.g. 51370-M55K00 (optional)"></div>
         <div class="form-field"><label>Brand</label><input id="mp-brand"></div>
         <div class="form-field"><label>Country</label><select id="mp-country"></select></div>
         <div class="form-field"><label>Purchase Price (LKR)</label><input id="mp-purchase" type="number" min="0" placeholder="Cost price" style="border-color:#c47020;background:#fff9f0;"></div>
@@ -1293,10 +1294,48 @@ function loadExtractedData(parsed){
     document.getElementById('info-panel').style.display='block';
     setStep(2); return;
   }
+  // Auto-fill from Price List using smart matching
+  var _prices=[];try{_prices=getPrices()||[];}catch(_e){}
+  var _vehicle='';
+  try{
+    // Get vehicle from form or from upload select
+    var _vEl=document.getElementById('f-vname')||document.getElementById('upload-vehicle-select');
+    _vehicle=(_vEl&&_vEl.value)||parsed.vehicleName||'';
+  }catch(_e){}
+
   curItems=parsed.items.map(function(item,i){
-    return {itemNo:item.itemNo||(i+1),description:item.description||'',qty:parseFloat(item.qty)||1,
-      unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,
-      brandRows:[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
+    var _desc=(item.description||'').trim();
+    var _brs;
+    try{
+      if(typeof findAllPriceMatches==='function'&&_prices.length&&_vehicle){
+        var _matches=findAllPriceMatches(_desc,_prices,_vehicle);
+        if(_matches&&Array.isArray(_matches)&&_matches.length>0){
+          _brs=_matches.slice(0,3).map(function(m){
+            return {
+              brand:m.brand||'',
+              partNo:m.partNo||'',
+              country:m.country||'Japan',
+              marginPct:0,
+              price:parseFloat(m.price)||0,
+              purchasePrice:parseFloat(m.purchasePrice)||0,
+              totalPrice:0
+            };
+          });
+        }
+      }
+    }catch(_ex){console.warn('Price fill:',_ex.message);}
+    if(!_brs||!_brs.length){
+      _brs=[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}];
+    }
+    return {
+      itemNo:item.itemNo||(i+1),
+      description:_desc||('Item '+(i+1)),
+      qty:parseFloat(item.qty)||1,
+      unit:item.unit||'Number',
+      brand:_brs[0].brand||item.brand||'',
+      unitPrice:_brs[0].price||0,
+      brandRows:_brs
+    };
   });
   renderItems(curItems);setStep(3);
   if(st){st.style.cssText='';st.className='ai-status success';}
@@ -1945,95 +1984,239 @@ const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join
 
 var PART_SYNONYMS=[['lower arm','lower control arm'],['shock absorber','shock','damper','strut'],['ball joint','balljoint'],['tie rod','tie rod end'],['brake pad','disc pad'],['oil filter'],['air filter','air cleaner'],['fuel filter'],['water pump'],['timing belt','cam belt'],['clutch','clutch plate'],['bush','bushing'],['wheel bearing','hub bearing'],['cv joint'],['brake disc','brake rotor']];
 function findAllPriceMatches(desc,prices,vehicle){
-  if(!desc||!prices||!prices.length) return [];
+  if(!desc) return [];
+  // Combine prices + history prices
+  var allPrices=prices||[];
+  try{
+    var hist=getHist();
+    var histPrices=[];
+    hist.forEach(function(entry){
+      if(!entry.items||!Array.isArray(entry.items)) return;
+      var v=entry.vehicle||'';
+      entry.items.forEach(function(item){
+        if(!item.description) return;
+        var rows=item.brandRows||[];
+        if(!rows.length&&item.brand) rows=[{brand:item.brand,partNo:item.partNo||'',country:item.country||'Japan',price:item.unitPrice||0,purchasePrice:item.purchasePrice||0}];
+        rows.forEach(function(br){
+          if(!br.brand&&!br.price) return;
+          histPrices.push({
+            id:'h_'+entry.id+'_'+item.itemNo,
+            description:item.description,
+            vehicle:v,
+            brand:br.brand||'',
+            partNo:br.partNo||'',
+            country:br.country||'Japan',
+            price:parseFloat(br.price)||0,
+            purchasePrice:parseFloat(br.purchasePrice)||0
+          });
+        });
+      });
+    });
+    // Merge: price list first, then history (deduplicate by desc+brand+vehicle)
+    histPrices.forEach(function(hp){
+      var exists=allPrices.find(function(p){
+        return (p.description||'').toLowerCase()===(hp.description||'').toLowerCase()
+          && (p.brand||'').toLowerCase()===(hp.brand||'').toLowerCase()
+          && (p.vehicle||'').toLowerCase()===(hp.vehicle||'').toLowerCase();
+      });
+      if(!exists) allPrices=allPrices.concat([hp]);
+    });
+  }catch(e){}
+  if(!allPrices.length) return [];
 
-  var STOP=['assy','assembly','for','the','and','with','type','no','set','kit','rh','lh'];
+  // SYNONYMS — same part different names
+  var SYNONYMS=[
+    ['lower arm','arm lower','lower control arm','arm assy lower','lower arm assy','control arm lower','arm lwr'],
+    ['upper arm','arm upper','upper control arm','arm assy upper','upper arm assy','arm upr'],
+    ['shock absorber','shock','damper','strut','shock assy','absorber','shocker'],
+    ['ball joint','balljoint','ball joint assy','lower ball joint','upper ball joint'],
+    ['tie rod','tie rod end','steering tie rod','track rod','tie rod assy'],
+    ['brake pad','disc pad','brake lining','brake shoe','pad kit'],
+    ['oil filter','lube filter','oil element','filter oil'],
+    ['air filter','air cleaner','air element','filter air'],
+    ['fuel filter','fuel element','filter fuel'],
+    ['water pump','coolant pump','pump water','pump assy water'],
+    ['timing belt','cam belt','timing chain','camshaft belt'],
+    ['clutch','clutch plate','clutch disc','clutch kit','clutch assy'],
+    ['bush','bushing','rubber bush','arm bush','stabilizer bush'],
+    ['wheel bearing','hub bearing','bearing hub','front bearing','rear bearing'],
+    ['cv joint','cv axle','drive shaft','axle shaft','driveshaft'],
+    ['brake disc','brake rotor','disc rotor','rotor disc'],
+    ['radiator','complete radiator','radiator assy'],
+    ['gear box mount','gearbox mount','gearbox mounting','transmission mount'],
+    ['engine mount','motor mount','mounting engine'],
+    ['power steering','steering pump','ps pump','power steering pump'],
+    ['alternator','generator','dynamo'],
+    ['starter motor','starter','self starter'],
+    ['fan belt','v belt','drive belt','serpentine belt'],
+    ['idler pulley','tension pulley','belt tensioner','idler','tensioner'],
+    ['thermostat','thermostat valve','thermo valve'],
+    ['head gasket','cylinder head gasket','gasket head'],
+    ['oil seal','oil seals','seal oil'],
+    ['brake caliper','caliper','calliper'],
+    ['master cylinder','brake master','clutch master','master cyl'],
+    ['wheel cylinder','brake cylinder','slave cylinder'],
+    ['rack end','steering rack','rack and pinion','steering rack end'],
+    ['wiper blade','wiper','windscreen wiper'],
+    ['radiator cap','coolant cap','pressure cap'],
+    ['solenoid','solenoid valve','solenoid switch'],
+    ['injector','fuel injector','injection nozzle'],
+    ['glow plug','heater plug','glow'],
+    ['spark plug','plug','ignition plug'],
+    ['tail lamp','tail light','rear lamp','rear light'],
+    ['head lamp','headlight','head light','front lamp'],
+    ['fog lamp','fog light'],
+    ['compressor','ac compressor','aircon compressor','air condition compressor'],
+    ['condenser','ac condenser','aircon condenser'],
+  ];
 
-  function clean(s){
-    return s.toLowerCase().trim()
+  // NOISE WORDS to remove before matching
+  var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
+             'upper','lower','inner','outer','set','kit','no','for','the','and',
+             'with','type','x','mm','pcs','pair','nr','fr','rr','frt','rr','mtd',
+             'oe','oem','genuine','original'];
+
+  function cleanDesc(s){
+    return s.toLowerCase()
       .replace(/[.\-_\/\[\]()]/g,' ')
       .replace(/\s+/g,' ').trim();
   }
 
-  function getKeyWords(s){
-    return clean(s).split(' ').filter(function(w){
-      return w.length>2 && STOP.indexOf(w)===-1;
+  function getCoreWords(s){
+    var words=cleanDesc(s).split(' ');
+    return words.filter(function(w){
+      return w.length>1 && NOISE.indexOf(w)===-1;
     });
   }
 
-  var dClean=clean(desc);
-  var dWords=getKeyWords(desc);
-  var vClean=vehicle?(vehicle.toLowerCase()):'';
+  function getSynonymGroup(words){
+    // Find if any synonym group matches
+    var joined=words.join(' ');
+    for(var i=0;i<SYNONYMS.length;i++){
+      var group=SYNONYMS[i];
+      for(var j=0;j<group.length;j++){
+        if(joined.includes(group[j])||group[j].split(' ').every(function(w){return words.indexOf(w)>=0;})){
+          return group; // return whole group
+        }
+      }
+    }
+    return null;
+  }
+
+  var dClean=cleanDesc(desc);
+  var dWords=getCoreWords(desc);
+  var dSynGroup=getSynonymGroup(dWords);
+  var vClean=vehicle?(vehicle.toLowerCase().trim()):'';
+
+  // Extract vehicle key identifier (e.g. "sx4", "l200", "lh113")
+  var vKey='';
+  if(vClean){
+    var vParts=vClean.split(' ');
+    // Use last meaningful word as key (sx4, l200, etc.)
+    vParts.forEach(function(p){if(p.length>2&&isNaN(p))vKey=p;});
+    if(!vKey) vKey=vClean;
+  }
 
   var matches=[];
 
   prices.forEach(function(p){
-    var pdClean=clean(p.description||'');
-    var pdWords=getKeyWords(p.description||'');
-    var pVeh=(p.vehicle||'').toLowerCase();
+    if(!p.description) return;
+
+    var pVeh=(p.vehicle||'').toLowerCase().trim();
+    var pVehKey='';
+    if(pVeh){
+      var pvParts=pVeh.split(' ');
+      pvParts.forEach(function(pp){if(pp.length>2&&isNaN(pp))pVehKey=pp;});
+      if(!pVehKey) pVehKey=pVeh;
+    }
+
+    // STRICT VEHICLE MATCH — only same vehicle!
+    if(vKey){
+      // We have a vehicle — price must match this vehicle
+      if(pVehKey){
+        // Price has vehicle — must match
+        if(pVehKey!==vKey&&!pVeh.includes(vKey)&&!vClean.includes(pVehKey)) return;
+      } else {
+        // Price has NO vehicle tag — allow as fallback
+        // Will only be used if no vehicle-specific match found
+        // Mark as low priority
+        p._noVehicle = true;
+      }
+    } else {
+      // No vehicle selected → don't auto-fill (avoid wrong data)
+      return;
+    }
+
+    var pWords=getCoreWords(p.description);
+    var pSynGroup=getSynonymGroup(pWords);
     var score=0;
 
-    // Vehicle filter — if item has vehicle, must match
-    if(pVeh&&vClean){
-      var vMatch=false;
-      // Check vehicle name words match
-      var vWords=vClean.split(' ');
-      vWords.forEach(function(vw){
-        if(vw.length>2&&pVeh.includes(vw)) vMatch=true;
-      });
-      if(!vMatch) return; // Skip — wrong vehicle!
-    }
-
-    // Exact match
-    if(pdClean===dClean){
-      score=100;
-    }
-    // One contains the other fully
-    else if(pdClean.includes(dClean)||dClean.includes(pdClean)){
-      score=90;
-    }
-    // KEY WORD MATCHING — STRICT
-    else {
-      var matched=0;
-      var totalD=dWords.length;
-      var totalP=pdWords.length;
-
-      dWords.forEach(function(w){
-        if(pdWords.some(function(pw){
-          return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));
-        })) matched++;
-      });
-
-      if(totalD>0&&totalP>0){
-        var ratioD=matched/totalD; // % of desc words found in price
-        var ratioP=matched/totalP; // % of price words found in desc
-
-        // STRICT: need HIGH match ratio from BOTH sides
-        if(ratioD>=0.9&&ratioP>=0.7) score=85;
-        else if(ratioD>=0.8&&ratioP>=0.6) score=70;
-        else if(ratioD>=0.7&&matched>=3) score=55;
-        // Reject low matches — prevents "Shock Absorber Bush" matching "Shock Absorber"
-        else if(ratioD>=0.5&&ratioP>=0.5&&matched>=2) score=35;
-        // Too low — skip!
+    // SYNONYM GROUP MATCH — highest priority
+    if(dSynGroup&&pSynGroup){
+      // Check if both belong to same synonym group
+      var dPrimary=dSynGroup[0];
+      var pPrimary=pSynGroup[0];
+      if(dPrimary===pPrimary){
+        score=95; // Same synonym group!
       }
     }
 
-    // Minimum score threshold — STRICT
+    if(score===0){
+      var pClean=cleanDesc(p.description);
+      // Exact
+      if(dClean===pClean) score=100;
+      // Contains
+      else if(dClean.includes(pClean)||pClean.includes(dClean)) score=85;
+      else {
+        // Word matching with core words
+        var matched=0;
+        dWords.forEach(function(w){
+          if(pWords.some(function(pw){
+            return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));
+          })) matched++;
+        });
+        var totalD=dWords.length;
+        var totalP=pWords.length;
+        if(totalD>0&&totalP>0){
+          var ratioD=matched/totalD;
+          var ratioP=matched/totalP;
+          if(ratioD>=0.8&&ratioP>=0.6) score=75;
+          else if(ratioD>=0.6&&matched>=2) score=55;
+        }
+      }
+    }
+
     if(score>=55) matches.push({score:score,item:p});
   });
 
-  // Sort by score
   matches.sort(function(a,b){return b.score-a.score;});
 
-  // Remove duplicate brands
+  // TWO-PASS: vehicle-specific first, fallback to no-vehicle
+  var vehicleMatches=matches.filter(function(m){return m.item.vehicle&&m.item.vehicle.length>0;});
+  var noVehicleMatches=matches.filter(function(m){return !m.item.vehicle||m.item.vehicle.length===0;});
+  var finalMatches=vehicleMatches.length>0 ? vehicleMatches : noVehicleMatches;
+
+  // LH/RH PAIRING: if desc has lh/rh, try to find LH+RH pair from price list
+  var descHasLHRH=/\b(lh|rh|lh\/rh|l\/h|r\/h|left|right)\b/i.test(desc);
+  if(descHasLHRH){
+    var lhMatch=finalMatches.find(function(m){return /\blh\b|\bleft\b/i.test(m.item.description||'');});
+    var rhMatch=finalMatches.find(function(m){return /\brh\b|\bright\b/i.test(m.item.description||'');});
+    if(lhMatch&&rhMatch&&lhMatch.item!==rhMatch.item){
+      // Return LH + RH as separate results
+      return [lhMatch.item, rhMatch.item];
+    }
+  }
+
+  // Remove duplicate brands — keep highest score per brand
   var seen={};
-  return matches.filter(function(m){
-    var key=(m.item.brand||'__no_brand__').toLowerCase();
+  return finalMatches.filter(function(m){
+    var key=(m.item.brand||'__').toLowerCase();
     if(seen[key]) return false;
     seen[key]=true;
     return true;
-  }).slice(0,5).map(function(m){return m.item;});
+  }).slice(0,3).map(function(m){return m.item;});
 }
+
 
 function getPriceHint(desc,prices){
   var matches=findAllPriceMatches(desc,prices);
@@ -2457,6 +2640,7 @@ function renderPriceList(){
 function openAddPrice(){
   document.getElementById('mp-desc').value='';
   document.getElementById('mp-partno').value='';
+  if(document.getElementById('mp-partno-rh'))document.getElementById('mp-partno-rh').value='';
   document.getElementById('mp-brand').value='';
   document.getElementById('mp-price').value='';
   document.getElementById('mp-id').value='';
@@ -2471,6 +2655,7 @@ function openEditPrice(id){
   const p=getPrices().find(x=>x.id===id);if(!p)return;
   document.getElementById('mp-desc').value=p.description||'';
   document.getElementById('mp-partno').value=p.partNo||'';
+  if(document.getElementById('mp-partno-rh'))document.getElementById('mp-partno-rh').value=p.partNoRH||'';
   document.getElementById('mp-brand').value=p.brand||'';
   document.getElementById('mp-price').value=p.price||'';
   document.getElementById('mp-id').value=id;
@@ -2487,16 +2672,48 @@ function savePartPrice(){
   if(!desc){showToast('Enter description','t-e');return;}
   const prices=getPrices();
   const existId=document.getElementById('mp-id').value;
+  const partNoLH=document.getElementById('mp-partno').value.trim();
+  const partNoRH=(document.getElementById('mp-partno-rh')||{value:''}).value.trim();
+  const vehicle=document.getElementById('mp-veh')?.value||'';
+  const brand=document.getElementById('mp-brand').value.trim();
+  const country=document.getElementById('mp-country').value;
+  const purchasePrice=parseFloat(document.getElementById('mp-purchase')?.value)||0;
+  const marginPct=parseFloat(document.getElementById('mp-margin')?.value)||0;
+  const dateStr=new Date().toLocaleDateString('en-LK');
+
+  // Check if LH/RH in description AND different RH part no
+  var isLHRH=/(lh|rh|l\/h|r\/h|lh\/rh|left|right)/i.test(desc)&&partNoRH&&partNoRH!==partNoLH;
+
   const entry={id:existId||Date.now(),description:desc,
-    vehicle:document.getElementById('mp-veh')?.value||'',
-    partNo:document.getElementById('mp-partno').value,
-    country:document.getElementById('mp-country').value,
-    brand:document.getElementById('mp-brand').value,
-    purchasePrice:parseFloat(document.getElementById('mp-purchase')?.value)||0,
-    marginPct:parseFloat(document.getElementById('mp-margin')?.value)||0,
-    price,date:new Date().toLocaleDateString('en-LK')};
+    vehicle:vehicle,
+    partNo:partNoLH,
+    partNoRH:partNoRH||'',
+    country:country,
+    brand:brand,
+    purchasePrice:purchasePrice,
+    marginPct:marginPct,
+    price,date:dateStr};
   if(existId){const idx=prices.findIndex(p=>p.id==existId);if(idx>=0)prices[idx]=entry;else prices.unshift(entry);}
-  else prices.unshift(entry);
+  else if(isLHRH){
+    // Create LH entry
+    var entryLH=Object.assign({},entry,{
+      id:Date.now(),
+      description:desc.replace(/lh\/rh/gi,'LH').replace(/lh/gi,'LH'),
+      partNo:partNoLH,
+      partNoRH:''
+    });
+    // Create RH entry
+    var entryRH=Object.assign({},entry,{
+      id:Date.now()+1,
+      description:desc.replace(/lh\/rh/gi,'RH').replace(/rh/gi,'RH'),
+      partNo:partNoRH,
+      partNoRH:''
+    });
+    prices.unshift(entryRH);
+    prices.unshift(entryLH);
+    showToast('✅ LH + RH 2 entries saved!','t-s');
+  }
+  else{prices.unshift(entry);}
   setPrices(prices);closeMod();renderPriceList();
   showToast('Part price saved!','t-s');
 }
