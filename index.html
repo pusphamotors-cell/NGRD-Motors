@@ -947,21 +947,30 @@ const LS={
 };
 function getUsers(){
   var s=LS.get('ngrd_users');
-  if(!s) return getDefaultUsers();
+  if(!s||!Array.isArray(s)||s.length===0){
+    // Try Firebase first before using defaults
+    if(typeof FB_READY!=='undefined'&&FB_READY&&typeof fbRead==='function'){
+      fbRead('users',function(data){
+        try{
+          if(data&&typeof data==='object'){
+            var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+            if(remote.length>0){
+              localStorage.setItem('ngrd_users',JSON.stringify(remote));
+              if(typeof renderUsers==='function') renderUsers();
+              return;
+            }
+          }
+        }catch(e){}
+      });
+    }
+    return getDefaultUsers();
+  }
   // Firebase object → array convert
   if(!Array.isArray(s)){
     s=Object.values(s).filter(function(x){return x&&typeof x==='object';});
-    if(s.length>0){LS.set('ngrd_users',s);return s;}
-    return getDefaultUsers();
+    if(s.length>0) LS.set('ngrd_users',s);
   }
-  return s.length>0?s:getDefaultUsers();
-}
-function getDefaultUsers(){
-  const def=[
-    {id:1,username:'admin',password:'ngrd2024',name:'Administrator',role:'admin',vehicles:['All Vehicles'],active:true,created:new Date().toLocaleDateString()},
-    {id:2,username:'staff1',password:'staff123',name:'Tender Executive',role:'staff',vehicles:['L200'],active:true,created:new Date().toLocaleDateString()}
-  ];
-  LS.set('ngrd_users',def);return def;
+  return s||getDefaultUsers();
 }
 function saveUsers(u){LS.set('ngrd_users',u);if(typeof fbWrite==='function')fbWrite('users',u);}
 function setUsers(u){saveUsers(u);}
@@ -4121,6 +4130,29 @@ function dismissAlarm(){if(typeof alarmDismissed!=='undefined')alarmDismissed=tr
 window.onload=()=>{
   // Pre-populate vehicle dropdowns
   if(typeof refreshAllVehicleDropdowns==='function') setTimeout(refreshAllVehicleDropdowns,100);
+  // Pull users from Firebase on startup
+  setTimeout(function(){
+    if(typeof FB_READY!=='undefined'&&FB_READY&&typeof fbRead==='function'){
+      fbRead('users',function(data){
+        try{
+          if(data&&typeof data==='object'){
+            var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+            if(remote.length>0){
+              var local=JSON.parse(localStorage.getItem('ngrd_users')||'[]');
+              if(!Array.isArray(local)) local=[];
+              var merged=local.slice();
+              remote.forEach(function(ru){
+                if(!ru||!ru.id) return;
+                var i=merged.findIndex(function(lu){return lu.id===ru.id;});
+                if(i<0) merged.push(ru); else merged[i]=Object.assign({},merged[i],ru);
+              });
+              localStorage.setItem('ngrd_users',JSON.stringify(merged));
+            }
+          }
+        }catch(e){}
+      });
+    }
+  },2000);
   const s=LS.get('ngrd_s');
   if(s){
     const valid=getUsers().find(u=>u.id===s.id&&u.active);
