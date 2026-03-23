@@ -1133,6 +1133,7 @@ function showPage(pg){
   if(pg==='backup')renderBackupPage();
   if(pg==='prices')renderPriceList();
   if(pg==='vehicles')renderVehicleSettings();
+  if(pg==='new'){if(typeof refreshAllVehicleDropdowns==='function')refreshAllVehicleDropdowns();}
   if(pg==='search')runQuickSearch();
   if(pg==='dashboard')renderDashboard();
 }
@@ -3874,6 +3875,8 @@ function checkDeadlineAlarms(){
 }
 function dismissAlarm(){if(typeof alarmDismissed!=='undefined')alarmDismissed=true;var b=document.getElementById('alarm-banner');if(b)b.className='alarm-banner';}
 window.onload=()=>{
+  // Pre-populate vehicle dropdowns
+  if(typeof refreshAllVehicleDropdowns==='function') setTimeout(refreshAllVehicleDropdowns,100);
   const s=LS.get('ngrd_s');
   if(s){
     const valid=getUsers().find(u=>u.id===s.id&&u.active);
