@@ -2691,6 +2691,15 @@ function renderDashboard(){
     document.getElementById('db-pending-n').textContent=pendingApproval;
     document.getElementById('db-approved-n').textContent=approved;
     document.getElementById('db-value-n').textContent=lkr(totalValue);
+    // Extra stats
+    var awarded2=allHist.filter(function(e){return e.status==='awarded';}).length;
+    var rejected2=allHist.filter(function(e){return e.status==='rejected';}).length;
+    var submitted2=allHist.filter(function(e){return e.status==='submitted';}).length;
+    var draft2=allHist.filter(function(e){return !e.status||e.status==='draft';}).length;
+    var eAward=document.getElementById('db-awarded-n');if(eAward)eAward.textContent=awarded2;
+    var eRej=document.getElementById('db-rejected-n');if(eRej)eRej.textContent=rejected2;
+    var eSub=document.getElementById('db-submitted-n');if(eSub)eSub.textContent=submitted2;
+    var eDraft=document.getElementById('db-draft-n');if(eDraft)eDraft.textContent=draft2;
     var profitEl=document.getElementById('db-profit-n');
     if(profitEl) profitEl.textContent=totalCost>0?lkr(totalProfit):'—';
   }
