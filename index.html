@@ -430,20 +430,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
           <div class="panel-body" style="text-align:center;">
-            <!-- Vehicle Select -->
-            <div id="upload-vehicle-section" style="margin-bottom:16px;padding:12px 16px;background:#f0f5ff;border:2px solid #2060a0;border-radius:6px;text-align:left;">
-              <label style="font-size:12px;font-weight:700;color:#2060a0;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">🚗 Vehicle Select *</label>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <select id="upload-vehicle-select" onchange="syncUploadVehicle(this.value)" style="flex:1;padding:9px 12px;border:2px solid #2060a0;border-radius:4px;font-family:var(--fb);font-size:14px;font-weight:700;background:#fff;outline:none;">
-                  <option value="">— Vehicle Select பண்ணுங்கள் —</option>
-                </select>
-                <div id="vehicle-admin-btns" style="display:none;gap:6px;">
-                  <button onclick="uploadPageAddVehicle()" title="Add Vehicle" style="padding:8px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;">➕</button>
-                  <button onclick="uploadPageEditVehicle()" title="Edit Vehicle" style="padding:8px 12px;background:#2060a0;color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;">✏️</button>
-                  <button id="vehicle-delete-btn" onclick="uploadPageDeleteVehicle()" title="Delete Vehicle" style="padding:8px 12px;background:#B22222;color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;display:none;">🗑️</button>
-                </div>
-              </div>
-            </div>
             <div class="upload-zone" id="drop-zone">
               <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile(this)">
               <div style="font-size:34px;margin-bottom:8px;">📄</div>
@@ -596,14 +582,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:#7A5800;">💡 <b>CSV Format:</b> A=Description, B=PartNo, C=Brand, D=Country, E=Price (Row 1 header)</div>
             <input type="text" id="price-search" placeholder="Search parts..." oninput="renderPriceList()"
               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;margin-bottom:14px;">
-            <div style="display:flex;gap:8px;margin-top:8px;margin-bottom:6px;">
-              <select id="price-vehicle-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;">
-                <option value="">🚗 All Vehicles</option>
-              </select>
-              <select id="price-brand-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;">
-                <option value="">🏷️ All Brands</option>
-              </select>
-            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;"><select id="price-vehicle-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-size:12px;outline:none;"><option value="">🚗 All Vehicles</option></select><select id="price-brand-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-size:12px;outline:none;"><option value="">🏷️ All Brands</option></select></div>
             <div class="tbl-wrap">
               <table>
                 <thead><tr>
@@ -759,9 +738,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       </div>
 
       <!-- ═ USERS ═ -->
-      <div id="page-vehicles" style="display:none;">
-        <div class="panel"><div class="panel-hdr"><span class="panel-hdr-icon">🚗</span><span class="panel-hdr-title">Vehicle Master List</span><div class="panel-hdr-right"><button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add Vehicle</button></div></div>
-        <div class="panel-body"><div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#7A5800;">💡 Vehicle add பண்ணினால் எல்லா dropdowns-லும் automatically வரும்!</div><div id="vehicle-settings-list"></div></div></div></div>
+      <div id="page-vehicles" style="display:none;"><div class="panel"><div class="panel-hdr"><span class="panel-hdr-icon">🚗</span><span class="panel-hdr-title">Vehicle Master List</span><div class="panel-hdr-right" id="vehicle-admin-btns" style="display:none;gap:6px;"><button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add</button></div></div><div class="panel-body"><div id="vehicle-settings-list"></div></div></div></div>
       <div id="page-users" style="display:none;">
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">👥</span><span class="panel-hdr-title">User Management</span></div>
@@ -941,6 +918,13 @@ const SESSION_TIMEOUT=30*60*1000; // 30 minutes
 // ═══════════════════════════════════════════════════
 // STORAGE HELPERS
 // ═══════════════════════════════════════════════════
+function showToast(msg,cls){
+  var t=document.getElementById('toast');
+  if(!t)return;
+  t.textContent=msg;t.className='toast '+cls+' show';
+  setTimeout(function(){if(t)t.className='toast';},3000);
+}
+
 const LS={
   get:(k)=>{try{return JSON.parse(localStorage.getItem(k));}catch{return null;}},
   set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),
@@ -1080,7 +1064,7 @@ function initApp(){
   startSessionTimer();
   showPage('dashboard');
   setTimeout(checkDeadlineAlarms,500);
-  setTimeout(refreshAllVehicleDropdowns,500);
+  if(typeof refreshAllVehicleDropdowns==='function') setTimeout(refreshAllVehicleDropdowns,500);
   if(typeof startAutoSync==='function') startAutoSync();
   setTimeout(autoFixGarbage,800);
   setTimeout(function(){if(typeof initFirebaseSync==='function')initFirebaseSync();},1500);
@@ -1123,7 +1107,7 @@ function closeSidebarMobile(){if(isMobile())closeSidebar();}
 // ── NAVIGATION ──
 const PAGES=['dashboard','new','history','prices','search','analytics','users','vehicles','log','backup'];
 function showPage(pg){
-  if(['analytics','users','vehicles','log','backup'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
+  if(['analytics','users','log','backup'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
   PAGES.forEach(p=>{
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
@@ -1146,14 +1130,6 @@ let pdfB64=null,curItems=[],curStatus='draft';
 
 function handleFile(inp){
   const f=inp.files[0];if(!f)return;
-  // Warn if vehicle not selected
-  var uvSel=document.getElementById('upload-vehicle-select');
-  if(uvSel&&!uvSel.value){
-    uvSel.style.border='2px solid #E8B84B';
-    uvSel.style.boxShadow='0 0 8px rgba(232,184,75,.5)';
-    showToast('⚠️ Vehicle select பண்ணுங்கள்!','t-i');
-    setTimeout(function(){if(uvSel){uvSel.style.border='';uvSel.style.boxShadow='';}},4000);
-  }
   const fn=document.getElementById('upload-fname');
   fn.textContent='[OK] '+f.name;fn.style.display='block';
   document.getElementById('process-btn').classList.add('show');
@@ -1229,7 +1205,7 @@ CRITICAL: Extract ALL items. description=Item Name value, qty=Quantity value.`;
   var raw=data.content[0].text;
   console.log('AI raw (300):', raw.substring(0,300));
   raw=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-  try{var _p=JSON.parse(raw.replace(/^[^{]*/,'').replace(/[^}]*$/,''));console.log('✅ Items found:',_p.items?_p.items.length:0);}catch(_e){}
+  try{var _p=JSON.parse(raw.substring(raw.indexOf('{'),raw.lastIndexOf('}')+1));console.log('✅ Items found:',_p.items?_p.items.length:0);}catch(_e){}
   var s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
   if(s<0||e2<0) throw new Error('No JSON in response');
   return JSON.parse(raw.substring(s,e2+1));
@@ -1257,33 +1233,12 @@ function loadExtractedData(parsed){
     document.getElementById('info-panel').style.display='block';
     setStep(2); return;
   }
-  // Auto-fill from price history for each item
-  var _prices=[];
-  try{_prices=getPrices()||[];}catch(_e){}
-  var _vehicle='';
-  try{_vehicle=(document.getElementById('f-vname')||{value:''}).value||'';}catch(_e){}
-
+  var _prices=[];try{_prices=getPrices()||[];}catch(_e){}
+  var _vehicle='';try{_vehicle=(document.getElementById('f-vname')||{value:''}).value||'';}catch(_e){}
   curItems=parsed.items.map(function(item,i){
-    // Auto-fill from price list
-    var _desc=(item.description||'').trim();
-    var _brs;
-    try{
-      var _matches=typeof findAllPriceMatches==='function'&&_prices&&_prices.length?
-        findAllPriceMatches(_desc,_prices,_vehicle):[];
-      if(_matches&&Array.isArray(_matches)&&_matches.length>0){
-        _brs=_matches.slice(0,3).map(function(m){
-          return {brand:m.brand||'',partNo:m.partNo||'',country:m.country||'Japan',
-            marginPct:0,price:parseFloat(m.price)||0,purchasePrice:parseFloat(m.purchasePrice)||0,totalPrice:0};
-        });
-      }
-    }catch(_ex){console.warn('Price fill error:',_ex.message);}
-    if(!_brs||!_brs.length){
-      _brs=[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}];
-    }
-    return {itemNo:item.itemNo||(i+1),description:_desc||('Item '+(i+1)),
-      qty:parseFloat(item.qty)||1,unit:item.unit||'Number',
-      brand:_brs[0].brand||item.brand||'',unitPrice:_brs[0].price||0,
-      brandRows:_brs};
+    return {itemNo:item.itemNo||(i+1),description:item.description||'',qty:parseFloat(item.qty)||1,
+      unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,
+      brandRows:[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
   });
   renderItems(curItems);setStep(3);
   if(st) st.className='ai-status success';
@@ -1473,11 +1428,8 @@ function sendWAClosingAlert(entry){
   window.open('https://wa.me/'+ADMIN_WA+'?text='+msg,'_blank');
 }
 
-var _syncRunning=false;
 function initFirebaseSync(){
-  if(!FB_READY||_syncRunning) return;
-  _syncRunning=true;
-  setTimeout(function(){_syncRunning=false;},5000);
+  if(!FB_READY) return;
   var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
   fbRead('history',function(data){
     try{
@@ -1485,24 +1437,6 @@ function initFirebaseSync(){
       if(!data||typeof data!=='object'){if(local.length>0)fbWrite('history',local);return;}
       var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       if(!remote.length){if(local.length>0)fbWrite('history',local);return;}
-      var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
-      var newItems=remote.filter(function(r){return r&&r.id&&localIds.indexOf(String(r.id))<0;});
-      var statusUpgrades=remote.filter(function(r){
-        if(!r||!r.id)return false;
-        var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-        if(!lo)return false;
-        return (statusOrder[r.status]||0)>(statusOrder[lo.status]||0);
-      });
-      if(newItems.length===0&&statusUpgrades.length===0){
-        var localBehind=remote.some(function(r){
-          if(!r||!r.id)return false;
-          var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-          if(!lo)return false;
-          return (statusOrder[r.status]||0)>(statusOrder[lo.status]||0);
-        });
-        if(!localBehind&&local.length>0)fbWrite('history',local);
-        return;
-      }
       var allIds={};
       local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
       remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
@@ -1530,15 +1464,13 @@ function initFirebaseSync(){
       if(h&&h.length>0)fbWrite('history',h);
       if(p&&p.length>0)fbWrite('prices',p);
       if(u&&u.length>0)fbWrite('users',u);
-      el.textContent='⬆️ Pushed!';
-      showToast('✅ Firebase push! Staff-க்கு 30sec-ல் வரும்','t-s');
-      setTimeout(function(){el.textContent='🟢 Synced';},3000);
+      el.textContent='⬆️ Pushed!';el.style.background='#C9952A';
+      setTimeout(function(){el.textContent='🟢 Synced';el.style.background='#1A6B3C';},3000);
     };
     document.body.appendChild(el);
   }
   el.textContent='🟢 Synced';
 }
-
 function doAssign(id){var sel=document.getElementById('assign-sel-'+id);if(sel)assignQuot(id,sel.value);}
 function assignQuot(id,toUsername){
   if(!toUsername){showToast('Staff select pannungal!','t-e');return;}
@@ -1548,10 +1480,9 @@ function assignQuot(id,toUsername){
   setHist(h);showToast('Assigned!','t-s');
   if(typeof renderDashboard==='function')renderDashboard();
 }
-
 function startAutoSync(){
   setInterval(function(){
-    if(!FB_READY||!CU||_syncRunning)return;
+    if(!FB_READY||!CU)return;
     fbRead('history',function(data){
       try{
         if(!data||typeof data!=='object')return;
@@ -1567,34 +1498,28 @@ function startAutoSync(){
           if(!lo)return false;
           return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
         });
+        var localHasLower=remote.some(function(r){
+          if(!r||!r.id)return false;
+          var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
+          if(!lo)return false;
+          return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
+        });
         if(!hasNew&&!hasUpgrade){
-          var localHasLower=remote.some(function(r){
-            if(!r||!r.id)return false;
-            var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});
-            if(!lo)return false;
-            return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);
-          });
           if(localHasLower){
             var merged2=[];
-            local.forEach(function(lo){
-              var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});
-              if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0)){merged2.push(re2);}
-              else{merged2.push(lo);}
-            });
-            remote.forEach(function(re2){
-              if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);})){merged2.push(re2);}
-            });
+            local.forEach(function(lo){var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});
+              if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0))merged2.push(re2);else merged2.push(lo);});
+            remote.forEach(function(re2){if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);}))merged2.push(re2);});
             merged2=merged2.filter(function(x){return x&&typeof x==='object';});
             localStorage.setItem('ngrd_hist',JSON.stringify(merged2));
-            updatePendingBadge();
-            if(typeof renderDashboard==='function')renderDashboard();
-          }else if(local.length>0){fbWrite('history',local);}
+            updatePendingBadge();if(typeof renderDashboard==='function')renderDashboard();
+          }else if(local.length>0)fbWrite('history',local);
           return;
         }
         var allIds={};
         local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
         remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
-        var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
+        var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
         var merged=[];
         Object.keys(allIds).forEach(function(id){
           var lo=local.find(function(x){return x&&String(x.id)===id;});
@@ -1611,19 +1536,17 @@ function startAutoSync(){
       }catch(e){}
     });
   },30000);
+}
 
 async function processFile(){
   if(!pdfB64){showToast('PDF select pannungal!','t-e');return;}
-  // Vehicle mandatory check
   var uvSel=document.getElementById('upload-vehicle-select');
   var selVeh=uvSel?uvSel.value:'';
   if(!selVeh){
     showToast('⚠️ Vehicle select பண்ணுங்கள்!','t-e');
-    if(uvSel) uvSel.style.border='2px solid #B22222';
-    setTimeout(function(){if(uvSel)uvSel.style.border='';},3000);
+    if(uvSel){uvSel.style.border='2px solid #B22222';setTimeout(function(){uvSel.style.border='';},3000);}
     return;
   }
-  // Auto-fill vehicle name in form
   var fv=document.getElementById('f-vname');
   if(fv&&!fv.value) fv.value=selVeh;
   setStep(2);
@@ -1635,10 +1558,7 @@ async function processFile(){
   try{
     var AKEY=getAPIKey();
     if(!AKEY){
-      promptAPIKey(function(k){
-        localStorage.setItem('ngrd_akey',k);
-        processFile();
-      });
+      promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);processFile();});
       document.getElementById('process-btn').disabled=false;
       return;
     }
@@ -1670,10 +1590,7 @@ async function processFile(){
       try{
         var batchResult=await extractBatch(AKEY,pdfB64,fromPage,toPage,batchNum,totalBatches);
         if(batchNum===1)firstBatchData=batchResult;
-        if(batchResult&&batchResult.items)if(Array.isArray(batchResult.items)&&batchResult.items.length>0){
-            var newItems2=batchResult.items.filter(function(ni){return ni&&ni.itemNo&&!allItems.find(function(ai){return ai.itemNo===ni.itemNo;});});
-            allItems=allItems.concat(newItems2.length>0?newItems2:batchResult.items);
-          }
+        if(batchResult&&batchResult.items)if(Array.isArray(batchResult.items)&&batchResult.items.length>0){var newItems2=batchResult.items.filter(function(ni){return ni&&ni.itemNo&&!allItems.find(function(ai){return ai.itemNo===ni.itemNo;});});allItems=allItems.concat(newItems2.length>0?newItems2:batchResult.items);}
       }catch(batchErr){console.warn('Batch '+batchNum+' failed:',batchErr.message);}
       if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1000);});
     }
@@ -1872,7 +1789,6 @@ function renderItems(items){
     var bg=idx%2===0?'#f7fafd':'#fff';
     var reqBrand=item.brand||'';
 
-    if(reqBrand&&item.brandRows[0]&&!item.brandRows[0].brand){item.brandRows[0].brand=reqBrand;}
     if(!item.brandRows||!Array.isArray(item.brandRows)) return;
     item.brandRows.forEach(function(br,bi){
       var tr=document.createElement('tr');tr.style.background=bg;
@@ -1935,7 +1851,7 @@ function renderItems(items){
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
 
-var PART_SYNONYMS=[['lower arm','lower control arm','arm lower'],['shock absorber','shock','damper','strut'],['ball joint','ball joint assy','balljoint'],['tie rod','tie rod end','track rod'],['brake pad','brake pads','disc pad'],['oil filter','engine oil filter','lube filter'],['air filter','air cleaner element'],['fuel filter','petrol filter'],['water pump','coolant pump'],['timing belt','cam belt'],['clutch','clutch plate','clutch disc'],['bush','bushing','rubber bush'],['wheel bearing','hub bearing'],['cv joint','cv axle'],['brake disc','brake rotor']];
+var PART_SYNONYMS=[['lower arm','lower control arm'],['shock absorber','shock','damper','strut'],['ball joint','balljoint'],['tie rod','tie rod end'],['brake pad','disc pad'],['oil filter','lube filter'],['air filter','air cleaner'],['fuel filter'],['water pump','coolant pump'],['timing belt','cam belt'],['clutch','clutch plate'],['bush','bushing'],['wheel bearing','hub bearing'],['cv joint','cv axle'],['brake disc','brake rotor']];
 function findAllPriceMatches(desc,prices,vehicle){
   if(!desc||!prices||!prices.length) return [];
 
@@ -2383,17 +2299,9 @@ function renderPriceList(){
   const q=(document.getElementById('price-search')?.value||'').toLowerCase();
   const vf_price=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();
   const bf_price=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();
-  // Populate dropdowns
-  var pvSel=document.getElementById('price-vehicle-filter');
-  if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}
-  var pbSel=document.getElementById('price-brand-filter');
-  if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}
-  const filtered=prices.filter(function(p){
-    var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);
-    var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;
-    var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;
-    return tMatch&&pvMatch&&pbMatch;
-  });
+  var pvSel=document.getElementById('price-vehicle-filter');if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}
+  var pbSel=document.getElementById('price-brand-filter');if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}
+  const filtered=prices.filter(function(p){var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;return tMatch&&pvMatch&&pbMatch;});
   const tbody=document.getElementById('price-list-tbody');
   const empty=document.getElementById('price-list-empty');
   if(!filtered.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
@@ -3341,28 +3249,17 @@ function getAPIKey(){
   return localStorage.getItem('ngrd_akey')||'';
 }
 function promptAPIKey(callback){
-  var existing=document.getElementById('api-key-modal');
-  if(existing) existing.remove();
-  var modal=document.createElement('div');
-  modal.id='api-key-modal';
+  var existing=document.getElementById('api-key-modal');if(existing)existing.remove();
+  var modal=document.createElement('div');modal.id='api-key-modal';
   modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
-  modal.innerHTML='<div style="background:#fff;border-radius:8px;padding:24px;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.3);">'+
-    '<div style="font-size:16px;font-weight:700;color:#0D1B2A;margin-bottom:6px;">🔑 Anthropic API Key</div>'+
-    '<div style="font-size:12px;color:#666;margin-bottom:14px;">ஒரே ஒரு முறை மட்டும் கேட்கும். console.anthropic.com-ல் இருந்து copy பண்ணுங்கள்.</div>'+
-    '<input id="api-key-input" type="password" placeholder="sk-ant-..." style="width:100%;padding:10px;border:2px solid #C8D4E0;border-radius:4px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box;">'+
-    '<div style="display:flex;gap:8px;margin-top:12px;">'+
-    '<button id="api-key-save" style="flex:1;padding:10px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:14px;cursor:pointer;">✅ Save & Extract</button>'+
-    '<button id="api-key-cancel" style="padding:10px 16px;background:#eee;border:none;border-radius:4px;font-size:14px;cursor:pointer;">✕</button>'+
-    '</div></div>';
+  modal.innerHTML='<div style="background:#fff;border-radius:8px;padding:24px;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.3);"><div style="font-size:16px;font-weight:700;color:#0D1B2A;margin-bottom:6px;">🔑 Anthropic API Key</div><div style="font-size:12px;color:#666;margin-bottom:14px;">console.anthropic.com → API Keys → Copy</div><input id="api-key-input" type="password" placeholder="sk-ant-..." style="width:100%;padding:10px;border:2px solid #C8D4E0;border-radius:4px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box;"><div style="display:flex;gap:8px;margin-top:12px;"><button id="api-key-save" style="flex:1;padding:10px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:14px;cursor:pointer;">✅ Save & Extract</button><button id="api-key-cancel" style="padding:10px 16px;background:#eee;border:none;border-radius:4px;font-size:14px;cursor:pointer;">✕</button></div></div>';
   document.body.appendChild(modal);
   var inp=document.getElementById('api-key-input');
   setTimeout(function(){if(inp)inp.focus();},100);
   document.getElementById('api-key-save').onclick=function(){
     var k=(inp.value||'').trim();
     if(!k||k.length<20){inp.style.border='2px solid #B22222';showToast('Valid API Key போடுங்கள்!','t-e');return;}
-    localStorage.setItem('ngrd_akey',k);
-    modal.remove();
-    if(callback) callback(k);
+    localStorage.setItem('ngrd_akey',k);modal.remove();if(callback)callback(k);
   };
   document.getElementById('api-key-cancel').onclick=function(){modal.remove();document.getElementById('process-btn').disabled=false;};
   inp.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('api-key-save').click();});
@@ -3490,11 +3387,10 @@ function loadSX4(){
 // ══════════════════════════════════════════════════
 
 function initPartsSearch(){
-  // Populate vehicle dropdown from master list
+  // Populate vehicle dropdown
   var sel=document.getElementById('ps-vehicle');
   if(sel&&sel.options.length<=1){
-    var vList=typeof getVehicleMaster==='function'?getVehicleMaster():VEHICLES;
-    vList.forEach(function(v){
+    VEHICLES.forEach(function(v){
       if(v==='All Vehicles')return;
       var o=document.createElement('option');
       o.value=v;o.textContent=v;sel.appendChild(o);
@@ -4028,44 +3924,21 @@ function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;c
 // ══════════════════════════════════════════════════
 // RESET & TOAST
 // ══════════════════════════════════════════════════
-function getVehicleMaster(){
-  var saved=localStorage.getItem('ngrd_vehicles');
-  if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0)return v;}catch(e){}}
-  return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab','Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van','Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab','Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166','Toyota Cab LN106','Toyota Cab LN107','TATA LPT 1109 TRUCK','TATA WINGER VAN','Mahindra Bolero (SC TURBO)','TATA 1313 TRUCK','TOYOTA HIACE VAN','TOYOTA HILUX 1KZ CAB','SCORPIO JEEP'];
-}
+function getVehicleMaster(){var saved=localStorage.getItem('ngrd_vehicles');if(saved){try{var v=JSON.parse(saved);if(v&&v.length>0)return v;}catch(e){}}return ['Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab','Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van','Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab','Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166','Toyota Cab LN106','Toyota Cab LN107','TATA LPT 1109 TRUCK','TATA WINGER VAN','Mahindra Bolero (SC TURBO)','TATA 1313 TRUCK','TOYOTA HIACE VAN','TOYOTA HILUX 1KZ CAB','SCORPIO JEEP'];}
 function saveVehicleMaster(v){localStorage.setItem('ngrd_vehicles',JSON.stringify(v));if(typeof fbWrite==='function')fbWrite('vehicles',v);if(typeof refreshAllVehicleDropdowns==='function')refreshAllVehicleDropdowns();}
 function addVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var name=prompt('Vehicle name:','');if(!name||!name.trim())return;name=name.trim();var v=getVehicleMaster();if(v.includes(name)){showToast('Already exists!','t-e');return;}v.push(name);saveVehicleMaster(v);renderVehicleSettings();showToast('✅ '+name+' added!','t-s');}
 function deleteVehicle(name){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}if(!confirm('Delete: '+name+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==name;}));renderVehicleSettings();showToast('Deleted!','t-i');}
 function renderVehicleSettings(){var el=document.getElementById('vehicle-settings-list');if(!el)return;var v=getVehicleMaster();if(!v.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles!</div>';return;}el.innerHTML=v.map(function(x,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'"><span style="font-size:13px;font-weight:600;">🚗 '+x+'</span><button onclick="deleteVehicle('+JSON.stringify(x)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️</button></div>';}).join('');}
 function syncUploadVehicle(val){var fv=document.getElementById('f-vname');if(fv)fv.value=val;}
-function refreshAllVehicleDropdowns(){
-  // Show admin buttons only for admin
-  var adminBtns=document.getElementById('vehicle-admin-btns');
-  if(adminBtns) adminBtns.style.display=(CU&&CU.role==='admin')?'flex':'none';
-  var v=getVehicleMaster();
-  var opts=v.map(function(x){return '<option value="'+x+'">'+x+'</option>';}).join('');
-  // Update upload vehicle select
-  var uv=document.getElementById('upload-vehicle-select');
-  if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}
-  // Update f-vname select
-  var fv=document.getElementById('f-vname');
-  if(fv&&fv.tagName==='SELECT'){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}
-  // Show/hide delete button based on role
-  var isAdmin=CU&&CU.role==='admin';
-  var delBtn=document.getElementById('vehicle-delete-btn');
-  if(delBtn) delBtn.style.display=isAdmin?'block':'none';
-  // Show admin buttons to all (add+edit for everyone, delete only admin)
-  var adminBtns=document.getElementById('vehicle-admin-btns');
-  if(adminBtns) adminBtns.style.display='flex';
-}
-
+function refreshAllVehicleDropdowns(){var adminBtns=document.getElementById('vehicle-admin-btns');if(adminBtns)adminBtns.style.display=(CU&&CU.role==='admin')?'flex':'none';var v=getVehicleMaster();var opts=v.map(function(x){return '<option value="'+x+'">'+x+'</option>';}).join('');var uv=document.getElementById('upload-vehicle-select');if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}var fv=document.getElementById('f-vname');if(fv&&fv.tagName==='SELECT'){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}}
 function uploadPageAddVehicle(){var name=prompt('Vehicle:','');if(!name||!name.trim())return;name=name.trim();var v=getVehicleMaster();if(v.indexOf(name)>=0){alert('Already exists!');return;}v.push(name);saveVehicleMaster(v);var sel=document.getElementById('upload-vehicle-select');if(sel){sel.value=name;syncUploadVehicle(name);}showToast('✅ '+name+' added!','t-s');}
 function uploadPageEditVehicle(){var sel=document.getElementById('upload-vehicle-select');var cur=sel?sel.value:'';if(!cur){showToast('Select vehicle!','t-e');return;}var n=prompt('New name:',cur);if(!n||!n.trim()||n===cur)return;var v=getVehicleMaster();var i=v.indexOf(cur);if(i>=0){v[i]=n.trim();saveVehicleMaster(v);refreshAllVehicleDropdowns();}showToast('✅ Updated!','t-s');}
 function uploadPageDeleteVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var sel=document.getElementById('upload-vehicle-select');var cur=sel?sel.value:'';if(!cur){showToast('Select vehicle!','t-e');return;}if(!confirm('Delete '+cur+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==cur;}));refreshAllVehicleDropdowns();showToast('Deleted!','t-i');}
-function populateStaffSelect(){var sel=document.getElementById('staff-perf-select');if(!sel)return;var users=getUsers().filter(function(u){return u.active;});var h=getHist();var owners={};users.forEach(function(u){owners[u.username]=u.name;});h.forEach(function(e){if(e.owner&&e.owner!=='__all__'&&!owners[e.owner])owners[e.owner]=e.owner;});sel.innerHTML='<option value="">— Staff Select —</option>';Object.keys(owners).forEach(function(uname){var opt=document.createElement('option');opt.value=uname;opt.textContent=owners[uname];sel.appendChild(opt);});}
-function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname};var uploads=myH.length;var pending=myH.filter(function(e){return e.status==='pending';}).length;var approved=myH.filter(function(e){return e.status==='approved';}).length;var submitted=myH.filter(function(e){return e.status==='submitted';}).length;var awarded=myH.filter(function(e){return e.status==='awarded';}).length;var rejected=myH.filter(function(e){return e.status==='rejected';}).length;var html2='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.6);">@'+uname+'</div></div><div style="text-align:right;"><div style="font-size:11px;color:rgba(255,255,255,.6);">Total</div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+uploads+'</div></div></div>';var stats=[['📝','Draft',myH.filter(function(e){return !e.status||e.status==='draft';}).length,'#888'],['⏳','Pending',pending,'#E8B84B'],['✅','Approved',approved,'#1A6B3C'],['📤','Submitted',submitted,'#2060a0'],['🏆','Awarded',awarded,'#C9952A'],['❌','Rejected',rejected,'#B22222']];html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';myH.slice(0,10).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
-function autoFillRow(idx,bi){var item=curItems[idx];if(!item)return;var prices=getPrices();var matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(item.description,prices):[];if(!matches.length)return;var best=matches[0];var bEl=document.getElementById('br-b-'+idx+'-'+bi);var pEl=document.getElementById('br-p-'+idx+'-'+bi);var puEl=document.getElementById('br-pu-'+idx+'-'+bi);var cEl=document.getElementById('br-c-'+idx+'-'+bi);if(bEl&&!bEl.value&&best.brand)bEl.value=best.brand;if(pEl&&!pEl.value&&best.partNo)pEl.value=best.partNo;if(cEl&&!cEl.value&&best.country)cEl.value=best.country;if(puEl&&!puEl.value&&best.purchasePrice>0){puEl.value=best.purchasePrice;puEl.style.background='#fffde7';}syncRow(idx,bi);}
+function populateStaffSelect(){var sel=document.getElementById('staff-perf-select');if(!sel)return;var users=getUsers().filter(function(u){return u.active;});var owners={};users.forEach(function(u){owners[u.username]=u.name;});getHist().forEach(function(e){if(e.owner&&e.owner!=='__all__'&&!owners[e.owner])owners[e.owner]=e.owner;});sel.innerHTML='<option value="">— Staff Select —</option>';Object.keys(owners).forEach(function(uname){var opt=document.createElement('option');opt.value=uname;opt.textContent=owners[uname];sel.appendChild(opt);});}
+function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname};var stats=[['📝','Draft',myH.filter(function(e){return !e.status||e.status==='draft';}).length,'#888'],['⏳','Pending',myH.filter(function(e){return e.status==='pending';}).length,'#E8B84B'],['✅','Approved',myH.filter(function(e){return e.status==='approved';}).length,'#1A6B3C'],['📤','Submitted',myH.filter(function(e){return e.status==='submitted';}).length,'#2060a0'],['🏆','Awarded',myH.filter(function(e){return e.status==='awarded';}).length,'#C9952A'],['❌','Rejected',myH.filter(function(e){return e.status==='rejected';}).length,'#B22222']];var html2='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div></div><div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+myH.length+'</div></div></div>';html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';myH.slice(0,10).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
+function autoFillRow(idx,bi){var item=curItems[idx];if(!item)return;var prices=getPrices();var matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(item.description,prices):[];if(!matches||!matches.length)return;var best=matches[0];var bEl=document.getElementById('br-b-'+idx+'-'+bi);var pEl=document.getElementById('br-p-'+idx+'-'+bi);var puEl=document.getElementById('br-pu-'+idx+'-'+bi);var cEl=document.getElementById('br-c-'+idx+'-'+bi);if(bEl&&!bEl.value&&best.brand)bEl.value=best.brand;if(pEl&&!pEl.value&&best.partNo)pEl.value=best.partNo;if(cEl&&!cEl.value&&best.country)cEl.value=best.country;if(puEl&&!puEl.value&&best.purchasePrice>0){puEl.value=best.purchasePrice;puEl.style.background='#fffde7';}syncRow(idx,bi);}
 function sendWAClosingAlert(entry){if(!entry)return;var msg='⚠️ *NGRD Motors*%0A🚗 '+(entry.vehicle||'')+'%0A📋 '+(entry.eqNo||entry.refNo||'')+'%0A📅 '+(entry.closingDate||'')+'%0AStatus: '+(entry.status||'')+'%0A🔗 ngrd-motors.vercel.app';window.open('https://wa.me/94765234296?text='+msg,'_blank');}
+function resetAll(){
 function resetAll(){window.curEditId=null;
   pdfB64=null;curItems=[];curStatus='draft';
   ['pdf-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -4079,11 +3952,6 @@ function resetAll(){window.curEditId=null;
   const qs=document.getElementById('quot-status');if(qs)qs.value='draft';
 }
 
-function showToast(msg,cls){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast '+cls+' show';
-  setTimeout(()=>t.className='toast',3000);
-}
 
 // ══════════════════════════════════════════════════
 // SESSION CHECK & INIT
@@ -4128,16 +3996,7 @@ function onFbFail(){
   if(_fbRetry<=8){if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}setTimeout(initFirebase,3000);}
   else{if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}}
 }
-var _lastFbHash={};
-function fbWrite(key,val){
-  // Prevent writing same data repeatedly (causes freeze)
-  var hash=JSON.stringify(val).length+'_'+String(val&&Array.isArray(val)?val.length:'');
-  if(_lastFbHash[key]===hash) return;
-  _lastFbHash[key]=hash;
-  _fbQueue[key]=val;
-  if(!FB_READY)return;
-  _flushQueue();
-}
+function fbWrite(key,val){_fbQueue[key]=val;if(!FB_READY)return;_flushQueue();}
 function _flushQueue(){
   var keys=Object.keys(_fbQueue);if(!keys.length)return;
   keys.forEach(function(key){
@@ -4145,15 +4004,8 @@ function _flushQueue(){
     var xhr=new XMLHttpRequest();
     xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
     xhr.setRequestHeader('Content-Type','application/json');
-    xhr.timeout=10000;
-    xhr.onerror=function(){FB_READY=false;setTimeout(initFirebase,5000);};
-    xhr.ontimeout=function(){FB_READY=false;setTimeout(initFirebase,5000);};
-    // Limit history to 100 entries to prevent huge payloads
-    var sendVal=val;
-    if(key==='history'&&Array.isArray(val)&&val.length>100){
-      sendVal=val.slice(0,100);
-    }
-    xhr.send(JSON.stringify(sendVal));
+    xhr.onerror=function(){_fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);};
+    xhr.send(JSON.stringify(val));
   });
 }
 function fbRead(key,cb){
