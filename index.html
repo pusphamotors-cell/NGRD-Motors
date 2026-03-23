@@ -3667,7 +3667,7 @@ function previewRestore(inp){
         ${data.prices?`<br><span style="color:var(--steel);">💰 ${data.prices.length} part prices</span>`:''}
       </div>`;
       document.getElementById('restore-preview').style.display='block';
-      const btn=document.getElementById('restore-btn');btn.disabled=toAdd.length===0;btn.style.opacity=toAdd.length===0?'.5':'1';
+      const btn=document.getElementById('restore-btn');btn.disabled=false;btn.style.opacity='1'; // Always enable — users may need restore even if 0 new quotations
     }catch(err){document.getElementById('restore-preview').innerHTML=`<div style="color:var(--red);">❌ ${err.message}</div>`;document.getElementById('restore-preview').style.display='block';}
   };r.readAsText(f);
 }
