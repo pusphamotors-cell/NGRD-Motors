@@ -2656,8 +2656,26 @@ function autoSavePrices(items){
 
 function renderPriceList(){
   const prices=getPrices();
+  // Show/hide columns based on role
+  const canSeePu=getRole().seePurchase;
+  const canEdit=CU&&(CU.role==='admin'||(CU.permissions&&(CU.permissions.includes('admin')||CU.permissions.includes('price'))));
+  document.querySelectorAll('[data-admin-only="purchase"]').forEach(function(el){el.style.display=canSeePu?'':'none';});
+  var _isAdmin=CU&&CU.role==='admin';
+  document.querySelectorAll('[data-admin-only="profit"]').forEach(function(el){el.style.display=_isAdmin?'':'none';});
+  document.querySelectorAll('[data-admin-only="updated"],[data-admin-only="actions"]').forEach(function(el){el.style.display=canEdit?'':'none';});
   const q=(document.getElementById('price-search')?.value||'').toLowerCase();
   const vf_price=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();const bf_price=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();var pvSel=document.getElementById('price-vehicle-filter');if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}var pbSel=document.getElementById('price-brand-filter');if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}const filtered=prices.filter(function(p){var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;return tMatch&&pvMatch&&pbMatch;});
+  // Hide admin-only buttons
+  var addBtn=document.querySelector('[onclick="openAddPrice()"]');
+  if(addBtn) addBtn.style.display=canEdit?'':'none';
+  var expBtn=document.querySelector('[onclick="expCSV()"]');
+  if(expBtn) expBtn.style.display=canEdit?'':'none';
+  var impFile=document.getElementById('imp-file');
+  if(impFile&&impFile.parentElement) impFile.parentElement.style.display=canEdit?'':'none';
+  var extractBtn=document.querySelector('[onclick="extractPricesFromHistory()"]');
+  if(extractBtn) extractBtn.style.display=canEdit?'':'none';
+  var clearBtn=document.querySelector('[onclick="clearPrices()"]');
+  if(clearBtn) clearBtn.style.display=canEdit?'':'none';
   const tbody=document.getElementById('price-list-tbody');
   const empty=document.getElementById('price-list-empty');
   if(!filtered.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
@@ -2670,19 +2688,21 @@ function renderPriceList(){
     const profit=selling-purchase;
     const margin=purchase>0?((profit/purchase)*100).toFixed(1):0;
     const canSeePu=getRole().seePurchase;
+    const canEdit=CU&&(CU.role==='admin'||(CU.permissions&&(CU.permissions.includes('admin')||CU.permissions.includes('price'))));
+    const isAdmin=CU&&CU.role==='admin';
     return `<tr>
       <td style="font-weight:600;font-size:12px;">${p.description||'—'}</td>
       <td style="font-size:10px;color:var(--navy);">${p.vehicle||'<span style="color:var(--muted);">All</span>'}</td>
       <td style="font-family:monospace;font-size:10px;">${p.partNo||'—'}</td>
       <td><span class="brand-badge" style="font-size:10px;">${p.brand||'—'}</span></td>
-      <td style="text-align:right;font-size:11px;color:#c47020;font-weight:700;">${canSeePu?(purchase>0?lkr(purchase):'—'):'🔒'}</td>
+      ${canSeePu?`<td style="text-align:right;font-size:11px;color:#c47020;font-weight:700;">${purchase>0?lkr(purchase):'—'}</td>`:''}
       <td style="text-align:right;font-weight:700;color:var(--navy);font-size:11px;">${lkr(selling)}</td>
-      <td style="text-align:right;font-size:11px;color:${profit>0?'#1A6B3C':'#B22222'};font-weight:700;">${purchase>0?(profit>0?'+':'')+lkr(profit)+' ('+margin+'%)':'—'}</td>
-      <td style="font-size:10px;color:${stale?'#B22222':'var(--muted)'};">${stale?'⚠️ '+daysOld+'d':p.date||'—'}</td>
-      <td style="text-align:center;">
+      ${isAdmin?`<td style="text-align:right;font-size:11px;color:${profit>0?'#1A6B3C':'#B22222'};font-weight:700;">${purchase>0?(profit>0?'+':'')+lkr(profit)+' ('+margin+'%)':'—'}</td>`:''}
+      ${canEdit?`<td style="font-size:10px;color:${stale?'#B22222':'var(--muted)'};">${stale?'⚠️ '+daysOld+'d':p.date||'—'}</td>`:''}
+      ${canEdit?`<td style="text-align:center;">
         <button class="hist-btn" onclick="openEditPrice(${JSON.stringify(p.id)})">✏️</button>
         <button class="hist-btn" onclick="deletePrice(${JSON.stringify(p.id)})" style="color:var(--red);">🗑️</button>
-      </td>
+      </td>`:''}
     </tr>`;
   }).join('');
 }
@@ -3557,7 +3577,10 @@ function renderPendingPanel(title, color, items, subtitle){
     out+='<div style="font-weight:700;font-size:12px;">'+( e.vehicle||'Vehicle')+' — '+(e.eqNo||e.refNo||'—')+'</div>';
     out+='<div style="font-size:10px;color:#666;margin-top:2px;">'+(e.entity||'')+' | '+(e.items?e.items.length:0)+' items'+(days!==null?' | <span style="color:'+(urgent?'#B22222':'#888')+';">'+days+'d left</span>':'')+'</div>';
     out+='</div>';
-    out+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:6px 14px;background:'+color+';color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">Open →</button>';
+    var _isSubmitted=['submitted','approved','awarded'].indexOf(e.status||'')<0;
+    var _btnLabel=_isSubmitted?'Open →':'👁 View';
+    var _btnAct=_isSubmitted?'loadHist('+e.id+');showPage("new")':'openQV('+e.id+')';
+    out+='<button onclick="'+_btnAct+'" style="padding:6px 14px;background:'+color+';color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">'+_btnLabel+'</button>';
     out+='</div>';
   });
   if(items.length>5){
