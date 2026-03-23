@@ -2343,10 +2343,14 @@ function renderAllStaffSummary(){
   var users=getUsers().filter(function(u){return u.active;});var hist=getHist();
   if(!users.length){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff இல்லை</div>';return;}
   var h2='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#0D1B2A;color:#fff;">';
-  ['👤 பெயர்','📄 Total','⏳ Pending','✅ Approved','📤 Submitted','🏆 Awarded','❌ Rejected','💰 Value'].forEach(function(h){h2+='<th style="padding:8px 10px;text-align:center;white-space:nowrap;">'+h+'</th>';});
+  ['👤 பெயர்','📄 Uploads','⏳ Pending','✅ Approved','📤 Submitted','🏆 Awarded','❌ Rejected','💰 Value','📅 Last Upload'].forEach(function(h){h2+='<th style="padding:8px 10px;text-align:center;white-space:nowrap;">'+h+'</th>';});
   h2+='</tr></thead><tbody>';
   users.forEach(function(u,i){
-    var myH=hist.filter(function(e){return e.owner===u.username;});
+    var myH=hist.filter(function(e){
+      return e.owner===u.username || 
+             (!e.owner&&e.savedBy===u.name) ||
+             (e.steps&&e.steps.uploaded&&e.steps.uploaded.by===u.name);
+    });
     var v=myH.reduce(function(s,e){return s+(e.grandTotal||0);},0);
     var bg=i%2===0?'#f7fafd':'#fff';
     h2+='<tr style="background:'+bg+';border-bottom:1px solid #eee;">';
@@ -2358,6 +2362,8 @@ function renderAllStaffSummary(){
     h2+='<td style="padding:8px 10px;text-align:center;color:#C9952A;font-weight:700;">'+myH.filter(function(e){return e.status==='awarded';}).length+'</td>';
     h2+='<td style="padding:8px 10px;text-align:center;color:#B22222;font-weight:700;">'+myH.filter(function(e){return e.status==='rejected';}).length+'</td>';
     h2+='<td style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#1A6B3C;">'+lkr(v)+'</td>';
+    var lastUpload=myH.length>0?myH[0].date||'—':'—';
+    h2+='<td style="padding:8px 10px;text-align:center;font-size:10px;color:var(--muted);">'+lastUpload+'</td>';
     h2+='</tr>';
   });
   h2+='</tbody></table></div>';
@@ -2392,10 +2398,10 @@ function renderAnalytics(){
   var vMap={};h.forEach(function(e){var v=e.vehicle||'Unknown';vMap[v]=(vMap[v]||0)+1;});
   var maxV=Math.max.apply(null,Object.values(vMap).concat([1]));
   document.getElementById('chart-vehicle').innerHTML='<div class="chart-bar-wrap">'+Object.entries(vMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8).map(function(kv){return '<div class="chart-row"><div class="chart-label" title="'+kv[0]+'">'+kv[0]+'</div><div class="chart-bar-bg"><div class="chart-bar" style="width:'+(kv[1]/maxV*100).toFixed(1)+'%"></div></div><div class="chart-val">'+kv[1]+'</div></div>';}).join('')+'</div>';
-  var wl={awarded:0,rejected:0,submitted:0,draft:0,pending:0};h.forEach(function(e){wl[e.status||'draft']=(wl[e.status||'draft']||0)+1;});
+  var wl={awarded:0,rejected:0,submitted:0,draft:0,pending:0,approved:0,assigned:0};h.forEach(function(e){wl[e.status||'draft']=(wl[e.status||'draft']||0)+1;});
   var maxWL=Math.max.apply(null,Object.values(wl).concat([1]));
-  var wlL={awarded:'✅ Awarded',rejected:'❌ Rejected',submitted:'📤 Submitted',draft:'📝 Draft',pending:'⏳ Pending'};
-  document.getElementById('chart-winloss').innerHTML='<div class="chart-bar-wrap">'+Object.entries(wl).filter(function(kv){return kv[1]>0;}).map(function(kv){return '<div class="chart-row"><div class="chart-label">'+wlL[kv[0]]+'</div><div class="chart-bar-bg"><div class="chart-bar '+(kv[0]==='awarded'?'win':kv[0]==='rejected'?'loss':'')+'" style="width:'+(kv[1]/maxWL*100).toFixed(1)+'%"></div></div><div class="chart-val">'+kv[1]+'</div></div>';}).join('')+'</div>';
+  var wlL={awarded:'✅ Awarded',rejected:'❌ Rejected',submitted:'📤 Submitted',draft:'📝 Draft',pending:'⏳ Pending',approved:'✅ Approved',assigned:'📋 Assigned'};
+  document.getElementById('chart-winloss').innerHTML='<div class="chart-bar-wrap">'+Object.entries(wl).filter(function(kv){return kv[1]>0&&wlL[kv[0]];}).map(function(kv){return '<div class="chart-row"><div class="chart-label">'+wlL[kv[0]]+'</div><div class="chart-bar-bg"><div class="chart-bar '+(kv[0]==='awarded'?'win':kv[0]==='rejected'?'loss':'')+'" style="width:'+(kv[1]/maxWL*100).toFixed(1)+'%"></div></div><div class="chart-val">'+kv[1]+'</div></div>';}).join('')+'</div>';
   var mMap={};h.forEach(function(e){var d=new Date(e.id);if(isNaN(d))return;var key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');mMap[key]=(mMap[key]||0)+1;});
   var months=Object.keys(mMap).sort().slice(-6);var maxM=Math.max.apply(null,months.map(function(m){return mMap[m];}).concat([1]));
   document.getElementById('chart-monthly').innerHTML=months.length?'<div class="chart-bar-wrap">'+months.map(function(m){return '<div class="chart-row"><div class="chart-label">'+m+'</div><div class="chart-bar-bg"><div class="chart-bar" style="width:'+(mMap[m]/maxM*100).toFixed(1)+'%"></div></div><div class="chart-val">'+mMap[m]+'</div></div>';}).join('')+'</div>':'<div style="text-align:center;padding:20px;color:var(--muted);">Data இல்லை</div>';
