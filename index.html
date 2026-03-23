@@ -551,6 +551,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               </div>
               <div class="action-div"></div>
               <button class="btn btn-green" id="save-btn" onclick="saveToHistory()">💾 Save</button>
+              <button class="btn btn-navy" id="submit-btn" onclick="submitToPromise()" style="background:#2060a0;">📤 Submit to Promise.lk</button>
               <button class="btn btn-outline" onclick="resetAll()">🔄 New</button>
             </div>
           </div>
@@ -2029,6 +2030,21 @@ function lkr(n){return 'LKR '+n.toLocaleString('en-LK',{minimumFractionDigits:2,
 // ══════════════════════════════════════════════════
 // HISTORY
 // ══════════════════════════════════════════════════
+function submitToPromise(){
+  // Save with submitted status
+  if(!curItems.length){showToast('Nothing to save','t-e');return;}
+  var hasPrices=curItems.some(function(item){
+    return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
+  });
+  if(!hasPrices){showToast('⚠️ Prices enter பண்ணிட்டு Submit பண்ணுங்கள்!','t-e');return;}
+  if(!confirm('Promise.lk-ல் Submit பண்ணிவிட்டீர்களா? Submit ஆனதும் Staff edit பண்ண முடியாது!')) return;
+  curStatus='submitted';
+  var qsEl=document.getElementById('quot-status');
+  if(qsEl) qsEl.value='submitted';
+  saveToHistory();
+  showToast('📤 Submitted! Admin review பண்ணுவாங்க.','t-s');
+}
+
 function saveToHistory(){
   if(!curItems.length){showToast('Nothing to save','t-e');return;}
   var g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
