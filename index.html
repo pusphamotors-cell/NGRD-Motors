@@ -1257,9 +1257,12 @@ function loadExtractedData(parsed){
       brandRows:[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
   });
   renderItems(curItems);setStep(3);
-  if(st) st.className='ai-status success';
+  if(st){st.style.cssText='';st.className='ai-status success';}
   if(stx) stx.innerHTML='✅ '+curItems.length+' items extracted!';
   document.getElementById('process-btn').disabled=false;
+  document.getElementById('info-panel').style.display='block';
+  document.getElementById('items-panel').style.display='block';
+  showToast('✅ '+curItems.length+' items ready!','t-s');
 }
 
 function importExtractedJSON(){
