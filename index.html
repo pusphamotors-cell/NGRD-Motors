@@ -1010,18 +1010,29 @@ function vehicleLabel(u){const l=getVehicleList(u);return l.includes('All Vehicl
 function doLogin(){
   const u=document.getElementById('l-user').value.trim().toLowerCase();
   const p=document.getElementById('l-pass').value;
-
-  // Try Firebase first — fetch latest users before login check
-  if(typeof FB_READY!=='undefined'&&FB_READY&&typeof fbDb!=='undefined'){
-    fbDb.ref('ngrd/users').once('value').then(function(snap){
-      var val=snap.val();
-      if(val){
-        // Convert Firebase object → array
-        var arr=Array.isArray(val)?val:Object.values(val).filter(function(x){return x&&typeof x==='object';});
-        if(arr.length>0) LS.set('ngrd_users',arr);
-      }
-      _doLoginCheck(u,p);
-    }).catch(function(){
+  // Try Firebase first to get latest users
+  if(typeof FB_READY!=='undefined'&&FB_READY){
+    fbRead('users',function(data){
+      try{
+        if(data&&typeof data==='object'){
+          var remoteUsers=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+          if(remoteUsers.length>0){
+            var localUsers=getUsers();
+            var merged=localUsers.slice();
+            remoteUsers.forEach(function(ru){
+              if(!ru||!ru.id) return;
+              var exists=merged.find(function(lu){return lu.id===ru.id;});
+              if(!exists) merged.push(ru);
+              else {
+                // Update if remote has newer data
+                var li=merged.findIndex(function(lu){return lu.id===ru.id;});
+                if(li>=0) merged[li]=Object.assign({},merged[li],ru);
+              }
+            });
+            localStorage.setItem('ngrd_users',JSON.stringify(merged));
+          }
+        }
+      }catch(e){}
       _doLoginCheck(u,p);
     });
   } else {
@@ -1081,7 +1092,14 @@ function initApp(){
   if(typeof refreshAllVehicleDropdowns==='function') setTimeout(refreshAllVehicleDropdowns,500);
   if(typeof startAutoSync==='function') startAutoSync();
   setTimeout(autoFixGarbage,800);
-  setTimeout(function(){if(typeof initFirebaseSync==='function')initFirebaseSync();},1500);
+  setTimeout(function(){
+    if(typeof initFirebaseSync==='function') initFirebaseSync();
+    // Re-render dashboard after Firebase loads
+    setTimeout(function(){
+      if(typeof renderDashboard==='function') renderDashboard();
+      updatePendingBadge();
+    },2500);
+  },1500);
   setTimeout(migrateOwnerField,3000);
   setTimeout(applyViewOnlyMode,600);
   updatePendingBadge();
@@ -1459,8 +1477,30 @@ function initFirebaseSync(){
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
       fbWrite('history',merged);updatePendingBadge();
       if(typeof renderDashboard==='function')renderDashboard();
+      if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none')renderHistory();
     }catch(e){}
   });
+  // Sync users from Firebase too
+  fbRead('users',function(udata){
+    try{
+      if(!udata||typeof udata!=='object') return;
+      var remoteUsers=Array.isArray(udata)?udata:Object.values(udata).filter(function(x){return x&&typeof x==='object';});
+      if(!remoteUsers.length) return;
+      var localUsers=getUsers();
+      // Merge: keep local admin, add remote users
+      var merged=localUsers.slice();
+      remoteUsers.forEach(function(ru){
+        if(!ru||!ru.id) return;
+        var exists=merged.find(function(lu){return lu.id===ru.id;});
+        if(!exists) merged.push(ru);
+      });
+      if(merged.length>localUsers.length){
+        localStorage.setItem('ngrd_users',JSON.stringify(merged));
+        if(typeof renderUsers==='function') renderUsers();
+      }
+    }catch(e){}
+  });
+
   var el=document.getElementById('fb-badge');
   if(!el){
     el=document.createElement('div');el.id='fb-badge';
@@ -2623,6 +2663,42 @@ function applyViewOnlyMode() {
 // ══════════════════════════════════════════════════
 // DASHBOARD & APPROVAL SYSTEM
 // ══════════════════════════════════════════════════
+
+function parseClosingDate(s){
+  if(!s) return null;
+  try{
+    // Try direct parse
+    var d=new Date(s);
+    if(!isNaN(d)) return d;
+    // Try DD/MM/YYYY
+    var parts=s.split('/');
+    if(parts.length===3){
+      d=new Date(parts[2]+'-'+parts[1].padStart(2,'0')+'-'+parts[0].padStart(2,'0'));
+      if(!isNaN(d)) return d;
+    }
+    // Try DD-MM-YYYY
+    parts=s.split('-');
+    if(parts.length===3&&parts[0].length<=2){
+      d=new Date(parts[2]+'-'+parts[1].padStart(2,'0')+'-'+parts[0].padStart(2,'0'));
+      if(!isNaN(d)) return d;
+    }
+  }catch(e){}
+  return null;
+}
+
+function getDeadlineBadge(closingDate,status){
+  if(!closingDate) return '';
+  if(status==='awarded'||status==='rejected'||status==='approved') return '';
+  var cd=parseClosingDate(closingDate);
+  if(!cd) return '';
+  var today=new Date();today.setHours(0,0,0,0);
+  var days=Math.floor((cd-today)/86400000);
+  if(days<0) return '<span style="background:#B22222;color:#fff;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:700;">CLOSED</span>';
+  if(days===0) return '<span style="background:#B22222;color:#fff;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:700;animation:pulse 1s infinite;">TODAY!</span>';
+  if(days<=3) return '<span style="background:#E8B84B;color:#0D1B2A;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:700;">'+days+'d left</span>';
+  return '<span style="background:#eee;color:#666;padding:2px 6px;border-radius:10px;font-size:10px;">'+days+'d</span>';
+}
+
 function renderDashboard(){
   var allHist=getHist();
   var isAdmin=CU&&CU.role==='admin';
