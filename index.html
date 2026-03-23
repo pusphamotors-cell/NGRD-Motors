@@ -949,7 +949,7 @@ const LS={
 function getUsers(){
   var s=LS.get('ngrd_users');
   if(!s||!Array.isArray(s)||s.length===0){
-    // Try Firebase first before using defaults
+    // Async Firebase fetch - will update on next render
     if(typeof FB_READY!=='undefined'&&FB_READY&&typeof fbRead==='function'){
       fbRead('users',function(data){
         try{
@@ -958,7 +958,6 @@ function getUsers(){
             if(remote.length>0){
               localStorage.setItem('ngrd_users',JSON.stringify(remote));
               if(typeof renderUsers==='function') renderUsers();
-              return;
             }
           }
         }catch(e){}
@@ -973,8 +972,7 @@ function getUsers(){
   }
   return s||getDefaultUsers();
 }
-function saveUsers(u){LS.set('ngrd_users',u);if(typeof fbWrite==='function')fbWrite('users',u);}
-function setUsers(u){saveUsers(u);}
+
 function getHist(){
   var h=LS.get('ngrd_hist');
   if(!h) return [];
@@ -1418,88 +1416,139 @@ function editPriceEntry(id){
   }
 }
 
-function showPriceHistory(idx,bi){
-  var item=curItems[idx];if(!item)return;
-  var desc=item.description||'';
-  var hist=getHist();var matches=[];
+function _applyHistMatch(itemIdx,brandIdx,matchIdx){
+  var popup=document.getElementById('purchase-hist-popup');
+  if(!popup) return;
+  // Get histMatches from popup data
+  var hist=getHist();
+  var desc=(curItems[itemIdx]||{}).description||'';
+  var vehicle=(document.getElementById('f-vname')||{value:''}).value||'';
+  var histMatches=[];
   hist.forEach(function(entry){
     if(!entry.items||!Array.isArray(entry.items))return;
-    var date=entry.date||'',quotRef=entry.eqNo||entry.refNo||'',entity=(entry.entity||'').substring(0,20);
-    if(!entry.items||!Array.isArray(entry.items)) return;
     entry.items.forEach(function(it){
       if(!it.description)return;
-      var a=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
-      var b=desc.toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
-      var aW=a.split(' ').filter(function(w){return w.length>2;});
-      var bW=b.split(' ').filter(function(w){return w.length>2;});
+      var aW=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
+      var bW=desc.toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
       var matched=bW.filter(function(w){return aW.includes(w);}).length;
-      if(bW.length===0||matched/bW.length<0.6)return;
+      if(bW.length===0||matched/bW.length<0.5)return;
       var rows=it.brandRows||[];
-      if(rows.length===0&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
+      if(!rows.length&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
       rows.forEach(function(br){
-        if(!br.brand&&!br.price)return;
-        matches.push({date:date,ref:quotRef,entity:entity,brand:br.brand||'',partNo:br.partNo||'',price:br.price||0,purchasePrice:br.purchasePrice||0,status:entry.status||''});
+        if(br.purchasePrice>0||br.price>0) histMatches.push({brand:br.brand||'',partNo:br.partNo||'',purchasePrice:br.purchasePrice||0});
       });
     });
   });
-  if(matches.length===0){autoFillRow(idx,bi);return;}
-  var brandMap={};
-  if(!matches||!matches.length) return;
-  matches.forEach(function(m){
-    var b=m.brand||'No Brand';
-    if(!brandMap[b]) brandMap[b]={count:0,total:0,lastPurchase:0,partNo:m.partNo};
-    brandMap[b].count++;brandMap[b].total+=m.purchasePrice||0;
-    brandMap[b].lastPurchase=m.purchasePrice||0;
-    if(!brandMap[b].partNo) brandMap[b].partNo=m.partNo;
+  var m=histMatches[matchIdx];
+  if(m) applyPriceHistory(itemIdx,brandIdx,m.brand,m.purchasePrice,m.partNo);
+  if(popup) popup.remove();
+}
+function dismissPHPopup(){var p=document.getElementById('purchase-hist-popup');if(p)p.remove();}
+function showPurchaseHistory(itemIdx,brandIdx){
+  var item=curItems[itemIdx];if(!item)return;
+  var desc=item.description||'';
+  var vehicle=(document.getElementById('f-vname')||{value:''}).value||'';
+  var role=getRole();
+  if(!role.seePurchase) return; // Only price-enter/admin can see purchase prices
+
+  // Collect history matches
+  var hist=getHist();
+  var histMatches=[];
+  hist.forEach(function(entry){
+    if(!entry.items||!Array.isArray(entry.items))return;
+    entry.items.forEach(function(it){
+      if(!it.description)return;
+      var aW=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
+      var bW=desc.toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
+      var matched=bW.filter(function(w){return aW.includes(w);}).length;
+      if(bW.length===0||matched/bW.length<0.5)return;
+      var rows=it.brandRows||[];
+      if(!rows.length&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
+      rows.forEach(function(br){
+        if(br.purchasePrice>0||br.price>0){
+          histMatches.push({date:entry.date||'',ref:entry.eqNo||entry.refNo||'',brand:br.brand||'',partNo:br.partNo||'',purchasePrice:br.purchasePrice||0,sellingPrice:br.price||0,vehicle:entry.vehicle||''});
+        }
+      });
+    });
   });
-  var ex=document.getElementById('price-hist-popup');if(ex)ex.remove();
+
+  // Price list matches
+  var prices=getPrices();
+  var priceMatches=typeof findAllPriceMatches==='function'?findAllPriceMatches(desc,prices,vehicle):[];
+
+  // Build popup
+  var ex=document.getElementById('purchase-hist-popup');if(ex)ex.remove();
   var popup=document.createElement('div');
-  popup.id='price-hist-popup';
-  popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:90vw;max-width:480px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);';
-  var hdr=document.createElement('div');
-  hdr.style.cssText='background:#0D1B2A;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;';
-  hdr.innerHTML='<div><div style="font-weight:700;font-size:13px;">📊 '+desc+'</div><div style="font-size:10px;opacity:.7;">'+matches.length+' records</div></div>';
-  var closeBtn=document.createElement('span');closeBtn.textContent='✕';
-  closeBtn.style.cssText='cursor:pointer;font-size:18px;opacity:.7;';
-  closeBtn.onclick=function(){popup.remove();};
-  hdr.appendChild(closeBtn);popup.appendChild(hdr);
-  var brandDiv=document.createElement('div');brandDiv.style.cssText='padding:12px 16px;border-bottom:2px solid #eee;';
-  var bTitle=document.createElement('div');bTitle.style.cssText='font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;';
-  bTitle.textContent='🏷️ Brands Summary';brandDiv.appendChild(bTitle);
-  Object.keys(brandMap).forEach(function(brand){
-    var bm=brandMap[brand];var avg=bm.count>0?Math.round(bm.total/bm.count):0;
-    var row=document.createElement('div');
-    row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#f7fafd;border-radius:4px;margin-bottom:4px;';
-    var info=document.createElement('div');
-    info.innerHTML='<div style="font-weight:700;font-size:12px;">'+brand+'</div><div style="font-size:10px;color:#666;">'+(bm.partNo||'')+' | '+bm.count+'x | Avg: LKR '+avg.toLocaleString()+'</div>';
-    var useBtn=document.createElement('button');useBtn.textContent='Use ✅';
-    useBtn.style.cssText='padding:5px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;';
-    (function(br,pu,pn){useBtn.onclick=function(){applyPriceHistory(idx,bi,br,pu,pn);popup.remove();};})(brand,bm.lastPurchase,bm.partNo||'');
-    row.appendChild(info);row.appendChild(useBtn);brandDiv.appendChild(row);
-  });
-  popup.appendChild(brandDiv);
-  var recDiv=document.createElement('div');recDiv.style.cssText='padding:12px 16px;';
-  var rTitle=document.createElement('div');rTitle.style.cssText='font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;';
-  rTitle.textContent='📅 Last 5 Quotations';recDiv.appendChild(rTitle);
-  matches.slice(0,5).forEach(function(m){
-    var colors={awarded:'#C9952A',submitted:'#2060a0',approved:'#1A6B3C',rejected:'#B22222'};
-    var c=colors[m.status]||'#888';
-    var rec=document.createElement('div');
-    rec.style.cssText='padding:8px;background:#f9f9f9;border-radius:4px;margin-bottom:6px;border-left:3px solid '+c+';';
-    rec.innerHTML='<div style="display:flex;justify-content:space-between;"><div style="font-size:11px;font-weight:700;">'+m.brand+(m.partNo?' — '+m.partNo:'')+'</div><div style="font-size:11px;color:#1A6B3C;font-weight:700;">LKR '+(m.purchasePrice||0).toLocaleString()+'</div></div><div style="font-size:10px;color:#888;margin-top:2px;">'+m.date+' | '+m.ref+'</div>';
-    recDiv.appendChild(rec);
-  });
-  popup.appendChild(recDiv);document.body.appendChild(popup);
-  setTimeout(function(){document.addEventListener('click',function closePH(e){if(!popup.contains(e.target)){popup.remove();document.removeEventListener('click',closePH);}});},200);
+  popup.id='purchase-hist-popup';
+  popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:92vw;max-width:500px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3);';
+
+  var h2='<div style="background:#0D1B2A;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">';
+  h2+='<div><div style="font-weight:700;font-size:13px;">💰 '+desc+'</div>';
+  h2+='<div style="font-size:10px;opacity:.7;">'+vehicle+'</div></div>';
+  h2+='<span onclick="dismissPHPopup()" style="cursor:pointer;font-size:20px;opacity:.7;padding:0 4px;">✕</span></div>';
+
+  // Price List brands section
+  if(priceMatches.length>0){
+    h2+='<div style="padding:12px 16px;border-bottom:2px solid #eee;">';
+    h2+='<div style="font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;">🏷️ Price Master List</div>';
+    priceMatches.forEach(function(p){
+      h2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#f7fafd;border-radius:4px;margin-bottom:5px;">';
+      h2+='<div><div style="font-weight:700;font-size:12px;">'+p.brand+'</div>';
+      h2+='<div style="font-size:10px;color:#666;">'+(p.partNo||'')+(p.vehicle?' | '+p.vehicle:'')+'</div></div>';
+      h2+='<div style="text-align:right;margin-right:8px;">';
+      h2+='<div style="font-size:11px;color:#c47020;font-weight:700;">Cost: '+lkr(p.purchasePrice||0)+'</div>';
+      h2+='<div style="font-size:11px;color:#1A6B3C;">Sell: '+lkr(p.price||0)+'</div></div>';
+      h2+='<button data-b="'+encodeURIComponent(p.brand||'')+'" data-pu="'+(p.purchasePrice||0)+'" data-pn="'+encodeURIComponent(p.partNo||'')+'" onclick="(function(el){applyPriceHistory('+itemIdx+','+brandIdx+',decodeURIComponent(el.dataset.b),el.dataset.pu,decodeURIComponent(el.dataset.pn))})(this)" style="padding:5px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">Use ✅</button>';
+      h2+='</div>';
+    });
+    h2+='</div>';
+  }
+
+  // Last 5 quotations history
+  var last5=histMatches.slice(0,5);
+  if(last5.length>0){
+    h2+='<div style="padding:12px 16px;">';
+    h2+='<div style="font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;">📅 Last '+last5.length+' Quotations</div>';
+    last5.forEach(function(m){
+      h2+='<div style="padding:8px 10px;background:#f9f9f9;border-radius:4px;margin-bottom:5px;border-left:3px solid #c47020;">';
+      h2+='<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+      h2+='<div><div style="font-size:12px;font-weight:700;">'+m.brand+(m.partNo?' — '+m.partNo:'')+'</div>';
+      h2+='<div style="font-size:10px;color:#888;">'+m.date+' | '+m.ref+'</div></div>';
+      h2+='<div style="text-align:right;">';
+      if(m.purchasePrice>0) h2+='<div style="font-size:11px;color:#c47020;font-weight:700;">Cost: '+lkr(m.purchasePrice)+'</div>';
+      h2+='<div style="font-size:11px;color:#1A6B3C;">Sell: '+lkr(m.sellingPrice)+'</div></div></div>';
+      var _bIdx=histMatches.indexOf(m);
+      h2+='<button onclick="_applyHistMatch('+itemIdx+','+brandIdx+','+_bIdx+')" style="padding:4px 10px;background:#2060a0;color:#fff;border:none;border-radius:3px;font-size:10px;cursor:pointer;margin-top:5px;">Use ✅</button>';
+      h2+='</div>';
+    });
+    h2+='</div>';
+  }
+
+  if(priceMatches.length===0&&last5.length===0){
+    h2+='<div style="text-align:center;padding:24px;color:#888;">⚠️ No price history for this part</div>';
+  }
+
+  popup.innerHTML=h2;
+  document.body.appendChild(popup);
+  setTimeout(function(){
+    document.addEventListener('click',function closePH(e){
+      var p=document.getElementById('purchase-hist-popup');
+      if(p&&!p.contains(e.target)){p.remove();document.removeEventListener('click',closePH);}
+    });
+  },200);
 }
 
-function applyPriceHistory(idx,bi,brand,purchasePrice,partNo){
+function applyPriceHistory(idx,bi,brand,purchasePrice,partNo,country,sellingPrice){
   var brandEl=document.getElementById('br-b-'+idx+'-'+bi);
   var partEl=document.getElementById('br-p-'+idx+'-'+bi);
   var purchEl=document.getElementById('br-pu-'+idx+'-'+bi);
+  var countryEl=document.getElementById('br-c-'+idx+'-'+bi);
+  var priceEl=document.getElementById('br-sp-'+idx+'-'+bi);
   if(brandEl) brandEl.value=brand;
   if(partEl&&partNo) partEl.value=partNo;
+  if(countryEl&&country) countryEl.value=country;
   if(purchEl&&purchasePrice>0){purchEl.value=purchasePrice;purchEl.style.background='#fffde7';}
+  if(priceEl&&sellingPrice>0){priceEl.value=sellingPrice;priceEl.style.background='#f0fff4';}
   syncRow(idx,bi);autoSell(idx,bi);
   var popup=document.getElementById('price-hist-popup');if(popup)popup.remove();
   showToast('✅ '+brand+' applied!','t-s');
@@ -1895,7 +1944,7 @@ function renderItems(items){
 
       // Purchase Price
       if(role.seePurchase){
-        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
+        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onclick="showPurchaseHistory('+idx+','+bi+')" title="Click to see price history" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;cursor:pointer;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
         h+='<td style="padding:3px 4px;background:rgba(42,26,10,.04);">'+puInp+'</td>';
       } else {
         h+='<td style="padding:3px 4px;text-align:center;background:rgba(42,26,10,.04);"><span title="Margin role only">🔒</span></td>';
@@ -2620,12 +2669,13 @@ function renderPriceList(){
     const selling=parseFloat(p.price)||0;
     const profit=selling-purchase;
     const margin=purchase>0?((profit/purchase)*100).toFixed(1):0;
+    const canSeePu=getRole().seePurchase;
     return `<tr>
       <td style="font-weight:600;font-size:12px;">${p.description||'—'}</td>
       <td style="font-size:10px;color:var(--navy);">${p.vehicle||'<span style="color:var(--muted);">All</span>'}</td>
       <td style="font-family:monospace;font-size:10px;">${p.partNo||'—'}</td>
       <td><span class="brand-badge" style="font-size:10px;">${p.brand||'—'}</span></td>
-      <td style="text-align:right;font-size:11px;color:#c47020;font-weight:700;">${purchase>0?lkr(purchase):'—'}</td>
+      <td style="text-align:right;font-size:11px;color:#c47020;font-weight:700;">${canSeePu?(purchase>0?lkr(purchase):'—'):'🔒'}</td>
       <td style="text-align:right;font-weight:700;color:var(--navy);font-size:11px;">${lkr(selling)}</td>
       <td style="text-align:right;font-size:11px;color:${profit>0?'#1A6B3C':'#B22222'};font-weight:700;">${purchase>0?(profit>0?'+':'')+lkr(profit)+' ('+margin+'%)':'—'}</td>
       <td style="font-size:10px;color:${stale?'#B22222':'var(--muted)'};">${stale?'⚠️ '+daysOld+'d':p.date||'—'}</td>
@@ -3805,6 +3855,7 @@ function searchParts(){
       +'<div style="text-align:right;">'
       +'<div style="font-size:16px;font-weight:800;color:'+priceColor+';">'+lkr(p.price||0)+staleBadge+'</div>'
       +(p.date?'<div style="font-size:10px;color:var(--muted);">Updated: '+p.date+'</div>':'')
+      +(getRole().seePurchase&&p.purchasePrice>0?'<div style="font-size:10px;color:#c47020;margin-top:2px;">💰 Cost: '+lkr(p.purchasePrice)+'</div>':'')
       +'</div>'
       +'<button onclick="copyWhatsApp('+JSON.stringify(p.description)+','+JSON.stringify(p.brand||'')+','+JSON.stringify(p.partNo||'')+','+JSON.stringify(p.country||'')+','+(p.price||0)+')" '
       +'style="padding:6px 12px;background:#25D366;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">'
