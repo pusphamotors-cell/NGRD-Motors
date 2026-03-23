@@ -1746,6 +1746,15 @@ function renderItems(items){
   var prices=getPrices();
   var role=getRole();
   var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+  var isAdmin=CU&&CU.role==='admin';
+  // Lock rules:
+  // awarded → everyone locked
+  // submitted/approved → admin can edit, staff locked
+  // draft/pending → everyone can edit
+  var isFullyLocked=curStatus==='awarded';
+  var isLocked=isFullyLocked||((['submitted','approved'].indexOf(curStatus)>=0)&&!isAdmin);
+  // Admin sees edit warning but can still edit submitted/approved
+  var isAdminWarning=isAdmin&&['submitted','approved'].indexOf(curStatus)>=0;
 
   if(!items||!Array.isArray(items)){calcTotals();return;}
   items.forEach(function(item,idx){
@@ -1845,6 +1854,54 @@ function renderItems(items){
     });
   });
   calcTotals();
+  // Lock all inputs if submitted/approved/awarded
+  // Show appropriate banner
+  setTimeout(function(){
+    var lockBanner=document.getElementById('lock-banner');
+    if(!lockBanner){
+      lockBanner=document.createElement('div');lockBanner.id='lock-banner';
+      var itemsPanel=document.getElementById('items-panel');
+      if(itemsPanel)itemsPanel.insertBefore(lockBanner,itemsPanel.firstChild);
+    }
+    if(isFullyLocked){
+      lockBanner.style.cssText='background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#721c24;display:block;';
+      lockBanner.innerHTML='🏆 Awarded — View Only. யாரும் edit பண்ண முடியாது.';
+    } else if(isAdminWarning){
+      lockBanner.style.cssText='background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#856404;display:block;';
+      lockBanner.innerHTML='⚠️ '+curStatus.charAt(0).toUpperCase()+curStatus.slice(1)+' — Admin edit mode. கவனமாக மாற்றுங்கள்!';
+    } else if(isLocked){
+      lockBanner.style.cssText='background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#856404;display:block;';
+      lockBanner.innerHTML='🔒 '+curStatus.charAt(0).toUpperCase()+curStatus.slice(1)+' — View Only. Admin மட்டும் edit பண்ணலாம்.';
+    } else {
+      lockBanner.style.display='none';
+    }
+  },10);
+
+  if(isLocked){
+    setTimeout(function(){
+      var panel=document.getElementById('items-panel');
+      if(panel){
+        panel.querySelectorAll('input,select').forEach(function(el){
+          el.disabled=true;
+          el.style.background='#f0f0f0';
+          el.style.color='#999';
+          el.style.cursor='not-allowed';
+        });
+        panel.querySelectorAll('button').forEach(function(el){
+          var txt=(el.textContent||'').toLowerCase();
+          var keep=txt.includes('pdf')||txt.includes('export')||txt.includes('excel')||txt.includes('👁')||txt.includes('view');
+          if(!keep){el.disabled=true;el.style.opacity='0.35';el.style.cursor='not-allowed';}
+        });
+      }
+      var ids=['save-btn','submit-btn','add-row-btn','reset-btn'];
+      ids.forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+    },50);
+  } else {
+    setTimeout(function(){
+      var ids=['save-btn','submit-btn','add-row-btn','reset-btn'];
+      ids.forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='';});
+    },50);
+  }
 }
 
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
@@ -2383,31 +2440,44 @@ function renderAllStaffSummary(){
   var body=document.getElementById('all-staff-summary');if(!body)return;
   var users=getUsers().filter(function(u){return u.active;});var hist=getHist();
   if(!users.length){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff இல்லை</div>';return;}
-  var h2='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#0D1B2A;color:#fff;">';
+  // Also show savedBy breakdown for unmapped quotations
+  // savedBy breakdown — யாரு upload பண்ணாங்க (e.savedBy===name)
+  var savedByMap={};
+  hist.forEach(function(e){
+    var key=e.savedBy||e.owner||'Unknown';
+    if(!savedByMap[key]) savedByMap[key]={count:0,pending:0,approved:0,submitted:0,awarded:0,rejected:0,value:0,lastDate:''};
+    savedByMap[key].count++;
+    if(e.status==='pending') savedByMap[key].pending++;
+    if(e.status==='approved') savedByMap[key].approved++;
+    if(e.status==='submitted') savedByMap[key].submitted++;
+    if(e.status==='awarded') savedByMap[key].awarded++;
+    if(e.status==='rejected') savedByMap[key].rejected++;
+    savedByMap[key].value+=(e.grandTotal||0);
+    if(e.date&&e.date>savedByMap[key].lastDate) savedByMap[key].lastDate=e.date;
+  });
+  var h2='<div style="overflow-x:auto;">';
+  // Section 1: Uploaded By breakdown (savedBy)
+  h2+='<div style="font-size:11px;font-weight:700;color:#2060a0;padding:8px 12px;background:#f0f4ff;border-radius:4px;margin-bottom:8px;">📊 Uploaded By — யாரு எத்தனை upload பண்ணாங்க</div>';
+  h2+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;"><thead><tr style="background:#0D1B2A;color:#fff;">';
   ['👤 பெயர்','📄 Uploads','⏳ Pending','✅ Approved','📤 Submitted','🏆 Awarded','❌ Rejected','💰 Value','📅 Last Upload'].forEach(function(h){h2+='<th style="padding:8px 10px;text-align:center;white-space:nowrap;">'+h+'</th>';});
   h2+='</tr></thead><tbody>';
-  users.forEach(function(u,i){
-    var myH=hist.filter(function(e){
-      return e.owner===u.username || 
-             (!e.owner&&e.savedBy===u.name) ||
-             (e.steps&&e.steps.uploaded&&e.steps.uploaded.by===u.name);
-    });
-    var v=myH.reduce(function(s,e){return s+(e.grandTotal||0);},0);
+  Object.keys(savedByMap).sort().forEach(function(name,i){
+    var s=savedByMap[name];
     var bg=i%2===0?'#f7fafd':'#fff';
     h2+='<tr style="background:'+bg+';border-bottom:1px solid #eee;">';
-    h2+='<td style="padding:8px 10px;"><div style="font-weight:700;">'+u.name+'</div><div style="font-size:10px;color:var(--muted);">@'+u.username+'</div></td>';
-    h2+='<td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--navy);">'+myH.length+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;color:#E8B84B;font-weight:700;">'+myH.filter(function(e){return e.status==='pending';}).length+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;color:#1A6B3C;font-weight:700;">'+myH.filter(function(e){return e.status==='approved';}).length+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;color:#2060a0;font-weight:700;">'+myH.filter(function(e){return e.status==='submitted';}).length+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;color:#C9952A;font-weight:700;">'+myH.filter(function(e){return e.status==='awarded';}).length+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;color:#B22222;font-weight:700;">'+myH.filter(function(e){return e.status==='rejected';}).length+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#1A6B3C;">'+lkr(v)+'</td>';
-    var lastUpload=myH.length>0?myH[0].date||'—':'—';
-    h2+='<td style="padding:8px 10px;text-align:center;font-size:10px;color:var(--muted);">'+lastUpload+'</td>';
+    h2+='<td style="padding:8px 10px;font-weight:700;">'+name+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--navy);">'+s.count+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#E8B84B;font-weight:700;">'+s.pending+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#1A6B3C;font-weight:700;">'+s.approved+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#2060a0;font-weight:700;">'+s.submitted+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#C9952A;font-weight:700;">'+s.awarded+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#B22222;font-weight:700;">'+s.rejected+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#1A6B3C;">'+lkr(s.value)+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;font-size:10px;color:var(--muted);">'+s.lastDate+'</td>';
     h2+='</tr>';
   });
-  h2+='</tbody></table></div>';
+  h2+='</tbody></table>';
+  h2+='</div>';
   body.innerHTML=h2;
 }
 function renderLoginActivity(){
