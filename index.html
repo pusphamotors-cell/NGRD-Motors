@@ -3678,7 +3678,18 @@ function importBackup(){
   const toAdd=_restoreData.history.filter(e=>!existing.find(x=>x.eqNo===e.eqNo&&x.refNo===e.refNo));
   setHist([...toAdd,...existing]);
   if(_restoreData.prices) setPrices([..._restoreData.prices,...getPrices().filter(p=>!_restoreData.prices.find(x=>x.description===p.description))]);
-  if(_restoreData.users){const eu=getUsers();const nu=_restoreData.users.filter(u=>u.id!==1&&!eu.find(x=>x.username===u.username));if(nu.length)saveUsers([...eu,...nu]);}
+  if(_restoreData.users){
+    const eu=getUsers();
+    // Force merge all users from backup (update existing + add new)
+    const merged=eu.slice();
+    _restoreData.users.forEach(function(bu){
+      if(!bu||!bu.username)return;
+      const idx=merged.findIndex(function(x){return x.username===bu.username||x.id===bu.id;});
+      if(idx<0) merged.push(bu); // new user — add
+      else if(bu.id!==1) merged[idx]=Object.assign({},merged[idx],bu); // existing — update (skip admin)
+    });
+    saveUsers(merged);
+  }
   LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:getHist().length});
   _restoreData=null;document.getElementById('restore-file').value='';
   document.getElementById('restore-preview').style.display='none';
