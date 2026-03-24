@@ -550,6 +550,32 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <button class="btn btn-navy" onclick="downloadArmyPDF()">📄 PDF</button>
               </div>
               <div class="action-div"></div>
+              <!-- Workflow Progress Bar -->
+              <div id="workflow-bar" style="width:100%;margin-bottom:10px;display:none;">
+                <div style="display:flex;align-items:center;gap:0;background:#f0f4f8;border-radius:8px;overflow:hidden;border:1px solid #dde4ee;">
+                  <div id="wf-step-upload" style="flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;background:#1A3A6B;color:#fff;">
+                    ✅ Upload
+                  </div>
+                  <div style="color:#aaa;font-size:16px;">›</div>
+                  <div id="wf-step-price" style="flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;background:#eee;color:#999;">
+                    💰 Price
+                  </div>
+                  <div style="color:#aaa;font-size:16px;">›</div>
+                  <div id="wf-step-approve" style="flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;background:#eee;color:#999;">
+                    ✔️ Approve
+                  </div>
+                  <div style="color:#aaa;font-size:16px;">›</div>
+                  <div id="wf-step-submit" style="flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;background:#eee;color:#999;">
+                    📤 Submit
+                  </div>
+                </div>
+              </div>
+              <!-- Next Step Button -->
+              <div id="next-step-btn-wrap" style="display:none;margin-bottom:6px;">
+                <button id="next-step-btn" onclick="handleNextStep()" style="width:100%;padding:11px;background:linear-gradient(135deg,#1A6B3C,#2a9d5c);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--fb);">
+                  ➡️ Next Step
+                </button>
+              </div>
               <button class="btn btn-green" id="save-btn" onclick="saveToHistory()">💾 Save</button>
               <button class="btn btn-navy" id="submit-btn" onclick="submitToPromise()" style="background:#2060a0;">📤 Submit to Promise.lk</button>
               <button class="btn btn-outline" onclick="resetAll()">🔄 New</button>
@@ -785,6 +811,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <div class="form-field"><label>Username</label><input id="nu-user" placeholder="e.g. staff1"></div>
                 <div class="form-field"><label>Password</label><input id="nu-pass" type="password" placeholder="Min 6 chars"></div>
                 <div class="form-field"><label>Full Name</label><input id="nu-name" placeholder="Display name"></div>
+                <div class="form-field"><label>📱 WhatsApp Number</label><input id="nu-wa" placeholder="e.g. 94771234567" type="tel"></div>
                 <div class="form-field full"><label>Permissions (multiple select)</label>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;border:1px solid var(--border);border-radius:3px;background:var(--light);">
   <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="r-upload"> 📤 PDF Upload</label>
@@ -2102,7 +2129,7 @@ function calcTotals(){
   });
   var ts=document.getElementById('tot-sub');if(ts)ts.textContent=lkr(grand);
   var tg=document.getElementById('tot-grand');if(tg)tg.textContent=lkr(grand);
-  if(grand>0)setStep(4);
+  if(grand>0){setStep(4);setTimeout(updateWorkflowBar,100);}
 }
 
 function lkr(n){return 'LKR '+n.toLocaleString('en-LK',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -2155,6 +2182,7 @@ function saveToHistory(){
       addLog('Updated: '+(eqNo||refNo)+' by '+CU.name);
       showToast('✅ Updated successfully!','t-s');
       updatePendingBadge();
+      setTimeout(updateWorkflowBar,200);
       if(typeof renderDashboard==='function') renderDashboard();
       return;
     }
@@ -2180,6 +2208,7 @@ function saveToHistory(){
   addLog('Saved: '+(eqNo||refNo)+' ('+entry.vehicle+') — '+quotStatus);
   checkAfterSave();
   showToast('Saved to history!','t-s');
+  setTimeout(updateWorkflowBar,200);
   updatePendingBadge();
   if(typeof renderDashboard==='function') renderDashboard();
 }
@@ -2316,6 +2345,7 @@ function renderUsers(){
           Role: ${u.role||'staff'} &nbsp;|&nbsp; 
           Perms: ${(u.permissions||[]).join(', ')||'—'} &nbsp;|&nbsp;
           Vehicles: ${(u.vehicles||[u.vehicle]||['All']).join(', ')||'All'}
+          ${u.whatsapp?'&nbsp;|&nbsp; 📱 '+u.whatsapp:''}
         </div>
         ${u.lastLogin?'<div style="font-size:10px;color:var(--muted);">Last login: '+u.lastLogin+'</div>':''}
       </div>
@@ -2363,6 +2393,7 @@ function loadHist(id){
   document.getElementById('ai-status').className='ai-status success';
   document.getElementById('ai-st').textContent='✅ Loaded from history — '+(e.items?.length||0)+' items — Edit mode 📝';
   setStep(3);showToast('✏️ Edit mode — prices add பண்ணி Save பண்ணுங்கள்','t-i');
+  setTimeout(updateWorkflowBar,300);
 }
 
 function delHist(id){
@@ -2835,6 +2866,7 @@ function addUser(){
   const un=document.getElementById('nu-user').value.trim().toLowerCase();
   const pw=document.getElementById('nu-pass').value;
   const nm=document.getElementById('nu-name').value.trim();
+  const wa=(document.getElementById('nu-wa')||{value:''}).value.trim().replace(/[^0-9]/g,'');
   const vehs=getCheckedVehicles('nu-vehicle-checks');
   // Get permissions from checkboxes
   const perms=['upload','price','submit','export','approve','admin'].filter(function(p){
@@ -2846,9 +2878,9 @@ function addUser(){
   if(perms.length===0){showToast('At least one permission select பண்ணுங்கள்','t-e');return;}
   const users=getUsers();
   if(users.find(u=>u.username===un)){showToast('Username exists','t-e');return;}
-  users.push({id:Date.now(),username:un,password:pw,name:nm,role:rl,permissions:perms,vehicles:vehs,active:true,created:new Date().toLocaleDateString()});
+  users.push({id:Date.now(),username:un,password:pw,name:nm,role:rl,permissions:perms,vehicles:vehs,whatsapp:wa,active:true,created:new Date().toLocaleDateString()});
   saveUsers(users);
-  ['nu-user','nu-pass','nu-name'].forEach(id=>{document.getElementById(id).value='';});
+  ['nu-user','nu-pass','nu-name','nu-wa'].forEach(id=>{var el=document.getElementById(id);if(el)el.value='';});
   ['upload','price','submit','export','approve','admin'].forEach(function(p){var el=document.getElementById('r-'+p);if(el)el.checked=false;});
   renderVehicleChecks('nu-vehicle-checks',['All Vehicles']);
   renderUsers();addLog('User added: '+nm+' ('+perms.join(',')+') — '+vehs.join(', '));
@@ -4336,6 +4368,175 @@ function checkDeadlineAlarms(){
   else banner.className='alarm-banner';
 }
 function dismissAlarm(){if(typeof alarmDismissed!=='undefined')alarmDismissed=true;var b=document.getElementById('alarm-banner');if(b)b.className='alarm-banner';}
+// ══════════════════════════════════════════════════
+// WORKFLOW — Next Step Smart Button
+// ══════════════════════════════════════════════════
+
+function getWorkflowStep(entry){
+  // Returns: 'uploaded' | 'priced' | 'approved' | 'submitted' | 'done'
+  if(!entry) return 'uploaded';
+  var status=entry.status||'draft';
+  if(status==='awarded'||status==='rejected') return 'done';
+  if(status==='submitted') return 'submitted';
+  if(status==='approved') return 'approved';
+  if(entry.steps&&entry.steps.priced) return 'priced';
+  return 'uploaded';
+}
+
+function updateWorkflowBar(){
+  var bar=document.getElementById('workflow-bar');
+  var btnWrap=document.getElementById('next-step-btn-wrap');
+  var btn=document.getElementById('next-step-btn');
+  if(!bar||!btn) return;
+
+  // Only show if we have a quotation loaded (curItems exist)
+  if(!curItems||!curItems.length){
+    bar.style.display='none';
+    btnWrap.style.display='none';
+    return;
+  }
+
+  bar.style.display='block';
+
+  // Find current entry
+  var entry=null;
+  if(window.curEditId){
+    entry=getHist().find(function(e){return e.id===window.curEditId;});
+  }
+
+  var step=getWorkflowStep(entry);
+  var role=getRole();
+  var isAdmin=CU&&CU.role==='admin';
+
+  // Update progress bar colors
+  var steps=['upload','price','approve','submit'];
+  var doneStyle='background:#1A6B3C;color:#fff;';
+  var activeStyle='background:#C9952A;color:#fff;';
+  var pendingStyle='background:#eee;color:#999;';
+
+  var uploadEl=document.getElementById('wf-step-upload');
+  var priceEl=document.getElementById('wf-step-price');
+  var approveEl=document.getElementById('wf-step-approve');
+  var submitEl=document.getElementById('wf-step-submit');
+
+  if(uploadEl) uploadEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+doneStyle;
+
+  if(step==='uploaded'){
+    if(priceEl) priceEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+activeStyle;
+    if(approveEl) approveEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+pendingStyle;
+    if(submitEl) submitEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+pendingStyle;
+  } else if(step==='priced'){
+    if(priceEl) priceEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+doneStyle;
+    if(approveEl) approveEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+activeStyle;
+    if(submitEl) submitEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+pendingStyle;
+  } else if(step==='approved'){
+    if(priceEl) priceEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+doneStyle;
+    if(approveEl) approveEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+doneStyle;
+    if(submitEl) submitEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+activeStyle;
+  } else if(step==='submitted'||step==='done'){
+    if(priceEl) priceEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+doneStyle;
+    if(approveEl) approveEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+doneStyle;
+    if(submitEl) submitEl.style.cssText='flex:1;padding:8px 6px;text-align:center;font-size:11px;font-weight:700;'+doneStyle;
+  }
+
+  // Set Next Step button based on role + current step
+  btnWrap.style.display='block';
+
+  if(step==='uploaded'){
+    // Price not added yet — show "Send to Price Team" for uploader
+    // Or "Add Prices" if user has price permission
+    if(role.canPurchase){
+      btn.textContent='💰 Add Prices & Save →';
+      btn.style.background='linear-gradient(135deg,#8B4513,#c47020)';
+    } else {
+      btn.textContent='💰 Send to Price Team →';
+      btn.style.background='linear-gradient(135deg,#8B4513,#c47020)';
+    }
+  } else if(step==='priced'){
+    // Price added — show "Send for Approval" 
+    btn.textContent='📤 Send for Approval →';
+    btn.style.background='linear-gradient(135deg,#1A3A6B,#2060a0)';
+  } else if(step==='approved'&&isAdmin){
+    btn.textContent='✅ Submit to Promise.lk →';
+    btn.style.background='linear-gradient(135deg,#1A6B3C,#2a9d5c)';
+  } else if(step==='submitted'){
+    btn.textContent='🏆 Mark as Awarded';
+    btn.style.background='linear-gradient(135deg,#8B6914,#C9952A)';
+  } else if(step==='done'){
+    btnWrap.style.display='none';
+    return;
+  } else {
+    // Waiting for admin
+    btn.textContent='⏳ Waiting for Approval...';
+    btn.style.background='#999';
+    btn.disabled=true;
+    btnWrap.style.display='block';
+    return;
+  }
+  btn.disabled=false;
+}
+
+function handleNextStep(){
+  var entry=null;
+  if(window.curEditId){
+    entry=getHist().find(function(e){return e.id===window.curEditId;});
+  }
+  var step=getWorkflowStep(entry);
+  var role=getRole();
+  var isAdmin=CU&&CU.role==='admin';
+
+  if(step==='uploaded'){
+    if(role.canPurchase){
+      // Price team — just save with price
+      saveToHistory();
+      showToast('💰 Prices saved! Send for approval panna save button pannu','t-s');
+    } else {
+      // Uploader — send WhatsApp to price staff
+      saveToHistory();
+      _sendWAToRole('price','💰 Price Add தேவை','Price enter பண்ணி Approval-க்கு அனுப்புங்கள்');
+    }
+  } else if(step==='priced'){
+    // Send for approval — WhatsApp to admin
+    if(!confirm('Admin-க்கு Approval request அனுப்பட்டுமா?')) return;
+    saveToHistory();
+    _sendWAToAdmin('📤 Approval Request','Price ready — Approve பண்ணுங்கள்');
+  } else if(step==='approved'&&isAdmin){
+    submitToPromise();
+  } else if(step==='submitted'){
+    if(!confirm('Awarded-ஆ mark பண்ணட்டுமா?')) return;
+    if(entry){
+      var h=getHist();
+      var idx=h.findIndex(function(e){return e.id===entry.id;});
+      if(idx>=0){h[idx].status='awarded';setHist(h);renderHistory();showToast('🏆 Awarded!','t-s');}
+    }
+  }
+}
+
+function _sendWAToRole(roleName, subject, msg){
+  // Find users with this permission/role and send WhatsApp
+  var users=getUsers();
+  var target=users.find(function(u){
+    return u.active&&u.whatsapp&&(u.role===roleName||(u.permissions&&u.permissions.includes(roleName)));
+  });
+  var entry=window.curEditId?getHist().find(function(e){return e.id===window.curEditId;}):null;
+  var vehicle=entry?entry.vehicle:(document.getElementById('f-vname')||{value:''}).value||'';
+  var eqno=entry?entry.eqNo:(document.getElementById('f-eqno')||{value:''}).value||'';
+  var fullMsg='🔔 *NGRD Motors*%0A'+encodeURIComponent(subject)+'%0A%0A🚗 '+encodeURIComponent(vehicle)+'%0A📋 '+encodeURIComponent(eqno)+'%0A%0A'+encodeURIComponent(msg)+'%0A%0A🔗 ngrd-motors.vercel.app';
+  var number=target?target.whatsapp:ADMIN_WA;
+  window.open('https://wa.me/'+number+'?text='+fullMsg,'_blank');
+  showToast('📱 WhatsApp அனுப்பப்பட்டது!','t-s');
+}
+
+function _sendWAToAdmin(subject, msg){
+  var entry=window.curEditId?getHist().find(function(e){return e.id===window.curEditId;}):null;
+  var vehicle=entry?entry.vehicle:(document.getElementById('f-vname')||{value:''}).value||'';
+  var eqno=entry?entry.eqNo:(document.getElementById('f-eqno')||{value:''}).value||'';
+  var fullMsg='📤 *NGRD Motors — '+encodeURIComponent(subject)+'*%0A%0A🚗 '+encodeURIComponent(vehicle)+'%0A📋 '+encodeURIComponent(eqno)+'%0A👤 By: '+encodeURIComponent(CU?CU.name:'Staff')+'%0A%0A'+encodeURIComponent(msg)+'%0A%0A🔗 ngrd-motors.vercel.app';
+  window.open('https://wa.me/'+ADMIN_WA+'?text='+fullMsg,'_blank');
+  showToast('📱 Admin-க்கு WhatsApp அனுப்பப்பட்டது!','t-s');
+}
+
+
 window.onload=()=>{
   // Pre-populate vehicle dropdowns
   if(typeof refreshAllVehicleDropdowns==='function') setTimeout(refreshAllVehicleDropdowns,100);
