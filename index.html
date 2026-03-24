@@ -452,7 +452,8 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <div id="upload-fname" style="display:none;margin-top:10px;font-size:13px;color:var(--green);font-weight:600;"></div>
             </div>
             <button class="process-btn" id="process-btn" onclick="processFile()">🤖 Extract with AI</button>
-            <div style="margin-top:10px;"><button onclick="openME()" style="padding:9px 20px;background:transparent;border:2px solid var(--gold);border-radius:3px;color:var(--gold);font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer;">✏️ Manual Entry (AI இல்லாம)</button></div>
+            <div style="margin-top:10px;"><button onclick="openME()" style="padding:9px 20px;background:transparent;border:2px solid var(--gold);border-radius:3px;color:var(--gold);font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer;">✏️ Manual Entry (AI இல்லாம)</button>
+              <button onclick="resetAPIKey()" style="padding:7px 12px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:3px;color:var(--gold);font-size:11px;font-weight:700;cursor:pointer;" title="Update API Key">🔑 Key</button></div>
             <div class="ai-status" id="ai-status"><div class="spinner"></div><span id="ai-st">AI is reading...</span></div>
           </div>
         </div>
@@ -3782,7 +3783,10 @@ function promptAPIKey(cb){
 }
 function resetAPIKey(){
   localStorage.removeItem('ngrd_akey');
-  showToast('API Key cleared — next extract-ல் கேட்கும்','t-i');
+  localStorage.removeItem('ngrd_akey_fb');
+  showToast('API Key cleared!','t-i');
+  // Show popup immediately
+  setTimeout(function(){promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);});},300);
 }
 // ══════════════════════════════════════════════════
 // MANUAL ENTRY SYSTEM
