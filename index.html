@@ -993,6 +993,30 @@ const LS={
   set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),
   del:(k)=>localStorage.removeItem(k)
 };
+function getDefaultUsers(){
+  return [{id:1,username:'admin',password:'ngrd2024',name:'Admin',role:'admin',
+    permissions:['admin','upload','price','submit','export','approve'],
+    vehicles:['All Vehicles'],active:true,created:'01/01/2024'}];
+}
+
+function getCheckedVehicles(containerId){
+  var c=document.getElementById(containerId);
+  if(!c) return ['All Vehicles'];
+  var checked=[];
+  c.querySelectorAll('input[type="checkbox"]:checked').forEach(function(el){
+    checked.push(el.value);
+  });
+  return checked.length>0?checked:['All Vehicles'];
+}
+
+function clearPrices(){
+  if(!confirm('All price list clear ஆகும்! Sure?')) return;
+  localStorage.removeItem('ngrd_prices');
+  renderPriceList();
+  showToast('✅ Price list cleared!','t-i');
+}
+
+
 function getUsers(){
   var s=LS.get('ngrd_users');
   if(!s||!Array.isArray(s)||s.length===0){
@@ -1357,6 +1381,7 @@ function loadExtractedData(parsed){
   document.getElementById('info-panel').style.display='block';
   document.getElementById('items-panel').style.display='block';
   showToast('✅ '+curItems.length+' items ready!','t-s');
+  setTimeout(updateWorkflowBar,200);
 }
 
 function importExtractedJSON(){
@@ -1732,6 +1757,7 @@ function finishExtraction(parsed){
   document.getElementById('info-panel').style.display='block';
   document.getElementById('items-panel').style.display='block';
   showToast('Extracted! Enter prices.','t-s');
+  setTimeout(updateWorkflowBar,200);
   addLog('PDF extracted: '+(parsed.eqNo||parsed.refNo)+' ('+(parsed.vehicleName)+')');
 }
 
@@ -3698,6 +3724,7 @@ function submitME(){
   var st=document.getElementById('ai-status');st.style.cssText='';st.className='ai-status success';
   document.getElementById('ai-st').textContent='✅ '+items.length+' items ready!';
   setStep(3);addLog('Manual: '+(g('me-eq')||g('me-veh')));showToast('Ready! Prices enter பண்ணுங்கள்','t-s');
+  setTimeout(updateWorkflowBar,200);
 }
 
 // ══════════════════════════════════════════════════
