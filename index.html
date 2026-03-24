@@ -4055,7 +4055,7 @@ function downloadExcel(){
     var price=parseFloat(br.price)||item.unitPrice||0;
     var t=price*item.qty;grand+=t;
     var bg=i%2===0?'alt':'';
-    return '<Row ss:Height="17">'+sc(item.itemNo,'c')+sc(item.description,'w')+sc(item.qty,'c')+sc(item.unit||'Nos','')+sc(partNo,'')+sc(brand,'')+sc(country,'')+nc(unitPrice,'n')+nc(totalPrice,'n')+'</Row>';
+    return '<Row ss:Height="17">'+sc(item.itemNo,'c')+sc(item.description,'w')+sc(item.qty,'c')+sc(item.unit||'Nos','')+sc(partNo,'')+sc(brand,'')+sc(country,'')+nc(price,'n')+nc(t,'n')+'</Row>';
   }).join('');
   const xml=`<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
@@ -4421,7 +4421,6 @@ function populateStaffSelect(){var sel=document.getElementById('staff-perf-selec
 function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname};var stats=[['📝','Draft',myH.filter(function(e){return !e.status||e.status==='draft';}).length,'#888'],['⏳','Pending',myH.filter(function(e){return e.status==='pending';}).length,'#E8B84B'],['✅','Approved',myH.filter(function(e){return e.status==='approved';}).length,'#1A6B3C'],['📤','Submitted',myH.filter(function(e){return e.status==='submitted';}).length,'#2060a0'],['🏆','Awarded',myH.filter(function(e){return e.status==='awarded';}).length,'#C9952A'],['❌','Rejected',myH.filter(function(e){return e.status==='rejected';}).length,'#B22222']];var html2='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div></div><div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+myH.length+'</div></div></div>';html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';myH.slice(0,8).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
 function autoFillRow(idx,bi){var item=curItems[idx];if(!item)return;var prices=getPrices();var matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(item.description,prices):[];if(!matches||!matches.length)return;var best=matches[0];var bEl=document.getElementById('br-b-'+idx+'-'+bi);var pEl=document.getElementById('br-p-'+idx+'-'+bi);var puEl=document.getElementById('br-pu-'+idx+'-'+bi);var cEl=document.getElementById('br-c-'+idx+'-'+bi);if(bEl&&!bEl.value&&best.brand)bEl.value=best.brand;if(pEl&&!pEl.value&&best.partNo)pEl.value=best.partNo;if(cEl&&!cEl.value&&best.country)cEl.value=best.country;if(puEl&&!puEl.value&&best.purchasePrice>0){puEl.value=best.purchasePrice;puEl.style.background='#fffde7';}syncRow(idx,bi);}
 function sendWAClosingAlert(entry){if(!entry)return;var msg='⚠️ *NGRD Motors*%0A🚗 '+(entry.vehicle||'')+'%0A📋 '+(entry.eqNo||entry.refNo||'')+'%0A📅 '+(entry.closingDate||'')+'%0AStatus: '+(entry.status||'')+'%0A🔗 ngrd-motors.vercel.app';window.open('https://wa.me/94765234296?text='+msg,'_blank');}
-function resetAll(){
 function resetAll(){window.curEditId=null;
   pdfB64=null;curItems=[];curStatus='draft';
   ['pdf-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -4792,8 +4791,6 @@ window.onload=()=>{
     }
   },60000);
 };
-
-}
 </script>
 
 <script>
