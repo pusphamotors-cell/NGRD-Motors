@@ -803,7 +803,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">👥</span><span class="panel-hdr-title">User Management</span></div>
           <div class="panel-body">
-            <div class="users-grid" id="users-grid"></div>
+            <div id="users-list"></div>
             <div class="add-form">
               <h4>➕ Add New User</h4>
               <div class="form-grid">
@@ -811,6 +811,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <div class="form-field"><label>Password</label><input id="nu-pass" type="password" placeholder="Min 6 chars"></div>
                 <div class="form-field"><label>Full Name</label><input id="nu-name" placeholder="Display name"></div>
                 <div class="form-field"><label>📱 WhatsApp Number</label><input id="nu-wa" placeholder="e.g. 94771234567" type="tel"></div>
+                <div class="form-field"><label>📅 Valid Until (blank = permanent)</label><input id="nu-expiry" type="date" style="padding:8px;border:1px solid var(--border);border-radius:4px;width:100%;"></div>
                 <div class="form-field full"><label>Permissions (multiple select)</label>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;border:1px solid var(--border);border-radius:3px;background:var(--light);">
   <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="r-upload"> 📤 PDF Upload</label>
@@ -842,6 +843,25 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
       <!-- ═ BACKUP ═ -->
       <div id="page-backup" style="display:none;">
+        <!-- API Key Settings (Admin only) -->
+        <div class="panel" style="margin-bottom:14px;" id="api-key-panel">
+          <div class="panel-hdr"><span class="panel-hdr-icon">🔑</span><span class="panel-hdr-title">Anthropic API Key Settings</span></div>
+          <div class="panel-body">
+            <div style="background:#fff9e6;border:1px solid #ffd966;border-radius:6px;padding:12px;margin-bottom:12px;font-size:12px;color:#856404;">
+              ⚠️ Admin ஒரே முறை இங்கே save பண்ணினா <b>எல்லா device-லயும்</b> work ஆகும்!
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." 
+                style="flex:1;padding:10px;border:2px solid var(--border);border-radius:4px;font-size:13px;font-family:monospace;">
+              <button onclick="adminSaveAPIKey()" style="padding:10px 16px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;white-space:nowrap;">✅ Save</button>
+              <button onclick="document.getElementById('api-key-input').type=document.getElementById('api-key-input').type==='password'?'text':'password'" 
+                style="padding:10px;background:#eee;border:none;border-radius:4px;cursor:pointer;">👁</button>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--muted);">
+              Current: <span id="api-key-status">Loading...</span>
+            </div>
+          </div>
+        </div>
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Export Backup</span></div>
           <div class="panel-body">
@@ -1016,6 +1036,21 @@ function clearPrices(){
 }
 
 
+function saveUsers(users){
+  localStorage.setItem('ngrd_users',JSON.stringify(users));
+  if(typeof fbWrite==='function') fbWrite('users',users);
+}
+
+function checkAfterSave(){
+  // Show WhatsApp notify button for staff uploads
+  if(CU&&CU.role!=='admin'){
+    var hist=getHist();
+    var latest=hist[0];
+    if(latest) showWhatsAppNotify(latest);
+  }
+}
+
+
 function getUsers(){
   var s=LS.get('ngrd_users');
   if(!s||!Array.isArray(s)||s.length===0){
@@ -1120,7 +1155,17 @@ function doLogin(){
 }
 
 function _doLoginCheck(u,p){
-  const found=getUsers().find(x=>x.username===u&&x.password===p&&x.active);
+  const today=new Date().toISOString().split('T')[0];
+  const found=getUsers().find(x=>{
+    if(x.username!==u||x.password!==p||!x.active) return false;
+    // Check expiry date
+    if(x.validUntil&&x.validUntil<today){
+      return false; // Expired!
+    }
+    return true;
+  });
+  // Check if user exists but expired
+  const expiredUser=!found&&getUsers().find(x=>x.username===u&&x.password===p&&x.validUntil&&x.validUntil<today);
   if(found){
     CU=found;
     // Save lastLogin time to user record
@@ -1138,7 +1183,11 @@ function _doLoginCheck(u,p){
     initApp();
     addLog('Logged in: '+CU.name);
   }else{
-    document.getElementById('login-err').style.display='block';
+    var errEl=document.getElementById('login-err');
+    if(errEl){
+      errEl.style.display='block';
+      errEl.textContent=expiredUser?'⏰ Account expired! Admin-ஐ contact பண்ணுங்கள்':'❌ Wrong username or password';
+    }
   }
 }
 
@@ -2005,7 +2054,7 @@ function renderItems(items){
     }
     if(isFullyLocked){
       lockBanner.style.cssText='background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#721c24;display:block;';
-      lockBanner.innerHTML='🏆 Awarded — View Only. யாரும் edit பண்ண முடியாது.';
+      lockBanner.innerHTML='🏆 Awarded — View Only.';
     } else if(isAdminWarning){
       lockBanner.style.cssText='background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#856404;display:block;';
       lockBanner.innerHTML='⚠️ '+curStatus.charAt(0).toUpperCase()+curStatus.slice(1)+' — Admin edit mode.';
@@ -2038,8 +2087,6 @@ function renderItems(items){
 
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-var PART_SYNONYMS=[['lower arm','lower control arm'],['shock absorber','shock','damper','strut'],['ball joint','balljoint'],['tie rod','tie rod end'],['brake pad','disc pad'],['oil filter'],['air filter','air cleaner'],['fuel filter'],['water pump'],['timing belt','cam belt'],['clutch','clutch plate'],['bush','bushing'],['wheel bearing','hub bearing'],['cv joint'],['brake disc','brake rotor']];
-
 function findAllPriceMatches(desc,prices,vehicle){
   if(!desc) return [];
   var allPrices=prices||[];
@@ -2065,97 +2112,28 @@ function findAllPriceMatches(desc,prices,vehicle){
     });
   }catch(e){}
   if(!allPrices.length) return [];
-
-  var SYNONYMS=[
-    ['lower arm','arm lower','lower control arm','arm assy lower','lower arm assy','control arm lower','arm lwr'],
-    ['upper arm','arm upper','upper control arm','arm assy upper','upper arm assy','arm upr'],
-    ['shock absorber','shock','damper','strut','shock assy','absorber','shocker'],
-    ['ball joint','balljoint','ball joint assy','lower ball joint','upper ball joint'],
-    ['tie rod','tie rod end','steering tie rod','track rod','tie rod assy'],
-    ['brake pad','disc pad','brake lining','brake shoe','pad kit'],
-    ['oil filter','lube filter','oil element','filter oil'],
-    ['air filter','air cleaner','air element','filter air'],
-    ['fuel filter','fuel element','filter fuel'],
-    ['water pump','coolant pump','pump water','pump assy water'],
-    ['timing belt','cam belt','timing chain','camshaft belt'],
-    ['clutch','clutch plate','clutch disc','clutch kit','clutch assy'],
-    ['bush','bushing','rubber bush','arm bush','stabilizer bush'],
-    ['wheel bearing','hub bearing','bearing hub','front bearing','rear bearing'],
-    ['cv joint','cv axle','drive shaft','axle shaft','driveshaft'],
-    ['brake disc','brake rotor','disc rotor','rotor disc'],
-    ['radiator','complete radiator','radiator assy'],
-    ['gear box mount','gearbox mount','gearbox mounting','transmission mount'],
-    ['engine mount','motor mount','mounting engine'],
-    ['power steering','steering pump','ps pump','power steering pump'],
-    ['alternator','generator','dynamo'],
-    ['starter motor','starter','self starter'],
-    ['fan belt','v belt','drive belt','serpentine belt'],
-    ['idler pulley','tension pulley','belt tensioner','idler','tensioner'],
-    ['thermostat','thermostat valve','thermo valve'],
-    ['head gasket','cylinder head gasket','gasket head'],
-    ['oil seal','oil seals','seal oil'],
-    ['brake caliper','caliper','calliper'],
-    ['master cylinder','brake master','clutch master','master cyl'],
-    ['wheel cylinder','brake cylinder','slave cylinder'],
-    ['rack end','steering rack','rack and pinion','steering rack end'],
-    ['wiper blade','wiper','windscreen wiper'],
-    ['radiator cap','coolant cap','pressure cap'],
-    ['solenoid','solenoid valve','solenoid switch'],
-    ['injector','fuel injector','injection nozzle'],
-    ['glow plug','heater plug','glow'],
-    ['spark plug','plug','ignition plug'],
-    ['tail lamp','tail light','rear lamp','rear light'],
-    ['head lamp','headlight','head light','front lamp'],
-    ['fog lamp','fog light'],
-    ['compressor','ac compressor','aircon compressor','air condition compressor'],
-    ['condenser','ac condenser','aircon condenser']
-  ];
-  var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right','upper','lower','inner','outer','set','kit','no','for','the','and','with','type','x','mm','pcs','pair','nr','fr','rr','frt','mtd','oe','oem','genuine','original'];
+  var SYNONYMS=[['lower arm','arm lower','lower control arm'],['shock absorber','shock','damper','strut'],['ball joint','balljoint'],['tie rod','tie rod end'],['brake pad','disc pad'],['oil filter','lube filter'],['air filter','air cleaner'],['fuel filter'],['water pump','coolant pump'],['timing belt','cam belt'],['clutch','clutch plate','clutch disc'],['bush','bushing'],['wheel bearing','hub bearing'],['cv joint','drive shaft','axle shaft'],['brake disc','brake rotor'],['radiator','radiator assy'],['engine mount','motor mount'],['alternator','generator'],['starter motor','starter'],['fan belt','v belt','drive belt'],['idler pulley','belt tensioner'],['thermostat','thermostat valve'],['head gasket','cylinder head gasket'],['oil seal','seal oil'],['brake caliper','caliper'],['master cylinder','brake master'],['compressor','ac compressor'],['condenser','ac condenser']];
+  var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right','upper','lower','inner','outer','set','kit','no','for','the','and','with','type','x','mm','pcs','pair','oe','oem','genuine','original'];
   function cleanDesc(s){return s.toLowerCase().replace(/[.\-_\/\[\]()]/g,' ').replace(/\s+/g,' ').trim();}
   function getCoreWords(s){return cleanDesc(s).split(' ').filter(function(w){return w.length>1&&NOISE.indexOf(w)===-1;});}
-  function getSynonymGroup(words){
-    var joined=words.join(' ');
-    for(var i=0;i<SYNONYMS.length;i++){
-      var group=SYNONYMS[i];
-      for(var j=0;j<group.length;j++){
-        if(joined.includes(group[j])||group[j].split(' ').every(function(w){return words.indexOf(w)>=0;})){return group;}
-      }
-    }
-    return null;
-  }
-  var dClean=cleanDesc(desc);
-  var dWords=getCoreWords(desc);
-  var dSynGroup=getSynonymGroup(dWords);
+  function getSynonymGroup(words){var joined=words.join(' ');for(var i=0;i<SYNONYMS.length;i++){var group=SYNONYMS[i];for(var j=0;j<group.length;j++){if(joined.includes(group[j])||group[j].split(' ').every(function(w){return words.indexOf(w)>=0;})){return group;}}}return null;}
+  var dClean=cleanDesc(desc);var dWords=getCoreWords(desc);var dSynGroup=getSynonymGroup(dWords);
   var vClean=vehicle?(vehicle.toLowerCase().trim()):'';
-  var vKey='';
-  if(vClean){var vParts=vClean.split(' ');vParts.forEach(function(p){if(p.length>2&&isNaN(p))vKey=p;});if(!vKey)vKey=vClean;}
+  var vKey='';if(vClean){var vParts=vClean.split(' ');vParts.forEach(function(p){if(p.length>2&&isNaN(p))vKey=p;});if(!vKey)vKey=vClean;}
   var matches=[];
   prices.forEach(function(p){
     if(!p.description) return;
-    var pVeh=(p.vehicle||'').toLowerCase().trim();
-    var pVehKey='';
+    var pVeh=(p.vehicle||'').toLowerCase().trim();var pVehKey='';
     if(pVeh){var pvParts=pVeh.split(' ');pvParts.forEach(function(pp){if(pp.length>2&&isNaN(pp))pVehKey=pp;});if(!pVehKey)pVehKey=pVeh;}
-    if(vKey){
-      if(pVehKey){if(pVehKey!==vKey&&!pVeh.includes(vKey)&&!vClean.includes(pVehKey)) return;}
-      else {p._noVehicle=true;}
-    } else {return;}
-    var pWords=getCoreWords(p.description);
-    var pSynGroup=getSynonymGroup(pWords);
+    if(vKey){if(pVehKey){if(pVehKey!==vKey&&!pVeh.includes(vKey)&&!vClean.includes(pVehKey)) return;}else{p._noVehicle=true;}}else{return;}
+    var pWords=getCoreWords(p.description);var pSynGroup=getSynonymGroup(pWords);
     var score=0;
     if(dSynGroup&&pSynGroup&&dSynGroup[0]===pSynGroup[0]){score=95;}
     if(score===0){
       var pClean=cleanDesc(p.description);
       if(dClean===pClean) score=100;
       else if(dClean.includes(pClean)||pClean.includes(dClean)) score=85;
-      else {
-        var matched=0;
-        dWords.forEach(function(w){if(pWords.some(function(pw){return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));})){ matched++; }});
-        var totalD=dWords.length,totalP=pWords.length;
-        if(totalD>0&&totalP>0){
-          if(matched/totalD>=0.8&&matched/totalP>=0.6) score=75;
-          else if(matched/totalD>=0.6&&matched>=2) score=55;
-        }
-      }
+      else{var matched=0;dWords.forEach(function(w){if(pWords.some(function(pw){return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));})){ matched++; }});var totalD=dWords.length,totalP=pWords.length;if(totalD>0&&totalP>0){if(matched/totalD>=0.8&&matched/totalP>=0.6) score=75;else if(matched/totalD>=0.6&&matched>=2) score=55;}}
     }
     if(score>=55) matches.push({score:score,item:p});
   });
@@ -2163,21 +2141,13 @@ function findAllPriceMatches(desc,prices,vehicle){
   var vehicleMatches=matches.filter(function(m){return m.item.vehicle&&m.item.vehicle.length>0;});
   var noVehicleMatches=matches.filter(function(m){return !m.item.vehicle||m.item.vehicle.length===0;});
   var finalMatches=vehicleMatches.length>0?vehicleMatches:noVehicleMatches;
-  var descHasLHRH=/\b(lh|rh|lh\/rh|l\/h|r\/h|left|right)\b/i.test(desc);
-  if(descHasLHRH){
-    var lhMatch=finalMatches.find(function(m){return /\blh\b|\bleft\b/i.test(m.item.description||'');});
-    var rhMatch=finalMatches.find(function(m){return /\brh\b|\bright\b/i.test(m.item.description||'');});
-    if(lhMatch&&rhMatch&&lhMatch.item!==rhMatch.item){return [lhMatch.item,rhMatch.item];}
-  }
+  var descHasLHRH=/(lh|rh|lh\/rh|l\/h|r\/h|left|right)/i.test(desc);
+  if(descHasLHRH){var lhMatch=finalMatches.find(function(m){return /lh|left/i.test(m.item.description||'');});var rhMatch=finalMatches.find(function(m){return /rh|right/i.test(m.item.description||'');});if(lhMatch&&rhMatch&&lhMatch.item!==rhMatch.item){return [lhMatch.item,rhMatch.item];}}
   var seen={};
   return finalMatches.filter(function(m){var key=(m.item.brand||'__').toLowerCase();if(seen[key])return false;seen[key]=true;return true;}).slice(0,3).map(function(m){return m.item;});
 }
 
-function getPriceHint(desc,prices){
-  var matches=findAllPriceMatches(desc,prices);
-  return matches.length>0?matches[0]:null;
-}
-
+function getPriceHint(desc,prices){var matches=findAllPriceMatches(desc,prices);return matches.length>0?matches[0]:null;}
 function savePartNo(idx,val){if(curItems[idx])curItems[idx].partNo=val;}
 function saveCountry(idx,val){if(curItems[idx])curItems[idx].country=val;}
 
@@ -2199,17 +2169,13 @@ function calcTotals(){
 
 function lkr(n){return 'LKR '+n.toLocaleString('en-LK',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
-
 function submitToPromise(){
   if(!curItems.length){showToast('Nothing to save','t-e');return;}
-  var hasPrices=curItems.some(function(item){
-    return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
-  });
+  var hasPrices=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
   if(!hasPrices){showToast('⚠️ Prices enter பண்ணிட்டு Submit பண்ணுங்கள்!','t-e');return;}
   if(!confirm('Promise.lk-ல் Submit பண்ணிவிட்டீர்களா? Submit ஆனதும் Staff edit பண்ண முடியாது!')) return;
   curStatus='submitted';
-  var qsEl=document.getElementById('quot-status');
-  if(qsEl) qsEl.value='submitted';
+  var qsEl=document.getElementById('quot-status');if(qsEl) qsEl.value='submitted';
   saveToHistory();
   showToast('📤 Submitted! Admin review பண்ணுவாங்க.','t-s');
 }
@@ -2222,9 +2188,7 @@ function saveToHistory(){
   var _hp=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
   if(_hp&&quotStatus==='draft'&&CU&&CU.role!=='admin'){quotStatus='pending';}
   var hist=getHist();
-  var hasPrices=curItems.some(function(item){
-    return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
-  });
+  var hasPrices=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
   var now=new Date().toLocaleString('en-LK');
   if(window.curEditId){
     var idx=hist.findIndex(function(e){return e.id===window.curEditId;});
@@ -2241,13 +2205,10 @@ function saveToHistory(){
         grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
         status:quotStatus,updatedBy:CU.name,updatedAt:now,steps:orig.steps
       });
-      setHist(hist);
-      autoSavePrices(curItems);
-      window.curEditId=null;
+      setHist(hist);autoSavePrices(curItems);window.curEditId=null;
       addLog('Updated: '+(eqNo||refNo)+' by '+CU.name);
       showToast('✅ Updated successfully!','t-s');
-      updatePendingBadge();
-      setTimeout(updateWorkflowBar,200);
+      updatePendingBadge();setTimeout(updateWorkflowBar,200);
       if(typeof renderDashboard==='function') renderDashboard();
       return;
     }
@@ -2266,10 +2227,8 @@ function saveToHistory(){
     grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
     status:quotStatus,steps:steps
   };
-  hist.unshift(entry);
-  if(hist.length>200) hist.pop();
-  setHist(hist);
-  autoSavePrices(curItems);
+  hist.unshift(entry);if(hist.length>200) hist.pop();
+  setHist(hist);autoSavePrices(curItems);
   addLog('Saved: '+(eqNo||refNo)+' ('+entry.vehicle+') — '+quotStatus);
   checkAfterSave();
   showToast('Saved to history!','t-s');
@@ -2287,30 +2246,123 @@ function updatePendingBadge(){
 
 function markSubmitted(id){
   if(!confirm('Promise.lk-ல் submit பண்ணிவிட்டீர்களா?')) return;
-  var h=getHist();
-  var idx=h.findIndex(function(e){return e.id===id;});
-  if(idx<0) return;
+  var h=getHist();var idx=h.findIndex(function(e){return e.id===id;});if(idx<0) return;
   if(!h[idx].steps) h[idx].steps={};
   h[idx].steps.submitted={by:CU.name,role:CU.role,at:new Date().toLocaleString('en-LK')};
-  h[idx].status='submitted';
-  setHist(h);
-  renderHistory();
+  h[idx].status='submitted';setHist(h);renderHistory();
   addLog('Submitted: '+(h[idx].eqNo||h[idx].refNo)+' by '+CU.name);
   showToast('✅ Submitted by '+CU.name+' marked!','t-s');
 }
+
 function autoFixStatus(hist){
   var changed=false;
-  hist.forEach(function(e){
-    if(e.steps){
-      if(e.steps.submitted&&(e.status==='draft'||e.status==='pending'||!e.status)){e.status='submitted'; changed=true;}
-    }
-  });
-  if(changed){
-    localStorage.setItem('ngrd_hist',JSON.stringify(hist));
-    if(typeof fbWrite==='function') fbWrite('history',hist);
-  }
+  hist.forEach(function(e){if(e.steps&&e.steps.submitted&&(e.status==='draft'||e.status==='pending'||!e.status)){e.status='submitted';changed=true;}});
+  if(changed){localStorage.setItem('ngrd_hist',JSON.stringify(hist));if(typeof fbWrite==='function')fbWrite('history',hist);}
   return hist;
 }
+
+function closeEditPerms(){
+  var m=document.getElementById('modal-edit-perms');
+  if(m) m.style.display='none';
+}
+
+function openEditPerms(uid){
+  var users=getUsers();
+  var u=users.find(function(x){return x.id===uid;});
+  if(!u) return;
+  var modal=document.getElementById('modal-edit-perms');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='modal-edit-perms';
+    modal.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    var inner='<div style="background:#fff;border-radius:8px;padding:20px;width:92vw;max-width:400px;max-height:90vh;overflow-y:auto;">';
+    inner+='<div style="font-weight:700;font-size:15px;margin-bottom:14px;color:var(--navy);">✏️ Edit: <span id="epu-name"></span></div>';
+    inner+='<input type="hidden" id="epu-id">';
+    inner+='<div style="margin-bottom:12px;">';
+    inner+='<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">PERMISSIONS:</div>';
+    inner+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;border:1px solid var(--border);border-radius:4px;">';
+    inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-upload"> Upload</label>';
+    inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-price"> Price</label>';
+    inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-submit"> Submit</label>';
+    inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-export"> Export</label>';
+    inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-approve"> Approve</label>';
+    inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-admin"> Admin</label>';
+    inner+='</div></div>';
+    inner+='<div style="margin-bottom:14px;">';
+    inner+='<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">VEHICLES:</div>';
+    inner+='<div id="ep-vehicle-checks" style="padding:8px;border:1px solid var(--border);border-radius:4px;max-height:150px;overflow-y:auto;"></div>';
+    inner+='</div>';
+    inner+='<div style="display:flex;gap:8px;">';
+    inner+='<button onclick="saveEditPerms()" style="flex:1;padding:10px;background:var(--navy);color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;">💾 Save</button>';
+    inner+='<button onclick="closeEditPerms()" style="padding:10px 16px;border:1px solid var(--border);border-radius:4px;font-size:13px;cursor:pointer;">✕</button>';
+    inner+='</div></div>';
+    modal.innerHTML=inner;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('epu-name').textContent=u.name;
+  document.getElementById('epu-id').value=u.id;
+  var perms=u.permissions||[];
+  ['upload','price','submit','export','approve','admin'].forEach(function(p){
+    var el=document.getElementById('ep-'+p);
+    if(el) el.checked=perms.includes(p);
+  });
+  renderVehicleChecks('ep-vehicle-checks', u.vehicles||['All Vehicles']);
+  modal.style.display='flex';
+}
+
+
+function saveEditPerms(){
+  var uid=parseInt(document.getElementById('epu-id').value);
+  var users=getUsers();
+  var idx=users.findIndex(function(x){return x.id===uid;});
+  if(idx<0) return;
+  var perms=['upload','price','submit','export','approve','admin'].filter(function(p){
+    var el=document.getElementById('ep-'+p); return el&&el.checked;
+  });
+  var vehs=getCheckedVehicles('ep-vehicle-checks');
+  var rl=perms.includes('admin')?'admin':perms.length>0?perms[0]:'staff';
+  users[idx].permissions=perms;
+  users[idx].vehicles=vehs;
+  users[idx].role=rl;
+  saveUsers(users);
+  renderUsers();
+  closeEditPerms();
+  showToast('✅ '+users[idx].name+' updated!','t-s');
+  addLog('Permissions updated: '+users[idx].name+' → '+perms.join(','));
+}
+
+
+function renderUsers(){
+  const users=getUsers();
+  const c=document.getElementById('users-list');if(!c)return;
+  const isAdmin=CU&&CU.role==='admin';
+  if(!isAdmin){c.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Admin only</div>';return;}
+  if(!users.length){c.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No users</div>';return;}
+  c.innerHTML=users.map(u=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);background:${u.active?'#fff':'#fafafa'}">
+      <div>
+        <div style="font-weight:700;font-size:13px;">${u.name} <span style="font-size:11px;color:var(--muted);">(${u.username})</span>
+          ${u.active?'':'<span style="background:#B22222;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px;">Inactive</span>'}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+          Role: ${u.role||'staff'} &nbsp;|&nbsp; 
+          Perms: ${(u.permissions||[]).join(', ')||'—'} &nbsp;|&nbsp;
+          Vehicles: ${(u.vehicles||[u.vehicle]||['All']).join(', ')||'All'}
+          ${u.whatsapp?'&nbsp;|&nbsp; 📱 '+u.whatsapp:''}
+        </div>
+        ${u.lastLogin?'<div style="font-size:10px;color:var(--muted);">Last login: '+u.lastLogin+'</div>':''}
+        ${u.validUntil?_expiryBadge(u.validUntil):''}
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0;">
+        ${u.id!==1?`<button class="hist-btn" onclick="toggleUser(${u.id})" title="${u.active?'Disable':'Enable'}">${u.active?'🔴':'🟢'}</button>`:''}
+        <button class="hist-btn" onclick="openPw(${u.id})" title="Change Password">🔑</button>
+        <button class="hist-btn" onclick="openVehicle(${u.id})" title="Set Vehicles">🚗</button>
+        <button class="hist-btn" onclick="openEditPerms(${u.id})" title="Edit Permissions">✏️</button>
+        ${u.id!==1?`<button class="hist-btn" onclick="removeUser(${u.id})" style="color:var(--red);" title="Remove">🗑️</button>`:''}
+      </div>
+    </div>`).join('');
+}
+
 
 function renderHistory(){
   let h=getHist();
@@ -2344,12 +2396,18 @@ function renderHistory(){
   }
   const vf=(document.getElementById('hist-vehicle-filter')?.value||'').toLowerCase();
   const sf=document.getElementById('hist-status-filter')?.value||'';
-  var vfSel=document.getElementById('hist-vehicle-filter');if(vfSel&&vfSel.options.length<=1){[...new Set(getHist().map(function(e){return e.vehicle||'';}).filter(Boolean))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;vfSel.appendChild(o);});}
+  var vfSel=document.getElementById('hist-vehicle-filter');
+  if(vfSel&&vfSel.options.length<=1){
+    [...new Set(getHist().map(function(e){return e.vehicle||'';}).filter(Boolean))].sort().forEach(function(v){
+      var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;vfSel.appendChild(o);
+    });
+  }
   if(vf) h=h.filter(function(x){return (x.vehicle||'').toLowerCase()===vf;});
   if(sf) h=h.filter(x=>x.status===sf);
   const q=document.getElementById('hist-search')?.value?.toLowerCase()||'';
   if(q) h=h.filter(x=>(x.vehicle+x.vNo+x.eqNo+x.refNo+x.entity).toLowerCase().includes(q));
   const c=document.getElementById('history-list');
+  if(!c) return;
   if(!h.length){c.innerHTML='<div class="hist-empty">📁 No saved quotations found.</div>';return;}
   c.innerHTML=h.map(e=>{
     const sb=getStatusBadge(e.status);
@@ -2361,9 +2419,9 @@ function renderHistory(){
         <div class="hist-meta">${e.entity||''} &nbsp;•&nbsp; ${e.items?.length||0} items &nbsp;•&nbsp; ${lkr(e.grandTotal||0)} &nbsp;${sb}</div>
         <div class="hist-by">By: ${e.savedBy||'?'} &nbsp; ${getDeadlineBadge(e.closingDate,e.status)}</div>
         <div style="font-size:10px;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
-          ${e.steps&&e.steps.uploaded?'<span style="background:#1A3A6B;color:#fff;padding:1px 7px;border-radius:10px;">📤 Upload: '+e.steps.uploaded.by+'</span>':''}
-          ${e.steps&&e.steps.priced?'<span style="background:#1A4A2A;color:#fff;padding:1px 7px;border-radius:10px;">💰 Price: '+e.steps.priced.by+'</span>':'<span style="background:#7A1414;color:#fff;padding:1px 7px;border-radius:10px;">⚠️ No Price</span>'}
-          ${e.steps&&e.steps.submitted?'<span style="background:#1A6B3C;color:#fff;padding:1px 7px;border-radius:10px;">✅ Submitted: '+e.steps.submitted.by+'</span>':''}
+          ${e.steps&&e.steps.uploaded?'<span style="background:#1A3A6B;color:#fff;padding:1px 7px;border-radius:10px;">📤 '+e.steps.uploaded.by+'</span>':''}
+          ${e.steps&&e.steps.priced?'<span style="background:#1A4A2A;color:#fff;padding:1px 7px;border-radius:10px;">💰 '+e.steps.priced.by+'</span>':'<span style="background:#7A1414;color:#fff;padding:1px 7px;border-radius:10px;">⚠️ No Price</span>'}
+          ${e.steps&&e.steps.submitted?'<span style="background:#1A6B3C;color:#fff;padding:1px 7px;border-radius:10px;">✅ '+e.steps.submitted.by+'</span>':''}
         </div>
       </div>
       <div class="hist-date">${e.date}</div>
@@ -2371,58 +2429,16 @@ function renderHistory(){
         <button class="hist-btn" onclick="openQV(${e.id})" title="View">👁️</button>
         <button class="hist-btn" onclick="${['submitted','approved','awarded'].indexOf(e.status||'')<0?'loadHist('+e.id+')':'openQV('+e.id+')'}" title="${['submitted','approved','awarded'].indexOf(e.status||'')<0?'Edit':'View'}">📂</button>
         <button class="hist-btn" onclick="changeStatus(${e.id})" title="Change Status">🔄</button>
-        <button class="hist-btn" onclick="markSubmitted(${e.id})" title="Mark Submitted to Promise.lk" style="color:#1A6B3C;">📤</button>
+        <button class="hist-btn" onclick="markSubmitted(${e.id})" title="Mark Submitted" style="color:#1A6B3C;">📤</button>
         <button class="hist-btn" onclick="reExport(${e.id})">📥Q</button>
         <button class="hist-btn" onclick="reExportPDF(${e.id})">📄Q</button>
         <button class="hist-btn" onclick="reExportArmyExcel(${e.id})" style="color:var(--steel);">📥L</button>
         <button class="hist-btn" onclick="reExportArmyPDF(${e.id})" style="color:var(--steel);">📄L</button>
         ${CU?.role==='admin'?`<button class="hist-btn" onclick="delHist(${e.id})" style="color:var(--red);">🗑️</button>`:''}
       </div>
-    </div>`;}).join('');
+    </div>`;
+  }).join('');
 }
-
-function saveUsers(users){
-  localStorage.setItem('ngrd_users',JSON.stringify(users));
-  if(typeof fbWrite==='function') fbWrite('users',users);
-}
-
-function checkAfterSave(){
-  if(typeof showWhatsAppNotify==='function'&&CU&&curItems.length>0){
-    var hist=getHist();
-    if(hist.length>0) showWhatsAppNotify(hist[0]);
-  }
-}
-
-
-function renderUsers(){
-  const users=getUsers();
-  const c=document.getElementById('users-list');if(!c)return;
-  const isAdmin=CU&&CU.role==='admin';
-  if(!isAdmin){c.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Admin only</div>';return;}
-  if(!users.length){c.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No users</div>';return;}
-  c.innerHTML=users.map(u=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);background:${u.active?'#fff':'#fafafa'}">
-      <div>
-        <div style="font-weight:700;font-size:13px;">${u.name} <span style="font-size:11px;color:var(--muted);">(${u.username})</span>
-          ${u.active?'':'<span style="background:#B22222;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px;">Inactive</span>'}
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-          Role: ${u.role||'staff'} &nbsp;|&nbsp; 
-          Perms: ${(u.permissions||[]).join(', ')||'—'} &nbsp;|&nbsp;
-          Vehicles: ${(u.vehicles||[u.vehicle]||['All']).join(', ')||'All'}
-          ${u.whatsapp?'&nbsp;|&nbsp; 📱 '+u.whatsapp:''}
-        </div>
-        ${u.lastLogin?'<div style="font-size:10px;color:var(--muted);">Last login: '+u.lastLogin+'</div>':''}
-      </div>
-      <div style="display:flex;gap:5px;flex-shrink:0;">
-        ${u.id!==1?`<button class="hist-btn" onclick="toggleUser(${u.id})" title="${u.active?'Disable':'Enable'}">${u.active?'🔴':'🟢'}</button>`:''}
-        <button class="hist-btn" onclick="openPw(${u.id})" title="Change Password">🔑</button>
-        <button class="hist-btn" onclick="openVehicle(${u.id})" title="Set Vehicles">🚗</button>
-        ${u.id!==1?`<button class="hist-btn" onclick="removeUser(${u.id})" style="color:var(--red);" title="Remove">🗑️</button>`:''}
-      </div>
-    </div>`).join('');
-}
-
 
 function getStatusBadge(status){
   const map={draft:'sb-draft 📝 Draft',submitted:'sb-submitted 📤 Submitted',awarded:'sb-awarded ✅ Awarded',rejected:'sb-rejected ❌ Rejected',pending:'sb-pending ⏳ Pending'};
@@ -2932,6 +2948,7 @@ function addUser(){
   const pw=document.getElementById('nu-pass').value;
   const nm=document.getElementById('nu-name').value.trim();
   const wa=(document.getElementById('nu-wa')||{value:''}).value.trim().replace(/[^0-9]/g,'');
+  const expiry=(document.getElementById('nu-expiry')||{value:''}).value||'';
   const vehs=getCheckedVehicles('nu-vehicle-checks');
   // Get permissions from checkboxes
   const perms=['upload','price','submit','export','approve','admin'].filter(function(p){
@@ -2943,9 +2960,9 @@ function addUser(){
   if(perms.length===0){showToast('At least one permission select பண்ணுங்கள்','t-e');return;}
   const users=getUsers();
   if(users.find(u=>u.username===un)){showToast('Username exists','t-e');return;}
-  users.push({id:Date.now(),username:un,password:pw,name:nm,role:rl,permissions:perms,vehicles:vehs,whatsapp:wa,active:true,created:new Date().toLocaleDateString()});
+  users.push({id:Date.now(),username:un,password:pw,name:nm,role:rl,permissions:perms,vehicles:vehs,whatsapp:wa,validUntil:expiry,active:true,created:new Date().toLocaleDateString()});
   saveUsers(users);
-  ['nu-user','nu-pass','nu-name','nu-wa'].forEach(id=>{var el=document.getElementById(id);if(el)el.value='';});
+  ['nu-user','nu-pass','nu-name','nu-wa','nu-expiry'].forEach(id=>{var el=document.getElementById(id);if(el)el.value='';});
   ['upload','price','submit','export','approve','admin'].forEach(function(p){var el=document.getElementById('r-'+p);if(el)el.checked=false;});
   renderVehicleChecks('nu-vehicle-checks',['All Vehicles']);
   renderUsers();addLog('User added: '+nm+' ('+perms.join(',')+') — '+vehs.join(', '));
@@ -3240,6 +3257,7 @@ function renderDashboard(){
 
   // Role-based dashboard
   renderStaffDashboard();
+  renderQuickStaffManager();
   // Update today's activity count in dashboard
   (function(){
     var hist=getHist();
@@ -3684,16 +3702,40 @@ function bulkReassign(){
   renderHistory();
 }
 
-function getAPIKey(){return localStorage.getItem('ngrd_akey')||'';}
+function getAPIKey(){
+  // Check localStorage first (fast), then Firebase cache
+  var local=localStorage.getItem('ngrd_akey')||'';
+  if(local) return local;
+  // Try Firebase-cached key
+  var fbKey=localStorage.getItem('ngrd_akey_fb')||'';
+  return fbKey;
+}
+function saveAPIKeyToFirebase(key){
+  if(!key) return;
+  localStorage.setItem('ngrd_akey',key);
+  localStorage.setItem('ngrd_akey_fb',key);
+  if(FB_READY) fbWrite('settings/apikey', key);
+  showToast('✅ API Key saved — all devices will sync!','t-s');
+}
+function loadAPIKeyFromFirebase(){
+  if(!FB_READY) return;
+  fbRead('settings/apikey',function(data){
+    if(data&&typeof data==='string'&&data.startsWith('sk-')){
+      localStorage.setItem('ngrd_akey',data);
+      localStorage.setItem('ngrd_akey_fb',data);
+      console.log('✅ API Key loaded from Firebase');
+    }
+  });
+}
 function promptAPIKey(cb){
-  var m=document.createElement('div');m.id='api-key-modal';
-  m.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
-  m.innerHTML='<div style="background:#fff;border-radius:8px;padding:24px;width:90%;max-width:420px;"><div style="font-size:16px;font-weight:700;margin-bottom:12px;">🔑 Anthropic API Key</div><input id="api-key-inp" type="password" placeholder="sk-ant-..." style="width:100%;padding:10px;border:2px solid #C8D4E0;border-radius:4px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box;"><div style="display:flex;gap:8px;margin-top:12px;"><button id="api-key-save" style="flex:1;padding:10px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">✅ Save</button><button id="api-key-cancel" style="padding:10px 16px;background:#eee;border:none;border-radius:4px;cursor:pointer;">✕</button></div></div>';
-  document.body.appendChild(m);
-  var inp=document.getElementById('api-key-inp');setTimeout(function(){if(inp)inp.focus();},100);
-  document.getElementById('api-key-save').onclick=function(){var k=(inp.value||'').trim();if(!k||k.length<20){inp.style.border='2px solid #B22222';return;}localStorage.setItem('ngrd_akey',k);m.remove();if(cb)cb(k);};
-  document.getElementById('api-key-cancel').onclick=function(){m.remove();document.getElementById('process-btn').disabled=false;};
-  inp.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('api-key-save').click();});
+  var existing=getAPIKey();
+  var k=prompt('🔑 Anthropic API Key enter பண்ணுங்கள்:\n(Admin ஒரே முறை enter பண்ணினா போதும்)',existing||'');
+  if(k&&k.trim().startsWith('sk-')){
+    saveAPIKeyToFirebase(k.trim());
+    if(cb) cb(k.trim());
+  } else if(k!==null){
+    showToast('⚠️ Invalid key — sk- ல் start ஆகணும்','t-e');
+  }
 }
 function resetAPIKey(){
   localStorage.removeItem('ngrd_akey');
@@ -4602,6 +4644,113 @@ function _sendWAToAdmin(subject, msg){
   showToast('📱 Admin-க்கு WhatsApp அனுப்பப்பட்டது!','t-s');
 }
 
+
+function adminSaveAPIKey(){
+  var k=document.getElementById('api-key-input');
+  if(!k) return;
+  var val=k.value.trim();
+  if(!val.startsWith('sk-')){showToast('⚠️ sk- ல் start ஆகணும்!','t-e');return;}
+  saveAPIKeyToFirebase(val);
+  k.value='';
+  updateAPIKeyStatus();
+}
+function updateAPIKeyStatus(){
+  var el=document.getElementById('api-key-status');
+  if(!el) return;
+  var key=getAPIKey();
+  if(key&&key.startsWith('sk-')){
+    el.innerHTML='<span style="color:#1A6B3C;font-weight:700;">✅ Key saved ('+key.substring(0,12)+'...)</span>';
+  } else {
+    el.innerHTML='<span style="color:#B22222;">❌ No key — Enter above</span>';
+  }
+  // Show/hide API panel for admin only
+  var panel=document.getElementById('api-key-panel');
+  if(panel) panel.style.display=(CU&&CU.role==='admin')?'block':'none';
+}
+
+function renderQuickStaffManager(){
+  var panel=document.getElementById('db-quick-staff');
+  var body=document.getElementById('db-quick-staff-body');
+  if(!panel||!body) return;
+
+  var isAdmin=CU&&CU.role==='admin';
+  panel.style.display=isAdmin?'block':'none';
+  if(!isAdmin) return;
+
+  var users=getUsers().filter(function(u){return u.active&&u.role!=='admin';});
+  if(!users.length){
+    body.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);">No active staff</div>';
+    return;
+  }
+
+  var today=new Date().toISOString().split('T')[0];
+  var vehicles=getVehicleMaster();
+
+  var h='<div style="display:grid;gap:8px;">';
+  users.forEach(function(u){
+    var expired=u.validUntil&&u.validUntil<today;
+    var expiringSoon=u.validUntil&&!expired&&u.validUntil<=new Date(Date.now()+3*86400000).toISOString().split('T')[0];
+    var bg=expired?'#fff5f5':expiringSoon?'#fffde7':'#f8f9fa';
+    var border=expired?'#f5c6cb':expiringSoon?'#ffc107':'#dee2e6';
+
+    h+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:6px;padding:10px 14px;">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">';
+
+    // User info
+    h+='<div>';
+    h+='<div style="font-weight:700;font-size:13px;">👤 '+u.name+'</div>';
+    h+='<div style="font-size:11px;color:var(--muted);">'+u.role+' | 🚗 '+(getVehicleList(u).join(', ') || 'All')+'</div>';
+    if(u.validUntil){
+      h+='<div style="font-size:10px;color:'+(expired?'#B22222':expiringSoon?'#856404':'#1A6B3C')+';font-weight:700;">'+
+        '📅 '+(expired?'EXPIRED: ':'Valid until: ')+u.validUntil+'</div>';
+    }
+    h+='</div>';
+
+    // Quick actions
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+    // Quick vehicle select
+    h+='<select onchange="quickChangeVehicle('+u.id+',this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;max-width:150px;">';
+    h+='<option value="">🚗 Change Vehicle</option>';
+    h+='<option value="All Vehicles">All Vehicles</option>';
+    vehicles.forEach(function(v){
+      h+='<option value="'+v+'">'+v+'</option>';
+    });
+    h+='</select>';
+    // Extend date
+    h+='<input type="date" onchange="quickExtendUser('+u.id+',this.value)" value="'+(u.validUntil||'')+'" title="Valid Until Date" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-size:11px;">';
+    // Disable/Enable
+    h+='<button onclick="toggleUser('+u.id+')" style="padding:5px 10px;background:'+(expired?'#1A6B3C':'#B22222')+';color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;">'+(expired?'🟢 Enable':'🔴 Disable')+'</button>';
+    h+='</div>';
+
+    h+='</div></div>';
+  });
+  h+='</div>';
+  body.innerHTML=h;
+}
+
+function quickChangeVehicle(userId, vehicle){
+  if(!vehicle) return;
+  var users=getUsers();
+  var idx=users.findIndex(function(u){return u.id===userId;});
+  if(idx<0) return;
+  users[idx].vehicles=vehicle==='All Vehicles'?['All Vehicles']:[vehicle];
+  saveUsers(users);
+  showToast('✅ '+users[idx].name+' → '+vehicle,'t-s');
+  renderQuickStaffManager();
+}
+
+function quickExtendUser(userId, date){
+  if(!date) return;
+  var users=getUsers();
+  var idx=users.findIndex(function(u){return u.id===userId;});
+  if(idx<0) return;
+  users[idx].validUntil=date;
+  // Re-activate if was inactive due to expiry
+  if(users[idx].active===false){users[idx].active=true;}
+  saveUsers(users);
+  showToast('✅ '+users[idx].name+' valid until '+date,'t-s');
+  renderQuickStaffManager();
+}
 
 window.onload=()=>{
   // Pre-populate vehicle dropdowns
