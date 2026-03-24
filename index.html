@@ -467,7 +467,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="rejected">❌ Rejected</option>
                 <option value="pending">⏳ Pending</option>
                 <option value="approved">✅ Approved</option>
-                <option value="submitted">📨 Submitted</option>
               </select>
             </div>
           </div>
@@ -1277,6 +1276,10 @@ let pdfB64=null,curItems=[],curStatus='draft';
 
 function handleFile(inp){
   const f=inp.files[0];if(!f)return;
+  // Reset edit mode and status for fresh upload
+  window.curEditId=null;
+  curStatus='draft';
+  var qs=document.getElementById('quot-status');if(qs)qs.value='draft';
   const fn=document.getElementById('upload-fname');
   fn.textContent='[OK] '+f.name;fn.style.display='block';
   document.getElementById('process-btn').classList.add('show');
@@ -1329,6 +1332,10 @@ async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatc
 }
 
 function loadExtractedData(parsed){
+  // Always reset for fresh extraction
+  window.curEditId=null;
+  curStatus='draft';
+  var qs=document.getElementById('quot-status');if(qs)qs.value='draft';
   var st=document.getElementById('ai-status');
   var stx=document.getElementById('ai-st');
   if(parsed.refNo) document.getElementById('f-refno').value=parsed.refNo;
@@ -1381,7 +1388,7 @@ function loadExtractedData(parsed){
   document.getElementById('info-panel').style.display='block';
   document.getElementById('items-panel').style.display='block';
   showToast('✅ '+curItems.length+' items ready!','t-s');
-  setTimeout(updateWorkflowBar,200);
+  updateWorkflowBar();
 }
 
 function importExtractedJSON(){
@@ -1645,10 +1652,43 @@ function initFirebaseSync(){
     el=document.createElement('div');el.id='fb-badge';
     el.style.cssText='position:fixed;bottom:12px;right:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;background:#1A6B3C;color:#fff;cursor:pointer;';
     el.onclick=function(){
-      var h=getHist();var p=getPrices();var u=getUsers();
-      if(h&&h.length>0)fbWrite('history',h);if(p&&p.length>0)fbWrite('prices',p);if(u&&u.length>0)fbWrite('users',u);
-      el.textContent='⬆️ Pushed!';el.style.background='#C9952A';
-      setTimeout(function(){el.textContent='🟢 Synced';el.style.background='#1A6B3C';},3000);
+      el.textContent='🔄 Syncing...';el.style.background='#2060a0';
+      // READ from Firebase first, MERGE, then WRITE — never overwrite staff data
+      fbRead('history',function(remoteData){
+        try{
+          var local=getHist();
+          var remote=remoteData&&typeof remoteData==='object'?(Array.isArray(remoteData)?remoteData:Object.values(remoteData).filter(function(x){return x&&typeof x==='object';})):[];
+          // Merge ALL — keep highest status per ID
+          var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
+          var allIds={};
+          local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
+          remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
+          var merged=[];
+          Object.keys(allIds).forEach(function(id){
+            var lo=local.find(function(x){return x&&String(x.id)===id;});
+            var re2=remote.find(function(x){return x&&String(x.id)===id;});
+            if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;merged.push(reR>loR?re2:lo);}
+            else if(re2&&!lo)merged.push(re2);
+            else if(lo)merged.push(lo);
+          });
+          merged=merged.filter(function(x){return x&&typeof x==='object';});
+          if(merged.length>0){
+            localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+            fbWrite('history',merged);
+            updatePendingBadge();
+            if(typeof renderDashboard==='function')renderDashboard();
+            if(typeof renderHistory==='function')renderHistory();
+            showToast('✅ Synced! '+merged.length+' quotations','t-s');
+          }
+        }catch(e){
+          fbWrite('history',getHist());// fallback push
+        }
+        // Also sync prices and users
+        var p=getPrices();var u=getUsers();
+        if(p&&p.length>0)fbWrite('prices',p);
+        if(u&&u.length>0)fbWrite('users',u);
+        el.textContent='🟢 Synced';el.style.background='#1A6B3C';
+      });
     };
     document.body.appendChild(el);
   }
