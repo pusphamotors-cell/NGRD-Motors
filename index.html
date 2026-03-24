@@ -3743,7 +3743,7 @@ function promptAPIKey(cb){
     '<input id="api-key-input" type="password" placeholder="sk-ant-api03-..." '+
     'style="width:100%;padding:11px 12px;border:2px solid #ddd;border-radius:6px;font-size:13px;font-family:monospace;box-sizing:border-box;outline:none;" '+
     'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">'+
-    '<div id="api-key-err" style="color:#B22222;font-size:12px;margin-top:6px;display:none;">⚠️ Invalid key — sk-ant-api03- ல் start ஆகணும்</div>'+
+    '<div id="api-key-err" style="color:#B22222;font-size:12px;margin-top:6px;display:none;">⚠️ Valid API Key paste பண்ணுங்கள் (sk-ant-...)</div>'+
     '<div style="display:flex;gap:8px;margin-top:16px;">'+
     '<button id="api-key-save" style="flex:1;padding:11px;background:#1A6B3C;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">✅ Save</button>'+
     '<button id="api-key-cancel" style="padding:11px 16px;border:1px solid #ddd;border-radius:6px;font-size:14px;cursor:pointer;background:#fff;">✕</button>'+
@@ -3759,13 +3759,13 @@ function promptAPIKey(cb){
   // Save button
   document.getElementById('api-key-save').onclick=function(){
     var k=(document.getElementById('api-key-input').value||'').trim();
-    if(k&&k.startsWith('sk-')){
+    if(k&&k.length>20){
       saveAPIKeyToFirebase(k);
       modal.remove();
       if(cb) cb(k);
     } else {
       var err=document.getElementById('api-key-err');
-      if(err)err.style.display='block';
+      if(err){err.style.display='block';err.textContent='⚠️ Valid API Key paste பண்ணுங்கள்!';}
       document.getElementById('api-key-input').style.border='2px solid #B22222';
     }
   };
@@ -4695,7 +4695,7 @@ function adminSaveAPIKey(){
   var k=document.getElementById('api-key-input');
   if(!k) return;
   var val=k.value.trim();
-  if(!val.startsWith('sk-')){showToast('⚠️ sk- ல் start ஆகணும்!','t-e');return;}
+  if(!val||val.length<20){showToast('⚠️ Valid API Key paste பண்ணுங்கள்!','t-e');return;}
   saveAPIKeyToFirebase(val);
   k.value='';
   updateAPIKeyStatus();
