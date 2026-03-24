@@ -1621,7 +1621,8 @@ function initFirebaseSync(){
         else if(re2&&!lo)merged.push(re2);else if(lo)merged.push(lo);
       });
       merged=merged.filter(function(x){return x&&typeof x==='object';});
-      if(merged.length<local.length){fbWrite('history',local);return;}
+      // NEVER block sync — always keep MORE data (staff uploads must reach admin)
+      if(merged.length===0){if(local.length>0)fbWrite('history',local);return;}
       if(typeof autoFixStatus==='function') autoFixStatus(merged);
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
       fbWrite('history',merged);updatePendingBadge();
@@ -1708,10 +1709,7 @@ function startAutoSync(){
         var local=getHist();
         var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
         var statusOrder2={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:2};
-        var hasNew=remote.some(function(r){return r&&r.id&&localIds.indexOf(String(r.id))<0;});
-        var hasUpgrade=remote.some(function(r){if(!r||!r.id)return false;var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});if(!lo)return false;return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);});
-        var localHasLower=remote.some(function(r){if(!r||!r.id)return false;var lo=local.find(function(x){return x&&String(x.id)===String(r.id);});if(!lo)return false;return (statusOrder2[r.status]||0)>(statusOrder2[lo.status]||0);});
-        if(!hasNew&&!hasUpgrade){if(localHasLower){var merged2=[];local.forEach(function(lo){var re2=remote.find(function(x){return x&&String(x.id)===String(lo.id);});if(re2&&(statusOrder2[re2.status]||0)>(statusOrder2[lo.status]||0))merged2.push(re2);else merged2.push(lo);});remote.forEach(function(re2){if(re2&&re2.id&&!merged2.find(function(x){return x&&String(x.id)===String(re2.id);}))merged2.push(re2);});merged2=merged2.filter(function(x){return x&&typeof x==='object';});localStorage.setItem('ngrd_hist',JSON.stringify(merged2));updatePendingBadge();if(typeof renderDashboard==='function')renderDashboard();}else if(local.length>0)fbWrite('history',local);return;}
+        // Always merge — staff uploads must reach admin
         var allIds={};
         local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
         remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
@@ -1725,7 +1723,8 @@ function startAutoSync(){
           else if(lo)merged.push(lo);
         });
         merged=merged.filter(function(x){return x&&typeof x==='object';});
-        if(merged.length<local.length){fbWrite('history',local);return;}
+        // NEVER block — always accept more data from Firebase
+        if(merged.length===0) return;
         localStorage.setItem('ngrd_hist',JSON.stringify(merged));
         fbWrite('history',merged);updatePendingBadge();
         if(typeof renderDashboard==='function')renderDashboard();
