@@ -940,7 +940,15 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
     <div class="modal-body">
       <div class="form-grid" style="gap:10px;margin-bottom:10px;">
         <div class="form-field full"><label>Part Description *</label><input id="mp-desc" placeholder="e.g. Ball Joint"></div>
-        <div class="form-field full"><label>Vehicle</label><select id="mp-veh" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;"><option value="">All Vehicles</option><option>Suzuki SX4</option><option>Mitsubishi L200 K34 Japan Cab</option><option>Mitsubishi L200 K14 Japan Cab</option><option>Mitsubishi KB40</option><option>Mitsubishi KB70</option><option>Mitsubishi Thailand Cab</option><option>Mitsubishi Van</option><option>Mitsubishi Pajero Jeep V36</option><option>Mitsubishi Pajero Palathsabha Jeep</option><option>Isuzu TFR Cab</option><option>Toyota LH113 Dolphin Van</option><option>Toyota KDH Van</option><option>Toyota Cab LN85</option><option>Toyota Cab LN166</option><option>Toyota Cab LN106</option><option>Toyota Cab LN107</option></select></div>
+        <div class="form-field full"><label>🚗 Applies To</label><select id="mp-veh" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;"><option value="">— Select —</option>
+<option value="UNIVERSAL">🌍 Universal (All Vehicles)</option>
+<option value="FAM_L200">🚗 L200 Family (K34, K14, KB40, KB70, Thailand)</option>
+<option value="FAM_PAJERO">🚗 Pajero Family (V36, Palathsabha)</option>
+<option value="FAM_TOYOTA_CAB">🚗 Toyota Cab Family (LN85, LN106, LN107, LN166)</option>
+<option value="FAM_TOYOTA_VAN">🚗 Toyota Van Family (LH113, KDH)</option>
+<option value="FAM_TATA_TRUCK">🚗 TATA Truck Family (LPT 1109, LP 709, 1313)</option>
+<optgroup label="── Specific Vehicle ──">
+<option>Suzuki SX4</option><option>Mitsubishi L200 K34 Japan Cab</option><option>Mitsubishi L200 K14 Japan Cab</option><option>Mitsubishi KB40</option><option>Mitsubishi KB70</option><option>Mitsubishi Thailand Cab</option><option>Mitsubishi Van</option><option>Mitsubishi Pajero Jeep V36</option><option>Mitsubishi Pajero Palathsabha Jeep</option><option>Isuzu TFR Cab</option><option>Toyota LH113 Dolphin Van</option><option>Toyota KDH Van</option><option>Toyota Cab LN85</option><option>Toyota Cab LN166</option><option>Toyota Cab LN106</option><option>Toyota Cab LN107</option></select></div>
         <div class="form-field"><label>Part Number (LH or Single)</label><input id="mp-partno" placeholder="e.g. 51360-M55K00"></div>
         <div class="form-field"><label>RH Part Number <span style="font-size:10px;color:#888;">(different from LH only)</span></label><input id="mp-partno-rh" placeholder="e.g. 51370-M55K00 (optional)"></div>
         <div class="form-field"><label>Brand</label><input id="mp-brand"></div>
@@ -1550,6 +1558,10 @@ function showPurchaseHistory(itemIdx,brandIdx){
     if(!entry.items||!Array.isArray(entry.items))return;
     entry.items.forEach(function(it){
       if(!it.description)return;
+      // STRICT: only show same vehicle history
+      if(vehicle&&entry.vehicle&&entry.vehicle.toLowerCase()!==vehicle.toLowerCase()&&
+         !entry.vehicle.toLowerCase().includes(vehicle.toLowerCase().split(' ').pop()||'')&&
+         !vehicle.toLowerCase().includes((entry.vehicle||'').toLowerCase().split(' ').pop()||'')) return;
       var aW=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
       var bW=desc.toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
       var matched=bW.filter(function(w){return aW.includes(w);}).length;
@@ -1578,8 +1590,13 @@ function showPurchaseHistory(itemIdx,brandIdx){
     h2+='<div style="font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;">🏷️ Price Master List</div>';
     priceMatches.forEach(function(p){
       h2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#f7fafd;border-radius:4px;margin-bottom:5px;">';
-      h2+='<div><div style="font-weight:700;font-size:12px;">'+p.brand+'</div>';
-      h2+='<div style="font-size:10px;color:#666;">'+(p.partNo||'')+(p.vehicle?' | '+p.vehicle:'')+'</div></div>';
+      var mBadge='';
+      if(p._matchType==='family'||p._matchType==='family_hist')
+        mBadge='<span style="background:#2060a0;color:#fff;padding:1px 4px;border-radius:2px;font-size:9px;margin-left:4px;">👨‍👩‍👦 '+(p._fromVehicle?p._fromVehicle.split(' ').slice(0,2).join(' '):'Family')+'</span>';
+      else if(p._matchType==='universal')
+        mBadge='<span style="background:#1A6B3C;color:#fff;padding:1px 4px;border-radius:2px;font-size:9px;margin-left:4px;">🌍 Universal</span>';
+      h2+='<div><div style="font-weight:700;font-size:12px;">'+p.brand+mBadge+'</div>';
+      h2+='<div style="font-size:10px;color:#666;">'+(p.partNo||'')+(p.vehicle&&p.vehicle!=='UNIVERSAL'?' | '+p.vehicle:'')+'</div></div>';
       h2+='<div style="text-align:right;margin-right:8px;">';
       h2+='<div style="font-size:11px;color:#c47020;font-weight:700;">Cost: '+lkr(p.purchasePrice||0)+'</div>';
       h2+='<div style="font-size:11px;color:#1A6B3C;">Sell: '+lkr(p.price||0)+'</div></div>';
@@ -1882,6 +1899,49 @@ function updateQuotStatus(){curStatus=document.getElementById('quot-status')?.va
 // ══════════════════════════════════════════════════
 // ITEMS TABLE
 // ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// VEHICLE FAMILY GROUPS
+// ══════════════════════════════════════════════════
+var VEHICLE_FAMILIES = {
+  'l200':    ['Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab',
+              'Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab'],
+  'pajero':  ['Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep'],
+  'toyota_cab': ['Toyota Cab LN85','Toyota Cab LN166','Toyota Cab LN106','Toyota Cab LN107'],
+  'toyota_van': ['Toyota LH113 Dolphin Van','Toyota KDH Van'],
+  'tata_truck': ['TATA LPT 1109 TRUCK','TATA LP 709 TRUCK','TATA 1313 TRUCK'],
+  'tata_van':   ['TATA WINGER VAN'],
+};
+
+function getVehicleFamily(vehicleName){
+  if(!vehicleName) return null;
+  var vl=vehicleName.toLowerCase();
+  for(var fam in VEHICLE_FAMILIES){
+    var members=VEHICLE_FAMILIES[fam];
+    for(var i=0;i<members.length;i++){
+      if(members[i].toLowerCase()===vl) return fam;
+      // Also check partial match
+      var mkey=members[i].toLowerCase().split(' ').slice(0,2).join(' ');
+      if(vl.includes(mkey)||mkey.includes(vl.split(' ').slice(0,2).join(' '))) return fam;
+    }
+  }
+  return null;
+}
+
+function getFamilyMembers(vehicleName){
+  var fam=getVehicleFamily(vehicleName);
+  if(!fam) return [vehicleName];
+  return VEHICLE_FAMILIES[fam]||[vehicleName];
+}
+
+function isSameFamily(v1,v2){
+  if(!v1||!v2) return false;
+  if(v1.toLowerCase()===v2.toLowerCase()) return true;
+  var f1=getVehicleFamily(v1);
+  var f2=getVehicleFamily(v2);
+  return f1&&f2&&f1===f2;
+}
+
+
 var ROLES={
   uploader: {seePurchase:false,canPurchase:false,canMargin:false,canSave:false,canExport:false,canUpload:true,canPrice:false,canSubmit:false,viewOnly:false,canApprove:false},
   price:    {seePurchase:true, canPurchase:true, canMargin:true, canSave:false,canExport:false,canUpload:false,canPrice:true,canSubmit:false,viewOnly:false,canApprove:false},
@@ -2032,8 +2092,17 @@ function renderItems(items){
       var daysOld=hint?getPriceDaysOld(hint.date):null;
       var hintHtml='';
       if(bi===0&&hint){
-        if(daysOld!==null&&daysOld>30) hintHtml='<div style="font-size:9px;color:#B22222;font-weight:700;margin-top:1px;">⚠️ '+daysOld+'d Recheck!</div>';
-        else hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hint.price||0)+' ('+hint.date+')</div>';
+        var matchLabel='';
+        if(hint._matchType==='family'||hint._matchType==='family_hist'){
+          matchLabel=' <span style="background:#2060a0;color:#fff;padding:0 4px;border-radius:2px;font-size:8px;">'+
+            (hint._fromVehicle?hint._fromVehicle.split(' ').slice(0,2).join(' '):'Family')+'</span>';
+        } else if(hint._matchType==='universal'){
+          matchLabel=' <span style="background:#1A6B3C;color:#fff;padding:0 4px;border-radius:2px;font-size:8px;">Universal</span>';
+        }
+        if(daysOld!==null&&daysOld>30)
+          hintHtml='<div style="font-size:9px;color:#B22222;font-weight:700;margin-top:1px;">⚠️ '+daysOld+'d Recheck!'+matchLabel+'</div>';
+        else
+          hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hint.price||0)+' ('+hint.date+')'+matchLabel+'</div>';
       }
       h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');calcTotals()" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;">'+hintHtml+'</td>';
       h+='<td class="tr" id="rt-'+idx+'-'+bi+'" style="font-weight:700;color:var(--navy2);font-size:12px;padding:3px 6px;">—</td>';
@@ -2090,10 +2159,11 @@ const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join
 
 function findAllPriceMatches(desc,prices,vehicle){
   if(!desc) return [];
-  var allPrices=prices||[];
+  var allPrices=(prices||[]).slice();
+
+  // Add history prices
   try{
     var hist=getHist();
-    var histPrices=[];
     hist.forEach(function(entry){
       if(!entry.items||!Array.isArray(entry.items)) return;
       var v=entry.vehicle||'';
@@ -2103,49 +2173,204 @@ function findAllPriceMatches(desc,prices,vehicle){
         if(!rows.length&&item.brand) rows=[{brand:item.brand,partNo:item.partNo||'',country:item.country||'Japan',price:item.unitPrice||0,purchasePrice:item.purchasePrice||0}];
         rows.forEach(function(br){
           if(!br.brand&&!br.price) return;
-          histPrices.push({id:'h_'+entry.id+'_'+item.itemNo,description:item.description,vehicle:v,brand:br.brand||'',partNo:br.partNo||'',country:br.country||'Japan',price:parseFloat(br.price)||0,purchasePrice:parseFloat(br.purchasePrice)||0});
+          var exists=allPrices.find(function(p){
+            return (p.description||'').toLowerCase()===(item.description||'').toLowerCase()
+              &&(p.brand||'').toLowerCase()===(br.brand||'').toLowerCase()
+              &&(p.vehicle||'').toLowerCase()===(v||'').toLowerCase();
+          });
+          if(!exists) allPrices.push({
+            id:'h_'+entry.id+'_'+item.itemNo,
+            description:item.description,vehicle:v,
+            brand:br.brand||'',partNo:br.partNo||'',
+            country:br.country||'Japan',
+            price:parseFloat(br.price)||0,
+            purchasePrice:parseFloat(br.purchasePrice)||0
+          });
         });
       });
     });
-    histPrices.forEach(function(hp){
-      var exists=allPrices.find(function(p){return (p.description||'').toLowerCase()===(hp.description||'').toLowerCase()&&(p.brand||'').toLowerCase()===(hp.brand||'').toLowerCase()&&(p.vehicle||'').toLowerCase()===(hp.vehicle||'').toLowerCase();});
-      if(!exists) allPrices=allPrices.concat([hp]);
-    });
   }catch(e){}
+
   if(!allPrices.length) return [];
-  var SYNONYMS=[['lower arm','arm lower','lower control arm'],['shock absorber','shock','damper','strut'],['ball joint','balljoint'],['tie rod','tie rod end'],['brake pad','disc pad'],['oil filter','lube filter'],['air filter','air cleaner'],['fuel filter'],['water pump','coolant pump'],['timing belt','cam belt'],['clutch','clutch plate','clutch disc'],['bush','bushing'],['wheel bearing','hub bearing'],['cv joint','drive shaft','axle shaft'],['brake disc','brake rotor'],['radiator','radiator assy'],['engine mount','motor mount'],['alternator','generator'],['starter motor','starter'],['fan belt','v belt','drive belt'],['idler pulley','belt tensioner'],['thermostat','thermostat valve'],['head gasket','cylinder head gasket'],['oil seal','seal oil'],['brake caliper','caliper'],['master cylinder','brake master'],['compressor','ac compressor'],['condenser','ac condenser']];
-  var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right','upper','lower','inner','outer','set','kit','no','for','the','and','with','type','x','mm','pcs','pair','oe','oem','genuine','original'];
+
+  var SYNONYMS=[
+    ['lower arm','arm lower','lower control arm','arm assy lower'],
+    ['upper arm','arm upper','upper control arm'],
+    ['shock absorber','shock','damper','strut','absorber'],
+    ['ball joint','balljoint','ball joint assy'],
+    ['tie rod','tie rod end','steering tie rod','track rod'],
+    ['brake pad','disc pad','brake lining','pad kit'],
+    ['oil filter','lube filter','oil element'],
+    ['air filter','air cleaner','air element'],
+    ['fuel filter','fuel element'],
+    ['water pump','coolant pump','pump water'],
+    ['timing belt','cam belt','timing chain'],
+    ['clutch','clutch plate','clutch disc','clutch kit'],
+    ['bush','bushing','rubber bush','arm bush','stabilizer bush'],
+    ['wheel bearing','hub bearing','bearing hub','front bearing','rear bearing'],
+    ['cv joint','cv axle','drive shaft','axle shaft','driveshaft'],
+    ['brake disc','brake rotor','disc rotor'],
+    ['radiator','complete radiator','radiator assy'],
+    ['engine mount','motor mount','mounting engine'],
+    ['alternator','generator','dynamo'],
+    ['starter motor','starter','self starter'],
+    ['fan belt','v belt','drive belt','serpentine belt'],
+    ['idler pulley','belt tensioner','tensioner'],
+    ['thermostat','thermostat valve'],
+    ['head gasket','cylinder head gasket'],
+    ['oil seal','seal oil'],
+    ['brake caliper','caliper','calliper'],
+    ['master cylinder','brake master','clutch master'],
+    ['steering rack','rack end','rack assy','rack and pinion'],
+    ['compressor','ac compressor','aircon compressor'],
+    ['condenser','ac condenser'],
+    ['glow plug','heater plug'],
+    ['injector','fuel injector'],
+    ['power steering pump','ps pump','steering pump'],
+    ['wiper blade','wiper','windscreen wiper'],
+  ];
+
+  var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
+    'upper','lower','inner','outer','set','kit','no','for','the','and','with',
+    'type','mm','pcs','pair','oe','oem','genuine','original','japan','india','china'];
+
   function cleanDesc(s){return s.toLowerCase().replace(/[.\-_\/\[\]()]/g,' ').replace(/\s+/g,' ').trim();}
   function getCoreWords(s){return cleanDesc(s).split(' ').filter(function(w){return w.length>1&&NOISE.indexOf(w)===-1;});}
-  function getSynonymGroup(words){var joined=words.join(' ');for(var i=0;i<SYNONYMS.length;i++){var group=SYNONYMS[i];for(var j=0;j<group.length;j++){if(joined.includes(group[j])||group[j].split(' ').every(function(w){return words.indexOf(w)>=0;})){return group;}}}return null;}
-  var dClean=cleanDesc(desc);var dWords=getCoreWords(desc);var dSynGroup=getSynonymGroup(dWords);
-  var vClean=vehicle?(vehicle.toLowerCase().trim()):'';
-  var vKey='';if(vClean){var vParts=vClean.split(' ');vParts.forEach(function(p){if(p.length>2&&isNaN(p))vKey=p;});if(!vKey)vKey=vClean;}
-  var matches=[];
-  prices.forEach(function(p){
+  function getSynonymGroup(words){
+    var joined=words.join(' ');
+    for(var i=0;i<SYNONYMS.length;i++){
+      var group=SYNONYMS[i];
+      for(var j=0;j<group.length;j++){
+        if(joined.includes(group[j])||group[j].split(' ').every(function(w){return words.indexOf(w)>=0;})){return group;}
+      }
+    }
+    return null;
+  }
+
+  // Get part number from current item (for cross-reference)
+  var dClean=cleanDesc(desc);
+  var dWords=getCoreWords(desc);
+  var dSynGroup=getSynonymGroup(dWords);
+  var vClean=(vehicle||'').toLowerCase().trim();
+
+  var exactMatches=[];      // Same vehicle, exact/synonym match
+  var familyMatches=[];     // Same family, exact/synonym match
+  var universalMatches=[];  // Universal tag
+  var crossRefMatches=[];   // Same part number, any vehicle
+  var partNoFromDesc='';    // Extract part no from description if present
+
+  allPrices.forEach(function(p){
     if(!p.description) return;
-    var pVeh=(p.vehicle||'').toLowerCase().trim();var pVehKey='';
-    if(pVeh){var pvParts=pVeh.split(' ');pvParts.forEach(function(pp){if(pp.length>2&&isNaN(pp))pVehKey=pp;});if(!pVehKey)pVehKey=pVeh;}
-    if(vKey){if(pVehKey){if(pVehKey!==vKey&&!pVeh.includes(vKey)&&!vClean.includes(pVehKey)) return;}else{p._noVehicle=true;}}else{return;}
-    var pWords=getCoreWords(p.description);var pSynGroup=getSynonymGroup(pWords);
+
+    var pVeh=(p.vehicle||'').trim();
+    var pVehL=pVeh.toLowerCase();
+
+    // ── Score by description ──
+    var pWords=getCoreWords(p.description);
+    var pSynGroup=getSynonymGroup(pWords);
     var score=0;
-    if(dSynGroup&&pSynGroup&&dSynGroup[0]===pSynGroup[0]){score=95;}
+
+    if(dSynGroup&&pSynGroup&&dSynGroup[0]===pSynGroup[0]) score=95;
     if(score===0){
       var pClean=cleanDesc(p.description);
       if(dClean===pClean) score=100;
       else if(dClean.includes(pClean)||pClean.includes(dClean)) score=85;
-      else{var matched=0;dWords.forEach(function(w){if(pWords.some(function(pw){return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));})){ matched++; }});var totalD=dWords.length,totalP=pWords.length;if(totalD>0&&totalP>0){if(matched/totalD>=0.8&&matched/totalP>=0.6) score=75;else if(matched/totalD>=0.6&&matched>=2) score=55;}}
+      else{
+        var matched=0;
+        dWords.forEach(function(w){
+          if(pWords.some(function(pw){return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));})){matched++;}
+        });
+        var td=dWords.length,tp=pWords.length;
+        if(td>0&&tp>0){
+          if(matched/td>=0.8&&matched/tp>=0.6) score=75;
+          else if(matched/td>=0.6&&matched>=2) score=55;
+        }
+      }
     }
-    if(score>=55) matches.push({score:score,item:p});
+
+    if(score<55) return;
+
+    // ── Categorize by vehicle match type ──
+
+    // 1. UNIVERSAL — matches any vehicle
+    if(pVeh==='UNIVERSAL'||pVehL==='universal'||pVeh===''){
+      universalMatches.push({score:score,item:p,matchType:'universal'});
+      return;
+    }
+
+    // 2. FAMILY tag — e.g. FAM_L200
+    if(pVeh.startsWith('FAM_')){
+      var famTag=pVeh; // e.g. FAM_L200
+      var famKey=famTag.replace('FAM_','').toLowerCase(); // l200
+      // Check if selected vehicle belongs to this family
+      if(vehicle){
+        var vFam=typeof getVehicleFamily==='function'?getVehicleFamily(vehicle):'';
+        if(vFam&&vFam===famKey){
+          familyMatches.push({score:score,item:p,matchType:'family',famTag:famTag});
+        }
+      }
+      return;
+    }
+
+    // 3. EXACT vehicle match
+    if(vehicle&&pVehL===vClean){
+      exactMatches.push({score:score,item:p,matchType:'exact'});
+      return;
+    }
+
+    // 4. FAMILY match — same family different model
+    if(vehicle&&typeof isSameFamily==='function'&&isSameFamily(pVeh,vehicle)&&pVehL!==vClean){
+      familyMatches.push({score:score,item:p,matchType:'family_hist',fromVehicle:pVeh});
+      return;
+    }
+
+    // 5. CROSS REFERENCE — same part number, different vehicle
+    if(vehicle&&p.partNo&&p.partNo.length>3){
+      // Will check part no separately below
+      crossRefMatches.push({score:score,item:p,matchType:'crossref',fromVehicle:pVeh});
+    }
   });
-  matches.sort(function(a,b){return b.score-a.score;});
-  var vehicleMatches=matches.filter(function(m){return m.item.vehicle&&m.item.vehicle.length>0;});
-  var noVehicleMatches=matches.filter(function(m){return !m.item.vehicle||m.item.vehicle.length===0;});
-  var finalMatches=vehicleMatches.length>0?vehicleMatches:noVehicleMatches;
-  var descHasLHRH=/(lh|rh|lh\/rh|l\/h|r\/h|left|right)/i.test(desc);
-  if(descHasLHRH){var lhMatch=finalMatches.find(function(m){return /lh|left/i.test(m.item.description||'');});var rhMatch=finalMatches.find(function(m){return /rh|right/i.test(m.item.description||'');});if(lhMatch&&rhMatch&&lhMatch.item!==rhMatch.item){return [lhMatch.item,rhMatch.item];}}
-  var seen={};
-  return finalMatches.filter(function(m){var key=(m.item.brand||'__').toLowerCase();if(seen[key])return false;seen[key]=true;return true;}).slice(0,3).map(function(m){return m.item;});
+
+  // Sort each category
+  exactMatches.sort(function(a,b){return b.score-a.score;});
+  familyMatches.sort(function(a,b){return b.score-a.score;});
+  universalMatches.sort(function(a,b){return b.score-a.score;});
+  crossRefMatches.sort(function(a,b){return b.score-a.score;});
+
+  // ── Build final results (priority order) ──
+  // 1. Exact matches first
+  // 2. Family matches (with hint)
+  // 3. Universal matches
+  // (cross-ref shown in popup separately)
+
+  var combined=[];
+  var seenBrand={};
+  var seenPartNo={};
+
+  function addIfNew(m){
+    var brandKey=(m.item.brand||'__').toLowerCase();
+    var partKey=(m.item.partNo||'').toLowerCase();
+    if(seenBrand[brandKey]) return;
+    // Add match type hint to item
+    var itemCopy=Object.assign({},m.item,{_matchType:m.matchType,_fromVehicle:m.fromVehicle||''});
+    seenBrand[brandKey]=true;
+    if(partKey) seenPartNo[partKey]=true;
+    combined.push(itemCopy);
+  }
+
+  exactMatches.slice(0,3).forEach(addIfNew);
+  familyMatches.slice(0,2).forEach(addIfNew);
+  universalMatches.slice(0,2).forEach(addIfNew);
+
+  // LH/RH pairing
+  var descHasLHRH=/\b(lh|rh|lh\/rh|l\/h|r\/h|left|right)\b/i.test(desc);
+  if(descHasLHRH&&combined.length>=2){
+    var lh=combined.find(function(m){return /\blh\b|\bleft\b/i.test(m.description||'');});
+    var rh=combined.find(function(m){return /\brh\b|\bright\b/i.test(m.description||'');});
+    if(lh&&rh&&lh!==rh) return [lh,rh];
+  }
+
+  return combined.slice(0,3);
 }
 
 function getPriceHint(desc,prices){var matches=findAllPriceMatches(desc,prices);return matches.length>0?matches[0]:null;}
@@ -3237,7 +3462,7 @@ function renderDashboard(){
       urgentHtml+='<div style="background:rgba(255,255,255,.1);border-radius:4px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">';
       urgentHtml+='<div><div style="font-weight:700;">'+( e.vehicle||'Vehicle')+'</div><div style="font-size:11px;opacity:.8;">'+( e.eqNo||e.refNo||'—')+'</div></div>';
       urgentHtml+='<div style="display:flex;gap:6px;">';
-      urgentHtml+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:5px 12px;background:#fff;color:#B22222;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
+      urgentHtml+='<button onclick="loadHist('+e.id+');showPage(\'new\')" style="padding:5px 12px;background:#fff;color:#B22222;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
       urgentHtml+='</div></div>';
     });
     urgentHtml+='</div>';
@@ -3249,7 +3474,7 @@ function renderDashboard(){
       var e=item.entry;
       urgentHtml+='<div style="background:rgba(255,255,255,.1);border-radius:4px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">';
       urgentHtml+='<div><div style="font-weight:700;">'+( e.vehicle||'Vehicle')+' — '+item.days+'d left</div><div style="font-size:11px;opacity:.8;">'+( e.eqNo||e.refNo||'—')+'</div></div>';
-      urgentHtml+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:5px 12px;background:#fff;color:#8B4513;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
+      urgentHtml+='<button onclick="loadHist('+e.id+');showPage(\'new\')" style="padding:5px 12px;background:#fff;color:#8B4513;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
       urgentHtml+='</div>';
     });
     urgentHtml+='</div>';
@@ -3327,7 +3552,7 @@ function renderDashboard(){
           +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">'+(e.entity||'')+' | '+(e.items?e.items.length:0)+' items | '+lkr(e.grandTotal||0)+'</div>'
           +'<div style="font-size:10px;color:var(--muted);">By: '+(e.savedBy||'?')+' | '+e.date+'</div>'
           +'</div>'
-          +'<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:5px 10px;background:var(--light);border:1px solid var(--border);border-radius:3px;font-size:11px;cursor:pointer;">Open</button>'
+          +'<button onclick="loadHist('+e.id+');showPage(\'new\')" style="padding:5px 10px;background:var(--light);border:1px solid var(--border);border-radius:3px;font-size:11px;cursor:pointer;">Open</button>'
           +'</div>';
       }).join('');
     }
@@ -3507,7 +3732,7 @@ function renderStaffDashboard(){
     closingToday.forEach(function(e){
       html2+='<div style="background:rgba(255,255,255,.1);border-radius:4px;padding:8px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;">';
       html2+='<div><div style="font-weight:700;">'+( e.vehicle||'')+'</div><div style="font-size:11px;opacity:.8;">'+(e.eqNo||e.refNo||'')+'</div></div>';
-      html2+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:5px 12px;background:#fff;color:#B22222;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
+      html2+='<button onclick="loadHist('+e.id+');showPage(\'new\')" style="padding:5px 12px;background:#fff;color:#B22222;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
       html2+='</div>';
     });
     html2+='</div>';
@@ -3521,7 +3746,7 @@ function renderStaffDashboard(){
       var days=Math.floor((cd-today)/86400000);
       html2+='<div style="background:rgba(255,255,255,.1);border-radius:4px;padding:7px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">';
       html2+='<div><div style="font-weight:700;">'+( e.vehicle||'')+' — '+days+'d left</div><div style="font-size:11px;opacity:.8;">'+(e.eqNo||e.refNo||'')+'</div></div>';
-      html2+='<button onclick="loadHist('+e.id+');showPage(\"new\")" style="padding:4px 10px;background:#fff;color:#8B4513;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
+      html2+='<button onclick="loadHist('+e.id+');showPage(\'new\')" style="padding:4px 10px;background:#fff;color:#8B4513;border:none;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">Open</button>';
       html2+='</div>';
     });
     html2+='</div>';
@@ -3605,7 +3830,7 @@ function renderPendingPanel(title, color, items, subtitle){
     out+='</div>';
     var _isSubmitted=['submitted','approved','awarded'].indexOf(e.status||'')<0;
     var _btnLabel=_isSubmitted?'Open →':'👁 View';
-    var _btnAct=_isSubmitted?'loadHist('+e.id+');showPage("new")':'openQV('+e.id+')';
+    var _btnAct=_isSubmitted?"loadHist("+e.id+");showPage(\'new\')":'openQV('+e.id+')';
     out+='<button onclick="'+_btnAct+'" style="padding:6px 14px;background:'+color+';color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">'+_btnLabel+'</button>';
     out+='</div>';
   });
