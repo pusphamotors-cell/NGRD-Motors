@@ -2753,10 +2753,13 @@ function renderHistory(){
   const vf=(document.getElementById('hist-vehicle-filter')?.value||'').toLowerCase();
   const sf=document.getElementById('hist-status-filter')?.value||'';
   var vfSel=document.getElementById('hist-vehicle-filter');
-  if(vfSel&&vfSel.options.length<=1){
+  if(vfSel){
+    var curVF=vfSel.value;
+    vfSel.innerHTML='<option value="">🚗 All Vehicles</option>';
     [...new Set(getHist().map(function(e){return e.vehicle||'';}).filter(Boolean))].sort().forEach(function(v){
       var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;vfSel.appendChild(o);
     });
+    if(curVF) vfSel.value=curVF;
   }
   if(vf) h=h.filter(function(x){return (x.vehicle||'').toLowerCase()===vf;});
   if(sf) h=h.filter(x=>x.status===sf);
