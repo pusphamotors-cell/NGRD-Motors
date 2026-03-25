@@ -428,6 +428,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         </div>
 
         <div class="panel" style="margin-bottom:10px;">
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button onclick="setCompany('ngrd')" id="co-ngrd" style="flex:1;padding:9px;background:#0D1B2A;color:#fff;border:2px solid #0D1B2A;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">🏢 N.G.R.D. Motors</button>
+            <button onclick="setCompany('puspha')" id="co-puspha" style="flex:1;padding:9px;background:#fff;color:#4A0E0E;border:2px solid #4A0E0E;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">🏢 Puspha Motors</button>
+          </div>
           <div class="panel-hdr"><span class="panel-hdr-icon">🚗</span><span class="panel-hdr-title">Vehicle Select <span style="color:#B22222;">*</span></span></div>
           <div class="panel-body">
             <div style="display:flex;gap:8px;align-items:center;">
@@ -599,6 +603,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="awarded">Awarded</option>
                 <option value="rejected">Rejected</option>
                 <option value="pending">Pending</option>
+              </select>
+              <select id="hist-company-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
+                <option value="">🏢 All Companies</option>
+                <option value="ngrd">NGRD Motors</option>
+                <option value="puspha">Puspha Motors</option>
               </select>
               <input type="text" id="hist-search" placeholder="Search..." oninput="renderHistory()"
                 style="padding:5px 9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;outline:none;width:120px;font-family:var(--fb);">
@@ -1225,6 +1234,9 @@ function resetStorage(){
 }
 
 function initApp(){
+  // Load saved company preference
+  var savedCo = localStorage.getItem('ngrd_company')||'ngrd';
+  setCompany(savedCo);
   // Try to load API key from Firebase for all users
   if(typeof loadAPIKeyFromFirebase==='function'&&!getAPIKey()){
     loadAPIKeyFromFirebase();
@@ -1927,6 +1939,69 @@ function updateQuotStatus(){curStatus=document.getElementById('quot-status')?.va
 // ITEMS TABLE
 // ══════════════════════════════════════════════════
 // ══════════════════════════════════════════════════
+// COMPANY PROFILES
+// ══════════════════════════════════════════════════
+var COMPANIES = {
+  ngrd: {
+    id: 'ngrd',
+    name: 'N.G.R.D. MOTORS',
+    shortName: 'NGRD',
+    address: 'No. 202/17B, Mohideen Masjid Road, Panchikawatta, Colombo 10',
+    addressShort: 'Panchikawatta, Colombo 10, Sri Lanka',
+    tel: '0112449385 / 076 688 6526',
+    tagline: 'Authorized Spare Parts Supplier — Government Institutions',
+    color: '#0D1B2A',
+    colorAccent: '#C9952A',
+    colorLight: '#1A2E45',
+    seal: 'NGRD<br>MOTORS<br>⚙️',
+    badge: 'PRICE QUOTATION',
+    authorized: 'Authorized — N.G.R.D. Motors',
+    footer: 'N.G.R.D. Motors, Panchikawatta, Colombo 10 | Warranty: 6 months | Prices in LKR',
+  },
+  puspha: {
+    id: 'puspha',
+    name: 'PUSPHA MOTORS',
+    shortName: 'PUSPHA',
+    address: 'No. 202/119A, Mohideen Masjid Road, Panchikawatta, Colombo 10',
+    addressShort: 'Panchikawatta, Colombo 10, Sri Lanka',
+    tel: '0779338696 / 0759515507',
+    tagline: 'Authorized Spare Parts Supplier — Government Institutions',
+    color: '#4A0E0E',
+    colorAccent: '#C9952A',
+    colorLight: '#6B1A1A',
+    seal: 'PUSPHA<br>MOTORS<br>⚙️',
+    badge: 'PRICE QUOTATION',
+    authorized: 'Authorized — Puspha Motors',
+    footer: 'Puspha Motors, Panchikawatta, Colombo 10 | Warranty: 6 months | Prices in LKR',
+  }
+};
+
+var curCompany = 'ngrd'; // Default company
+
+function getCompany(){
+  return COMPANIES[curCompany] || COMPANIES.ngrd;
+}
+
+function setCompany(id){
+  curCompany = id;
+  localStorage.setItem('ngrd_company', id);
+  // Update toggle buttons
+  var ngrdBtn = document.getElementById('co-ngrd');
+  var pushaBtn = document.getElementById('co-puspha');
+  if(ngrdBtn && pushaBtn){
+    if(id==='ngrd'){
+      ngrdBtn.style.background='#0D1B2A'; ngrdBtn.style.color='#fff';
+      pushaBtn.style.background='#fff'; pushaBtn.style.color='#4A0E0E';
+    } else {
+      pushaBtn.style.background='#4A0E0E'; pushaBtn.style.color='#fff';
+      ngrdBtn.style.background='#fff'; ngrdBtn.style.color='#0D1B2A';
+    }
+  }
+  showToast('🏢 '+getCompany().name+' selected', 't-s');
+}
+
+
+// ══════════════════════════════════════════════════
 // VEHICLE FAMILY GROUPS
 // ══════════════════════════════════════════════════
 var VEHICLE_FAMILIES = {
@@ -2478,7 +2553,8 @@ function saveToHistory(){
     engineNo:g('f-eng'),chassisNo:g('f-chas'),
     items:JSON.parse(JSON.stringify(curItems)),
     grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
-    status:quotStatus,steps:steps
+    status:quotStatus,steps:steps,
+    company:curCompany||'ngrd'
   };
   hist.unshift(entry);if(hist.length>200) hist.pop();
   setHist(hist);autoSavePrices(curItems);
@@ -2657,6 +2733,8 @@ function renderHistory(){
   }
   if(vf) h=h.filter(function(x){return (x.vehicle||'').toLowerCase()===vf;});
   if(sf) h=h.filter(x=>x.status===sf);
+  var cf=document.getElementById('hist-company-filter')?.value||'';
+  if(cf) h=h.filter(function(x){return (x.company||'ngrd')===cf;});
   const q=document.getElementById('hist-search')?.value?.toLowerCase()||'';
   if(q) h=h.filter(x=>(x.vehicle+x.vNo+x.eqNo+x.refNo+x.entity).toLowerCase().includes(q));
   const c=document.getElementById('history-list');
@@ -2668,7 +2746,7 @@ function renderHistory(){
     return `<div class="hist-item">
       ${chk}
       <div class="hist-info">
-        <div class="hist-title">${e.vehicle||'Vehicle'} — ${e.vNo||''} &nbsp;|&nbsp; ${e.eqNo||e.refNo}</div>
+        <div class="hist-title">${e.vehicle||'Vehicle'} — ${e.vNo||''} &nbsp;|&nbsp; ${e.eqNo||e.refNo}${coBadge}</div>
         <div class="hist-meta">${e.entity||''} &nbsp;•&nbsp; ${e.items?.length||0} items &nbsp;•&nbsp; ${lkr(e.grandTotal||0)} &nbsp;${sb}</div>
         <div class="hist-by">By: ${e.savedBy||'?'} &nbsp; ${getDeadlineBadge(e.closingDate,e.status)}</div>
         <div style="font-size:10px;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
@@ -3573,6 +3651,9 @@ function renderDashboard(){
     } else {
       allEl.innerHTML=h.slice(0,20).map(function(e){
         var sb=getStatusBadge(e.status);
+    var coBadge=e.company==='puspha'?
+      '<span style="background:#4A0E0E;color:#fff;padding:1px 6px;border-radius:2px;font-size:9px;margin-left:4px;">PUSPHA</span>':
+      '<span style="background:#0D1B2A;color:#fff;padding:1px 6px;border-radius:2px;font-size:9px;margin-left:4px;">NGRD</span>';
         return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border);">'
           +'<div>'
           +'<div style="font-weight:700;font-size:12px;">'+(e.vehicle||'Vehicle')+' — '+(e.eqNo||e.refNo||'—')+' '+sb+'</div>'
@@ -3992,7 +4073,7 @@ function promptAPIKey(cb){
     '<div style="background:#fff;border-radius:10px;padding:24px;width:92vw;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.3);">'+
     '<div style="font-size:16px;font-weight:700;color:#0D1B2A;margin-bottom:6px;">🔑 Anthropic API Key</div>'+
     '<div style="font-size:12px;color:#666;margin-bottom:14px;">ஒரே முறை enter பண்ணினா போதும் — save ஆகும்</div>'+
-    '<input id="api-key-input" type="password" placeholder="sk-ant-api03-..." '+
+    '<input id="api-key-input" type="text" placeholder="sk-ant-api03-..." autocomplete="off" '+
     'style="width:100%;padding:11px 12px;border:2px solid #ddd;border-radius:6px;font-size:13px;font-family:monospace;box-sizing:border-box;outline:none;" '+
     'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">'+
     '<div id="api-key-err" style="color:#B22222;font-size:12px;margin-top:6px;display:none;">⚠️ Valid API Key paste பண்ணுங்கள் (sk-ant-...)</div>'+
@@ -4010,14 +4091,16 @@ function promptAPIKey(cb){
   
   // Save button
   document.getElementById('api-key-save').onclick=function(){
-    var k=(document.getElementById('api-key-input').value||'').trim();
-    if(k&&k.length>20){
+    var rawVal=document.getElementById('api-key-input').value||'';
+    var k=rawVal.replace(/[\r\n\t]/g,'').replace(/\s+/g,' ').trim();
+    // Debug: show length in error
+    if(k&&k.length>5){
       saveAPIKeyToFirebase(k);
       modal.remove();
       if(cb) cb(k);
     } else {
       var err=document.getElementById('api-key-err');
-      if(err){err.style.display='block';err.textContent='⚠️ Valid API Key paste பண்ணுங்கள்!';}
+      if(err){err.style.display='block';err.textContent='⚠️ Key length: '+k.length+' chars (need 5+). Try typing manually!';}
       document.getElementById('api-key-input').style.border='2px solid #B22222';
     }
   };
@@ -4444,6 +4527,7 @@ function _downloadBlob(content,type,filename){
 
 // ── QUOTATION PDF ──
 function generatePDFHtml(d){
+  var co=getCompany();
   const grand=d.items.reduce((s,i)=>s+((i.unitPrice||0)*i.qty),0);
   const rows=d.items.map((item,idx)=>{
     var br=(item.brandRows&&item.brandRows[0])||{};
@@ -4467,13 +4551,13 @@ function generatePDFHtml(d){
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation ${d.eqNo}</title>
   <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}
   .page{width:210mm;min-height:297mm;padding:12mm 13mm;margin:0 auto;}
-  .hdr{background:#0D1B2A;color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;}
+  .hdr{background:${co.color};color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;}
   .hc{font-size:18px;font-weight:700;letter-spacing:2px;}.hc span{color:#E8B84B;}
   .haddr{font-size:9px;color:rgba(255,255,255,.6);margin-top:2px;}
-  .hbadge{background:#C9952A;color:#0D1B2A;padding:5px 14px;font-weight:700;font-size:12px;border-radius:2px;}
-  .gline{height:3px;background:linear-gradient(90deg,#C9952A,#E8B84B,#C9952A);margin-bottom:10px;}
+  .hbadge{background:${co.colorAccent};color:#0D1B2A;padding:5px 14px;font-weight:700;font-size:12px;border-radius:2px;}
+  .gline{height:3px;background:linear-gradient(90deg,${co.colorAccent},#E8B84B,${co.colorAccent});margin-bottom:10px;}
   .ibox{border:1px solid #C8D4E0;border-top:3px solid #2C4A6E;margin:10px 0;border-radius:2px;}
-  .it{background:#1A2E45;color:#fff;padding:6px 12px;font-weight:700;font-size:10px;letter-spacing:1px;}
+  .it{background:${co.colorLight};color:#fff;padding:6px 12px;font-weight:700;font-size:10px;letter-spacing:1px;}
   .ig{display:grid;grid-template-columns:1fr 1fr;}
   .ir{display:flex;border-bottom:1px solid #eef2f7;padding:5px 12px;gap:6px;}
   .ir:last-child{border-bottom:none;}
@@ -4496,7 +4580,7 @@ function generatePDFHtml(d){
   @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
 </head><body>
   <div class="page">
-    <div class="hdr"><div><div class="hc">NGRD <span>MOTORS</span></div><div class="haddr">Panchikawatta, Colombo 10, Sri Lanka</div></div><div class="hbadge">PRICE QUOTATION</div></div>
+    <div class="hdr"><div><div class="hc">NGRD <span>MOTORS</span></div><div class="haddr">${co.addressShort}</div></div><div class="hbadge">PRICE QUOTATION</div></div>
     <div class="gline"></div>
     <div class="ibox">
       <div class="it">📋 Procurement Details</div>
@@ -4526,9 +4610,9 @@ function generatePDFHtml(d){
     </div></div>
     <div class="sig">
       <div class="sc"><div class="sl"></div><div class="slbl">Prepared by: ${d.preparedBy}</div><div style="font-size:8px;color:#999;margin-top:2px;">Date: ${d.date}</div></div>
-      <div class="sc"><div class="stmp">OFFICIAL STAMP</div><div class="slbl" style="margin-top:5px;">Authorized — N.G.R.D. Motors</div></div>
+      <div class="sc"><div class="stmp">OFFICIAL STAMP</div><div class="slbl" style="margin-top:5px;">${co.authorized}</div></div>
     </div>
-    <div class="ftr"><span>N.G.R.D. Motors, Panchikawatta, Colombo 10 | Warranty: 6 months | Prices in LKR</span><span>${d.eqNo||d.refNo} | ${d.date}</span></div>
+    <div class="ftr"><span>${co.footer}</span><span>${d.eqNo||d.refNo} | ${d.date}</span></div>
   </div>
 </body></html>`;
 }
@@ -4556,6 +4640,7 @@ function downloadPDFDirect(){
 
 // ── ARMY LETTER PDF & EXCEL ──
 function generateArmyLetterHtml(d){
+  var co=getCompany();
   const grand=d.items.reduce((s,i)=>s+((i.unitPrice||0)*i.qty),0);
   const rows=d.items.map((item,idx)=>`<tr style="background:${idx%2===0?'#f9f9f9':'#fff'}">
     <td style="text-align:center;padding:5px 7px;border:1px solid #ccc;font-size:10px;">${item.itemNo}</td>
@@ -4577,11 +4662,11 @@ function generateArmyLetterHtml(d){
   .lhs{font-size:10px;color:#333;margin-top:2px;}.lha{font-size:9px;color:#555;margin-top:3px;}
   .gline{height:3px;background:linear-gradient(90deg,#C9952A,#E8B84B,#C9952A);margin-bottom:10px;}
   table{width:100%;border-collapse:collapse;}
-  thead th{background:#1A2E45;color:#fff;padding:6px;font-size:9px;font-weight:700;border:1px solid #999;}
+  thead th{background:${co.colorLight};color:#fff;padding:6px;font-size:9px;font-weight:700;border:1px solid #999;}
   .tot{display:flex;justify-content:flex-end;margin:8px 0;}
   .toti{min-width:240px;border:1px solid #ccc;}
   .tr2{display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #eee;font-size:11px;}
-  .tr2.grand{background:#1A2E45;color:#fff;}.tr2.grand .tv{color:#E8B84B;font-weight:700;}
+  .tr2.grand{background:${co.colorLight};color:#fff;}.tr2.grand .tv{color:#E8B84B;font-weight:700;}
   .sig{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:18px;}
   .sc{text-align:center;}.sl{border-bottom:1px solid #000;height:36px;margin-bottom:5px;}
   .stmp{border:1px dashed #aaa;height:60px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;font-weight:700;}
@@ -4590,9 +4675,9 @@ function generateArmyLetterHtml(d){
 </head><body>
   <div class="page">
     <div class="lhb">
-      <div class="seal">NGRD<br>MOTORS<br>⚙️</div>
-      <div class="lht"><div class="lhn">N.G.R.D. MOTORS</div><div class="lhs">Authorized Spare Parts Supplier — Government Institutions</div><div class="lha">Panchikawatta, Colombo 10, Sri Lanka</div></div>
-      <div class="seal">NGRD<br>MOTORS<br>⚙️</div>
+      <div class="seal">${co.seal}</div>
+      <div class="lht"><div class="lhn">${co.name}</div><div class="lhs">${co.tagline}</div><div class="lha">${co.addressShort}</div></div>
+      <div class="seal">${co.seal}</div>
     </div>
     <div class="gline"></div>
     <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px;">
@@ -4679,8 +4764,8 @@ function downloadArmyExcel(){
 <Worksheet ss:Name="Army Letter"><Table ss:DefaultColumnWidth="75">
   <Column ss:Width="48"/><Column ss:Width="190"/><Column ss:Width="36"/><Column ss:Width="46"/>
   <Column ss:Width="105"/><Column ss:Width="74"/><Column ss:Width="94"/><Column ss:Width="94"/><Column ss:Width="98"/>
-  <Row ss:Height="30"><Cell ss:MergeAcross="8" ss:StyleID="t"><Data ss:Type="String">N.G.R.D. MOTORS</Data></Cell></Row>
-  <Row ss:Height="15"><Cell ss:MergeAcross="8" ss:StyleID="sh"><Data ss:Type="String">Authorized Spare Parts Supplier | Panchikawatta, Colombo 10, Sri Lanka</Data></Cell></Row>
+  <Row ss:Height="30"><Cell ss:MergeAcross="8" ss:StyleID="t"><Data ss:Type="String">${co.name}</Data></Cell></Row>
+  <Row ss:Height="15"><Cell ss:MergeAcross="8" ss:StyleID="sh"><Data ss:Type="String">Authorized Spare Parts Supplier | ${co.addressShort}</Data></Cell></Row>
   <Row ss:Height="4"><Cell ss:MergeAcross="8" ss:StyleID="g"><Data ss:Type="String"> </Data></Cell></Row><Row/>
   <Row ss:Height="17">${sc('Our Ref:','lbl')}<Cell ss:StyleID="val"><Data ss:Type="String">${esc(g('f-refno'))} / ${esc(g('f-eqno'))}</Data></Cell><Cell/><Cell/><Cell/><Cell/><Cell/>${sc('Date:','lbl')}${sc(today,'val')}</Row>
   <Row/><Row ss:Height="17">${sc('To,','lbl')}<Cell ss:MergeAcross="7" ss:StyleID="val"><Data ss:Type="String">${esc(g('f-entity')||'Sri Lanka Army — Directorate of EME')}, Colombo 02.</Data></Cell></Row>
@@ -4817,7 +4902,7 @@ function updateWorkflowBar(){
   // Update progress bar colors
   var steps=['upload','price','approve','submit'];
   var doneStyle='background:#1A6B3C;color:#fff;';
-  var activeStyle='background:#C9952A;color:#fff;';
+  var activeStyle='background:${co.colorAccent};color:#fff;';
   var pendingStyle='background:#eee;color:#999;';
 
   var uploadEl=document.getElementById('wf-step-upload');
