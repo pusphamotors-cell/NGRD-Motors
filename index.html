@@ -861,10 +861,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               ⚠️ Admin ஒரே முறை இங்கே save பண்ணினா <b>எல்லா device-லயும்</b> work ஆகும்!
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
-              <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." 
+              <input id="settings-api-key-input" type="text" placeholder="sk-ant-api03-..." autocomplete="off" autocorrect="off" spellcheck="false"
                 style="flex:1;padding:10px;border:2px solid var(--border);border-radius:4px;font-size:13px;font-family:monospace;">
               <button onclick="adminSaveAPIKey()" style="padding:10px 16px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;white-space:nowrap;">✅ Save</button>
-              <button onclick="document.getElementById('api-key-input').type=document.getElementById('api-key-input').type==='password'?'text':'password'" 
+              <button onclick="document.getElementById('settings-api-key-input').type=document.getElementById('settings-api-key-input').type==='password'?'text':'password'" 
                 style="padding:10px;background:#eee;border:none;border-radius:4px;cursor:pointer;">👁</button>
             </div>
             <div style="margin-top:8px;font-size:11px;color:var(--muted);">
@@ -2326,6 +2326,17 @@ function findAllPriceMatches(desc,prices,vehicle){
     ['steering rack','rack end','rack assy','rack and pinion'],
     ['compressor','ac compressor','aircon compressor'],
     ['condenser','ac condenser'],
+    ['piston set','piston kit','piston assy'],
+    ['piston ring','piston rings','ring set','compression ring'],
+    ['cylinder liner','liner','sleeve','cylinder sleeve'],
+    ['con rod','connecting rod','conrod'],
+    ['crankshaft','crank shaft'],
+    ['camshaft','cam shaft'],
+    ['valve','inlet valve','exhaust valve','valve set'],
+    ['gasket set','full gasket set','complete gasket','head gasket set'],
+    ['timing kit','timing set','timing chain kit','timing belt kit'],
+    ['clutch set','clutch kit','clutch plate set'],
+    ['brake set','brake kit'],
     ['glow plug','heater plug'],
     ['injector','fuel injector'],
     ['power steering pump','ps pump','steering pump'],
@@ -2333,8 +2344,9 @@ function findAllPriceMatches(desc,prices,vehicle){
   ];
 
   var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
-    'upper','lower','inner','outer','set','kit','no','for','the','and','with',
-    'type','mm','pcs','pair','oe','oem','genuine','original','japan','india','china'];
+    'upper','lower','inner','outer','no','for','the','and','with',
+    'type','mm','pair','oe','oem','genuine','original','japan','india','china',
+    'std','oversize','os','us','grade','size','no1','no2','a','b','c'];
 
   function cleanDesc(s){return s.toLowerCase().replace(/[.\-_\/\[\]()]/g,' ').replace(/\s+/g,' ').trim();}
   function getCoreWords(s){return cleanDesc(s).split(' ').filter(function(w){return w.length>1&&NOISE.indexOf(w)===-1;});}
@@ -2355,6 +2367,14 @@ function findAllPriceMatches(desc,prices,vehicle){
   var dSynGroup=getSynonymGroup(dWords);
   var vClean=(vehicle||'').toLowerCase().trim();
 
+  // SET matching logic:
+  // "LOWER ARM BUSH SET" → mainWords = ['lower','arm','bush']
+  // Matches: exact OR same main words with/without SET modifier
+  var dHasSet=dWords.indexOf('set')>=0;
+  var dMainWords=dHasSet?dWords.filter(function(w){return w!=='set';}):dWords;
+  var dSetBase=dMainWords.join(' '); // e.g. "lower arm bush"
+
+
   var exactMatches=[];      // Same vehicle, exact/synonym match
   var familyMatches=[];     // Same family, exact/synonym match
   var universalMatches=[];  // Universal tag
@@ -2370,6 +2390,8 @@ function findAllPriceMatches(desc,prices,vehicle){
     // ── Score by description ──
     var pWords=getCoreWords(p.description);
     var pSynGroup=getSynonymGroup(pWords);
+    var pHasSet=pWords.indexOf('set')>=0;
+    var pMainWords=pHasSet?pWords.filter(function(w){return w!=='set';}):pWords;
     var score=0;
 
     if(dSynGroup&&pSynGroup&&dSynGroup[0]===pSynGroup[0]) score=95;
@@ -2378,14 +2400,17 @@ function findAllPriceMatches(desc,prices,vehicle){
       if(dClean===pClean) score=100;
       else if(dClean.includes(pClean)||pClean.includes(dClean)) score=85;
       else{
+        // SET-aware: both have SET → compare main words only
+        var wD=dHasSet&&pHasSet?dMainWords:dWords;
+        var wP=pHasSet&&dHasSet?pMainWords:(pHasSet?pMainWords:pWords);
         var matched=0;
-        dWords.forEach(function(w){
-          if(pWords.some(function(pw){return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));})){matched++;}
+        wD.forEach(function(w){
+          if(wP.some(function(pw){return pw===w||(pw.length>3&&w.length>3&&(pw.includes(w)||w.includes(pw)));})){matched++;}
         });
-        var td=dWords.length,tp=pWords.length;
+        var td=wD.length,tp=wP.length;
         if(td>0&&tp>0){
-          if(matched/td>=0.8&&matched/tp>=0.6) score=75;
-          else if(matched/td>=0.6&&matched>=2) score=55;
+          if(matched/td>=0.8&&matched/tp>=0.7) score=75;
+          else if(matched/td>=0.7&&matched>=2) score=55;
         }
       }
     }
@@ -2696,6 +2721,8 @@ function renderUsers(){
 function renderHistory(){
   let h=getHist();
   h=autoFixStatus(h);
+  // Sort by date — newest first
+  h.sort(function(a,b){return (b.id||0)-(a.id||0);});
   var isAdmin=CU&&CU.role==='admin';
   if(!isAdmin&&CU){
     h=h.filter(function(e){
@@ -4355,7 +4382,7 @@ function renderBackupPage(){
     if(lb){
       const days=Math.floor((Date.now()-lb.ts)/(1000*60*60*24));
       const warn=days>=7;
-      lbEl.innerHTML='<div style="padding:10px 14px;background:'+(warn?'rgba(178,34,34,.06)':'rgba(26,107,60,.06)')+';border:1px solid '+(warn?'rgba(178,34,34,.2)':'rgba(26,107,60,.2)')+';border-radius:3px;"><div style="font-weight:700;font-size:13px;color:'+(warn?'var(--red)':'var(--green)')+';">'+(warn?'⚠️ Last backup '+days+'d ago':'✅ Last backup: '+days+'d ago')+'</div><div style="font-size:12px;color:var(--muted);margin-top:4px;">Last: <b>'+lb.date+'</b> — '+lb.by+' ('+lb.count+' quotations)</div></div>';
+      lbEl.innerHTML='<div style="padding:10px 14px;background:'+(warn?'rgba(178,34,34,.06)':'rgba(26,107,60,.06)')+';border:1px solid '+(warn?'rgba(178,34,34,.2)':'rgba(26,107,60,.2)')+';border-radius:3px;"><div style="font-weight:700;font-size:13px;color:'+(warn?'var(--red)':'var(--green)')+';">'+(warn?'⚠️ Last backup '+days+'d ago':'✅ Last backup: '+days+'d ago')+'</div><div style="font-size:12px;color:var(--muted);margin-top:4px;">Last: <b>'+lb.date+'</b> — '+(lb.by||'Admin')+' ('+lb.count+' quotations)</div></div>';
     }else lbEl.innerHTML='<div style="padding:10px 14px;background:rgba(178,34,34,.06);border:1px solid rgba(178,34,34,.2);border-radius:3px;color:var(--red);font-weight:600;font-size:13px;">⚠️ No backup yet! Please backup now.</div>';
   }
 }
@@ -4372,7 +4399,7 @@ function exportBackup(){
     a.download='NGRD_Backup_'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a);a.click();
     setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},100);
-    try{LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:getHist().length});}catch(e){}
+    try{LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:getHist().length,by:(CU&&CU.name)?CU.name:'Admin'});}catch(e){}
     addLog('Backup exported');
     showToast('✅ Backup downloaded! ('+getHist().length+' quotations)','t-s');
     if(typeof renderBackupPage==='function') renderBackupPage();
@@ -4566,7 +4593,7 @@ function generatePDFHtml(d){
   .hdr{background:${co.color};color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;}
   .hc{font-size:18px;font-weight:700;letter-spacing:2px;}.hc span{color:#E8B84B;}
   .haddr{font-size:9px;color:rgba(255,255,255,.6);margin-top:2px;}
-  .hbadge{background:${co.colorAccent};color:#0D1B2A;padding:5px 14px;font-weight:700;font-size:12px;border-radius:2px;}
+  .hbadge{background:${co.colorAccent};color:${co.color};padding:5px 14px;font-weight:700;font-size:12px;border-radius:2px;}
   .gline{height:3px;background:linear-gradient(90deg,${co.colorAccent},#E8B84B,${co.colorAccent});margin-bottom:10px;}
   .ibox{border:1px solid #C8D4E0;border-top:3px solid #2C4A6E;margin:10px 0;border-radius:2px;}
   .it{background:${co.colorLight};color:#fff;padding:6px 12px;font-weight:700;font-size:10px;letter-spacing:1px;}
@@ -4575,14 +4602,14 @@ function generatePDFHtml(d){
   .ir:last-child{border-bottom:none;}
   .il{font-size:9px;font-weight:700;color:#6B7A8D;text-transform:uppercase;min-width:100px;flex-shrink:0;}
   .iv{font-size:10px;color:#1A2332;font-weight:600;}
-  .tt{background:#0D1B2A;color:#fff;padding:7px 12px;font-weight:700;font-size:10px;margin-top:10px;}
+  .tt{background:${co.color};color:#fff;padding:7px 12px;font-weight:700;font-size:10px;margin-top:10px;}
   table{width:100%;border-collapse:collapse;}
   thead th{background:#1A2E45;color:#fff;padding:7px;font-size:9px;font-weight:700;border:1px solid #2C4A6E;}
   thead th.r{text-align:right;} thead th.c{text-align:center;}
   .tot{display:flex;justify-content:flex-end;margin-top:8px;}
   .toti{min-width:250px;}
   .tr2{display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid #eee;font-size:11px;}
-  .tr2.grand{background:#0D1B2A;color:#fff;}
+  .tr2.grand{background:${co.color};color:#fff;}
   .tr2.grand .tv{color:#E8B84B;font-weight:700;}
   .sig{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:20px;padding-top:12px;border-top:1px solid #C8D4E0;}
   .sc{text-align:center;}.sl{border-bottom:1.5px solid #000;height:32px;margin-bottom:4px;}
@@ -4728,7 +4755,7 @@ function downloadArmyPDF(){
   if(!curItems.length){showToast('No items','t-e');return;}
   const d=buildQData();
   const content=generateArmyLetterHtml(d);
-  const fname='NGRD_Army_'+(d.eqNo||d.refNo||'Letter').replace(/[\s\/]/g,'_')+'.html';
+  var co=getCompany();const fname=(co.shortName||'NGRD')+'_Army_'+(d.eqNo||d.refNo||'Letter').replace(/[\s\/]/g,'_')+'.html';
   const blob=new Blob([content],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download=fname;
@@ -4758,9 +4785,9 @@ function downloadArmyExcel(){
   const xml=`<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles>
-  <Style ss:ID="t"><Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="15"/><Interior ss:Color="#0D1B2A" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
-  <Style ss:ID="sh"><Font ss:Color="#CCCCCC" ss:Size="9"/><Interior ss:Color="#0D1B2A" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
-  <Style ss:ID="g"><Interior ss:Color="#C9952A" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="#0D1B2A"/><Alignment ss:Horizontal="Center"/></Style>
+  <Style ss:ID="t"><Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="15"/><Interior ss:Color="${co.color}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
+  <Style ss:ID="sh"><Font ss:Color="#CCCCCC" ss:Size="9"/><Interior ss:Color="${co.color}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
+  <Style ss:ID="g"><Interior ss:Color="#C9952A" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="${co.color}"/><Alignment ss:Horizontal="Center"/></Style>
   <Style ss:ID="lbl"><Font ss:Bold="1" ss:Size="10"/></Style>
   <Style ss:ID="val"><Font ss:Size="10"/></Style>
   <Style ss:ID="subj"><Font ss:Bold="1" ss:Size="11"/><Interior ss:Color="#F0F4F8" ss:Pattern="Solid"/></Style>
@@ -4814,7 +4841,7 @@ function uploadPageAddVehicle(){var n=prompt('Vehicle:','');if(!n||!n.trim())ret
 function uploadPageEditVehicle(){var sel=document.getElementById('upload-vehicle-select');var cur=sel?sel.value:'';if(!cur){showToast('Select vehicle!','t-e');return;}var n=prompt('New name:',cur);if(!n||!n.trim()||n===cur)return;var v=getVehicleMaster();var i=v.indexOf(cur);if(i>=0){v[i]=n.trim();saveVehicleMaster(v);refreshAllVehicleDropdowns();}showToast('✅ Updated!','t-s');}
 function uploadPageDeleteVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var sel=document.getElementById('upload-vehicle-select');var cur=sel?sel.value:'';if(!cur){showToast('Select vehicle!','t-e');return;}if(!confirm('Delete '+cur+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==cur;}));refreshAllVehicleDropdowns();showToast('Deleted!','t-i');}
 function populateStaffSelect(){var sel=document.getElementById('staff-perf-select');if(!sel)return;var users=getUsers().filter(function(u){return u.active;});var owners={};users.forEach(function(u){owners[u.username]=u.name;});getHist().forEach(function(e){if(e.owner&&e.owner!=='__all__'&&!owners[e.owner])owners[e.owner]=e.owner;});sel.innerHTML='<option value="">— Staff Select —</option>';Object.keys(owners).forEach(function(uname){var opt=document.createElement('option');opt.value=uname;opt.textContent=owners[uname];sel.appendChild(opt);});}
-function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname};var stats=[['📝','Draft',myH.filter(function(e){return !e.status||e.status==='draft';}).length,'#888'],['⏳','Pending',myH.filter(function(e){return e.status==='pending';}).length,'#E8B84B'],['✅','Approved',myH.filter(function(e){return e.status==='approved';}).length,'#1A6B3C'],['📤','Submitted',myH.filter(function(e){return e.status==='submitted';}).length,'#2060a0'],['🏆','Awarded',myH.filter(function(e){return e.status==='awarded';}).length,'#C9952A'],['❌','Rejected',myH.filter(function(e){return e.status==='rejected';}).length,'#B22222']];var html2='<div style="background:linear-gradient(135deg,#0D1B2A,#1A2E45);color:#fff;border-radius:6px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div></div><div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+myH.length+'</div></div></div>';html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';myH.slice(0,8).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
+function renderStaffPerformance(){var sel=document.getElementById('staff-perf-select');var body=document.getElementById('staff-perf-body');if(!sel||!body)return;var uname=sel.value;if(!uname){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Staff select பண்ணுங்கள்</div>';return;}var h=getHist();var myH=h.filter(function(e){return e.owner===uname;});var user=getUsers().find(function(u){return u.username===uname;})||{name:uname};var stats=[['📝','Draft',myH.filter(function(e){return !e.status||e.status==='draft';}).length,'#888'],['⏳','Pending',myH.filter(function(e){return e.status==='pending';}).length,'#E8B84B'],['✅','Approved',myH.filter(function(e){return e.status==='approved';}).length,'#1A6B3C'],['📤','Submitted',myH.filter(function(e){return e.status==='submitted';}).length,'#2060a0'],['🏆','Awarded',myH.filter(function(e){return e.status==='awarded';}).length,'#C9952A'],['❌','Rejected',myH.filter(function(e){return e.status==='rejected';}).length,'#B22222']];var html2='<div style="background:linear-gradient(135deg,${co.color},#1A2E45);color:#fff;border-radius:6px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;"><div><div style="font-size:16px;font-weight:700;">'+user.name+'</div></div><div><div style="font-size:28px;font-weight:700;color:#E8B84B;">'+myH.length+'</div></div></div>';html2+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';stats.forEach(function(s){html2+='<div style="background:#f7fafd;border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;"><div style="font-size:20px;">'+s[0]+'</div><div style="font-size:22px;font-weight:700;color:'+s[3]+';">'+s[2]+'</div><div style="font-size:10px;color:var(--muted);">'+s[1]+'</div></div>';});html2+='</div>';myH.slice(0,8).forEach(function(e){var sc2={draft:'#888',pending:'#E8B84B',submitted:'#2060a0',approved:'#1A6B3C',awarded:'#C9952A',rejected:'#B22222'}[e.status]||'#888';html2+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;"><div><div style="font-size:12px;font-weight:700;">'+(e.vehicle||'')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+'</div></div><span style="font-size:10px;font-weight:700;color:'+sc2+';background:'+sc2+'18;padding:3px 8px;border-radius:10px;">'+(e.status||'draft')+'</span></div>';});body.innerHTML=html2;}
 function autoFillRow(idx,bi){var item=curItems[idx];if(!item)return;var prices=getPrices();var matches=typeof findAllPriceMatches==='function'?findAllPriceMatches(item.description,prices):[];if(!matches||!matches.length)return;var best=matches[0];var bEl=document.getElementById('br-b-'+idx+'-'+bi);var pEl=document.getElementById('br-p-'+idx+'-'+bi);var puEl=document.getElementById('br-pu-'+idx+'-'+bi);var cEl=document.getElementById('br-c-'+idx+'-'+bi);if(bEl&&!bEl.value&&best.brand)bEl.value=best.brand;if(pEl&&!pEl.value&&best.partNo)pEl.value=best.partNo;if(cEl&&!cEl.value&&best.country)cEl.value=best.country;if(puEl&&!puEl.value&&best.purchasePrice>0){puEl.value=best.purchasePrice;puEl.style.background='#fffde7';}syncRow(idx,bi);}
 function sendWAClosingAlert(entry){if(!entry)return;var msg='⚠️ *NGRD Motors*%0A🚗 '+(entry.vehicle||'')+'%0A📋 '+(entry.eqNo||entry.refNo||'')+'%0A📅 '+(entry.closingDate||'')+'%0AStatus: '+(entry.status||'')+'%0A🔗 ngrd-motors.vercel.app';window.open('https://wa.me/94765234296?text='+msg,'_blank');}
 function resetAll(){window.curEditId=null;
@@ -5041,10 +5068,10 @@ function _sendWAToAdmin(subject, msg){
 
 
 function adminSaveAPIKey(){
-  var k=document.getElementById('api-key-input');
+  var k=document.getElementById('settings-api-key-input');
   if(!k) return;
   var val=k.value.trim();
-  if(!val||val.length<20){showToast('⚠️ Valid API Key paste பண்ணுங்கள்!','t-e');return;}
+  if(!val){return;} if(val.length<20){showToast('⚠️ Valid API Key paste பண்ணுங்கள்! ('+val.length+' chars)','t-e');return;}
   saveAPIKeyToFirebase(val);
   k.value='';
   updateAPIKeyStatus();
