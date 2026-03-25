@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NGRD Motors – Army Quotation System v3</title>
+<title id="page-title">NGRD Motors – Army Quotation System v3</title>
 <style>
 :root{
   --navy:#0D1B2A;--navy2:#1A2E45;--steel:#2C4A6E;
@@ -335,7 +335,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
   <div class="topbar">
     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-    <div class="topbar-logo">NGRD <span>MOTORS</span></div>
+    <div class="topbar-logo" id="topbar-logo">NGRD <span>MOTORS</span></div>
     <div class="topbar-div"></div>
     <div class="topbar-sub">Quotation System v3</div>
     <div class="topbar-right">
@@ -1236,7 +1236,7 @@ function resetStorage(){
 function initApp(){
   // Load saved company preference
   var savedCo = localStorage.getItem('ngrd_company')||'ngrd';
-  setCompany(savedCo);
+  setCompany(savedCo, true); // silent restore
   // Try to load API key from Firebase for all users
   if(typeof loadAPIKeyFromFirebase==='function'&&!getAPIKey()){
     loadAPIKeyFromFirebase();
@@ -1982,7 +1982,7 @@ function getCompany(){
   return COMPANIES[curCompany] || COMPANIES.ngrd;
 }
 
-function setCompany(id){
+function setCompany(id, silent){
   curCompany = id;
   localStorage.setItem('ngrd_company', id);
   // Update toggle buttons
@@ -1997,7 +1997,17 @@ function setCompany(id){
       ngrdBtn.style.background='#fff'; ngrdBtn.style.color='#0D1B2A';
     }
   }
-  showToast('🏢 '+getCompany().name+' selected', 't-s');
+  // Update topbar logo
+  var logoEl=document.getElementById('topbar-logo');
+  if(logoEl){
+    var co=getCompany();
+    var parts=co.name.split(' ');
+    var first=parts[0];
+    var rest=parts.slice(1).join(' ');
+    logoEl.innerHTML=first+' <span>'+rest+'</span>';
+    logoEl.style.color=id==='puspha'?'#FF6B6B':'';
+  }
+  if(!silent) showToast('🏢 '+getCompany().name+' selected', 't-s');
 }
 
 
@@ -2104,6 +2114,16 @@ function syncRow(idx,bi){
   if(marginVal!=='') br.marginPct=parseFloat(marginVal)||br.marginPct||0;
 }
 
+function autoMargin(idx,bi){
+  var pu=parseFloat((document.getElementById('br-pu-'+idx+'-'+bi)||{}).value)||0;
+  var sell=parseFloat((document.getElementById('br-s-'+idx+'-'+bi)||{}).value)||0;
+  if(pu>0&&sell>0){
+    var mg=Math.round((sell-pu)/pu*100);
+    var el=document.getElementById('br-m-'+idx+'-'+bi);
+    if(el){el.value=mg;if(curItems[idx]&&curItems[idx].brandRows&&curItems[idx].brandRows[bi])curItems[idx].brandRows[bi].marginPct=mg;}
+  }
+}
+
 function autoSell(idx,bi){
   var pu=parseFloat((document.getElementById('br-pu-'+idx+'-'+bi)||{}).value)||0;
   var mg=parseFloat((document.getElementById('br-m-'+idx+'-'+bi)||{}).value)||0;
@@ -2193,7 +2213,7 @@ function renderItems(items){
       h+='</td>';
       var daysOld=hint?getPriceDaysOld(hint.date):null;
       var hintHtml='';
-      if(bi===0&&hint){
+      if(bi===0&&hint&&(hint.price||0)>0&&hint.date&&hint.date!=='undefined'){
         var matchLabel='';
         if(hint._matchType==='family'||hint._matchType==='family_hist'){
           matchLabel=' <span style="background:#2060a0;color:#fff;padding:0 4px;border-radius:2px;font-size:8px;">'+
@@ -2201,12 +2221,17 @@ function renderItems(items){
         } else if(hint._matchType==='universal'){
           matchLabel=' <span style="background:#1A6B3C;color:#fff;padding:0 4px;border-radius:2px;font-size:8px;">Universal</span>';
         }
-        if(daysOld!==null&&daysOld>30)
+        var hintPrice=parseFloat(hint.price)||0;
+        var hintDate=hint.date&&hint.date!=='undefined'?(' ('+hint.date+')'):'';
+        if(hintPrice<=0){
+          hintHtml=''; // Don't show hint if price is 0
+        } else if(daysOld!==null&&daysOld>30){
           hintHtml='<div style="font-size:9px;color:#B22222;font-weight:700;margin-top:1px;">⚠️ '+daysOld+'d Recheck!'+matchLabel+'</div>';
-        else
-          hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hint.price||0)+' ('+hint.date+')'+matchLabel+'</div>';
+        } else {
+          hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hintPrice)+hintDate+matchLabel+'</div>';
+        }
       }
-      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');calcTotals()" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;">'+hintHtml+'</td>';
+      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');autoMargin('+idx+','+bi+');calcTotals()" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;">'+hintHtml+'</td>';
       h+='<td class="tr" id="rt-'+idx+'-'+bi+'" style="font-weight:700;color:var(--navy2);font-size:12px;padding:3px 6px;">—</td>';
       h+='<td class="tc" style="padding:3px 3px;white-space:nowrap;"><button onclick="addBR('+idx+')" style="width:22px;height:22px;background:var(--light);border:1px solid var(--border);border-radius:2px;cursor:pointer;font-size:12px;">➕</button>';
       if(rc>1) h+='<button onclick="remBR('+idx+','+bi+')" style="width:22px;height:22px;background:rgba(178,34,34,.07);border:1px solid rgba(178,34,34,.2);border-radius:2px;cursor:pointer;font-size:10px;color:var(--red);display:block;margin-top:2px;">✕</button>';
@@ -2823,6 +2848,8 @@ function loadHist(id){
   const e=getHist().find(x=>x.id===id);if(!e)return;
   // SET EDIT MODE — save will UPDATE not create new
   window.curEditId=id;
+  // Restore company for correct letterhead
+  if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company]) setCompany(e.company,true);
   showPage('new');
   fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,
     vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,
@@ -2852,6 +2879,8 @@ function openQV(id){
   window.curEditId=id;
   curItems=JSON.parse(JSON.stringify(e.items||[]));
   curStatus=e.status||'draft';
+  // Restore company for correct letterhead
+  if(e.company&&COMPANIES[e.company]) setCompany(e.company,true);
   fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,
     vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,
     closingDate:e.closingDate,validityPeriod:e.validityPeriod,
@@ -4526,7 +4555,7 @@ function downloadExcel(){
 // ══════════════════════════════════════════════════
 function buildQData(){
   const g=id=>document.getElementById(id)?.value||'';
-  return{refNo:g('f-refno'),eqNo:g('f-eqno'),entity:g('f-entity'),title:g('f-title'),
+  return{refNo:g('f-refno'),company:curCompany||'ngrd',eqNo:g('f-eqno'),entity:g('f-entity'),title:g('f-title'),
     vehicle:g('f-vname'),vNo:g('f-vno'),eng:g('f-eng'),chas:g('f-chas'),
     closing:g('f-close'),validity:g('f-valid'),delivery:g('f-deliv'),dest:g('f-dest'),
     items:curItems,preparedBy:CU?.name||'',date:new Date().toLocaleDateString('en-LK'),status:curStatus};
@@ -4569,7 +4598,7 @@ function _downloadBlob(content,type,filename){
 
 // ── QUOTATION PDF ──
 function generatePDFHtml(d){
-  var co=getCompany();
+  var co=d&&d.company&&COMPANIES[d.company]?COMPANIES[d.company]:getCompany();
   const grand=d.items.reduce((s,i)=>s+((i.unitPrice||0)*i.qty),0);
   const rows=d.items.map((item,idx)=>{
     var br=(item.brandRows&&item.brandRows[0])||{};
@@ -4702,7 +4731,7 @@ function generateArmyLetterHtml(d){
   .seal{width:65px;height:65px;border:2px solid #000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;text-align:center;flex-shrink:0;}
   .lht{flex:1;text-align:center;}.lhn{font-size:18px;font-weight:700;letter-spacing:3px;}
   .lhs{font-size:10px;color:#333;margin-top:2px;}.lha{font-size:9px;color:#555;margin-top:3px;}
-  .gline{height:3px;background:linear-gradient(90deg,#C9952A,#E8B84B,#C9952A);margin-bottom:10px;}
+  .gline{height:3px;background:linear-gradient(90deg,${co.colorAccent},#E8B84B,${co.colorAccent});margin-bottom:10px;}
   table{width:100%;border-collapse:collapse;}
   thead th{background:${co.colorLight};color:#fff;padding:6px;font-size:9px;font-weight:700;border:1px solid #999;}
   .tot{display:flex;justify-content:flex-end;margin:8px 0;}
@@ -4712,7 +4741,7 @@ function generateArmyLetterHtml(d){
   .sig{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:18px;}
   .sc{text-align:center;}.sl{border-bottom:1px solid #000;height:36px;margin-bottom:5px;}
   .stmp{border:1px dashed #aaa;height:60px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;font-weight:700;}
-  .ftr{margin-top:14px;padding-top:6px;border-top:2px solid #C9952A;display:flex;justify-content:space-between;font-size:8px;color:#666;}
+  .ftr{margin-top:14px;padding-top:6px;border-top:2px solid ${co.colorAccent};display:flex;justify-content:space-between;font-size:8px;color:#666;}
   @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
 </head><body>
   <div class="page">
@@ -4742,7 +4771,7 @@ function generateArmyLetterHtml(d){
       <div class="tr2"><span>Sub Total</span><span class="tv">${lkr(grand)}</span></div>
       <div class="tr2 grand"><span>GRAND TOTAL (LKR)</span><span class="tv">${lkr(grand)}</span></div>
     </div></div>
-    <div style="font-size:9px;color:#333;margin:8px 0;padding:6px 10px;border:1px solid #ddd;border-left:3px solid #C9952A;">
+    <div style="font-size:9px;color:#333;margin:8px 0;padding:6px 10px;border:1px solid #ddd;border-left:3px solid ${co.colorAccent};">
       <b>Terms:</b> Prices in LKR | Warranty: 6 months | Delivery: ${d.delivery||'21 days'} from LOA | Destination: ${d.dest||'Colombo 02'}
     </div>
     <div style="font-size:12px;margin-bottom:14px;">We trust our quotation meets your requirements and look forward to your favorable response.</div>
@@ -4825,10 +4854,10 @@ function downloadArmyExcel(){
   addLog('Army Letter Excel: '+(g('f-eqno')||g('f-refno')));showToast('Army Letter Excel!','t-s');
 }
 
-function reExport(id){const e=getHist().find(x=>x.id===id);if(!e)return;const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});downloadExcel();curItems=s;}
-function reExportPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});curStatus=e.status||'draft';downloadPDF();curItems=s;}
-function reExportArmyExcel(id){const e=getHist().find(x=>x.id===id);if(!e)return;const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});downloadArmyExcel();curItems=s;}
-function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});curStatus=e.status||'draft';downloadArmyPDF();curItems=s;}
+function reExport(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});downloadExcel();curItems=s;}
+function reExportPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});curStatus=e.status||'draft';downloadPDF();curItems=s;}
+function reExportArmyExcel(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});downloadArmyExcel();curItems=s;}
+function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});curStatus=e.status||'draft';downloadArmyPDF();curItems=s;}
 
 // ══════════════════════════════════════════════════
 // RESET & TOAST
