@@ -1189,6 +1189,10 @@ function _doLoginCheck(u,p){
     LS.set('ngrd_s',CU);
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='flex';
+    // Load API key from Firebase for all users/devices
+    if(typeof loadAPIKeyFromFirebase==='function'){
+      setTimeout(loadAPIKeyFromFirebase,500);
+    }
     initApp();
     addLog('Logged in: '+CU.name);
   }else{
@@ -1221,6 +1225,10 @@ function resetStorage(){
 }
 
 function initApp(){
+  // Try to load API key from Firebase for all users
+  if(typeof loadAPIKeyFromFirebase==='function'&&!getAPIKey()){
+    loadAPIKeyFromFirebase();
+  }
   const av=document.getElementById('top-av');
   av.textContent=CU.name.charAt(0).toUpperCase();
   av.className='uav '+(CU.role==='admin'?'av-admin':'av-staff');
@@ -1815,21 +1823,19 @@ async function processFile(){
   try{
     var AKEY=getAPIKey();
     if(!AKEY){
-      // Try loading from Firebase first (staff may not have key locally)
-      if(typeof loadAPIKeyFromFirebase==='function'){
-        loadAPIKeyFromFirebase();
-        // Wait 2 seconds for Firebase to respond
-        setTimeout(function(){
-          var retryKey=getAPIKey();
-          if(retryKey){
-            processFile(); // Retry with loaded key
+      // Direct Firebase read — fastest way to get key for any device
+      showToast('🔄 Loading API Key...','t-i');
+      if(typeof fbRead==='function'){
+        fbRead('settings/apikey',function(fbKey){
+          if(fbKey&&typeof fbKey==='string'&&fbKey.length>20){
+            localStorage.setItem('ngrd_akey',fbKey);
+            localStorage.setItem('ngrd_akey_fb',fbKey);
+            processFile();
           } else {
-            // Still no key — show popup
             promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);processFile();});
             document.getElementById('process-btn').disabled=false;
           }
-        },2000);
-        showToast('🔄 API Key loading...','t-i');
+        });
       } else {
         promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);processFile();});
         document.getElementById('process-btn').disabled=false;
