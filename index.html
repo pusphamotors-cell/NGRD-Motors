@@ -1814,7 +1814,28 @@ async function processFile(){
   document.getElementById('process-btn').disabled=true;
   try{
     var AKEY=getAPIKey();
-    if(!AKEY){promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);processFile();});document.getElementById('process-btn').disabled=false;return;}
+    if(!AKEY){
+      // Try loading from Firebase first (staff may not have key locally)
+      if(typeof loadAPIKeyFromFirebase==='function'){
+        loadAPIKeyFromFirebase();
+        // Wait 2 seconds for Firebase to respond
+        setTimeout(function(){
+          var retryKey=getAPIKey();
+          if(retryKey){
+            processFile(); // Retry with loaded key
+          } else {
+            // Still no key — show popup
+            promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);processFile();});
+            document.getElementById('process-btn').disabled=false;
+          }
+        },2000);
+        showToast('🔄 API Key loading...','t-i');
+      } else {
+        promptAPIKey(function(k){localStorage.setItem('ngrd_akey',k);processFile();});
+        document.getElementById('process-btn').disabled=false;
+      }
+      return;
+    }
     var pdfBytes=atob(pdfB64);
     var countMatch=(pdfBytes.match(/\/Type\s*\/Page[^s]/g)||[]).length;
     var pageCount=countMatch>0?countMatch:Math.ceil(pdfBytes.length/(1024*50));
@@ -3946,7 +3967,7 @@ function saveAPIKeyToFirebase(key){
 function loadAPIKeyFromFirebase(){
   if(!FB_READY) return;
   fbRead('settings/apikey',function(data){
-    if(data&&typeof data==='string'&&data.startsWith('sk-')){
+    if(data&&typeof data==='string'&&data.length>20){
       localStorage.setItem('ngrd_akey',data);
       localStorage.setItem('ngrd_akey_fb',data);
       console.log('✅ API Key loaded from Firebase');
