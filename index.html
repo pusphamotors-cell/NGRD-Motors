@@ -4058,6 +4058,8 @@ function loadAPIKeyFromFirebase(){
       localStorage.setItem('ngrd_akey',data);
       localStorage.setItem('ngrd_akey_fb',data);
       console.log('✅ API Key loaded from Firebase');
+      // Update status display
+      if(typeof updateAPIKeyStatus==='function') updateAPIKeyStatus();
     }
   });
 }
@@ -4358,16 +4360,26 @@ function renderBackupPage(){
   }
 }
 function exportBackup(){
-  const data={version:'3.0',exportedAt:new Date().toISOString(),exportedBy:CU?.name||'Admin',
-    history:getHist(),users:getUsers(),prices:getPrices(),log:getLog()};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download='NGRD_Backup_'+new Date().toISOString().slice(0,10)+'.json';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:getHist().length});
-  addLog('Backup exported');showToast('Backup downloaded! ('+getHist().length+' quotations)','t-s');
-  renderBackupPage();
+  try{
+    var exportedBy=(CU&&CU.name)?CU.name:'Admin';
+    var data={version:'3.0',exportedAt:new Date().toISOString(),exportedBy:exportedBy,
+      history:getHist(),users:getUsers(),prices:getPrices(),log:getLog()};
+    var jsonStr=JSON.stringify(data,null,2);
+    var blob=new Blob([jsonStr],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;
+    a.download='NGRD_Backup_'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+    try{LS.set('ngrd_last_backup',{date:new Date().toLocaleString('en-LK'),ts:Date.now(),count:getHist().length});}catch(e){}
+    addLog('Backup exported');
+    showToast('✅ Backup downloaded! ('+getHist().length+' quotations)','t-s');
+    if(typeof renderBackupPage==='function') renderBackupPage();
+  }catch(err){
+    showToast('❌ Backup failed: '+err.message,'t-e');
+    console.error('exportBackup error:',err);
+  }
 }
 let _restoreData=null;
 function previewRestore(inp){
@@ -5041,10 +5053,24 @@ function updateAPIKeyStatus(){
   var el=document.getElementById('api-key-status');
   if(!el) return;
   var key=getAPIKey();
-  if(key&&key.startsWith('sk-')){
+  if(key&&key.length>20){
     el.innerHTML='<span style="color:#1A6B3C;font-weight:700;">✅ Key saved ('+key.substring(0,12)+'...)</span>';
   } else {
-    el.innerHTML='<span style="color:#B22222;">❌ No key — Enter above</span>';
+    // Try loading from Firebase first
+    if(typeof fbRead==='function'){
+      el.innerHTML='<span style="color:#888;">🔄 Checking Firebase...</span>';
+      fbRead('settings/apikey',function(fbKey){
+        if(fbKey&&typeof fbKey==='string'&&fbKey.length>20){
+          localStorage.setItem('ngrd_akey',fbKey);
+          localStorage.setItem('ngrd_akey_fb',fbKey);
+          el.innerHTML='<span style="color:#1A6B3C;font-weight:700;">✅ Key loaded ('+fbKey.substring(0,12)+'...)</span>';
+        } else {
+          el.innerHTML='<span style="color:#B22222;">❌ No key — Admin enter above</span>';
+        }
+      });
+    } else {
+      el.innerHTML='<span style="color:#B22222;">❌ No key — Enter above</span>';
+    }
   }
   // Show/hide API panel for admin only
   var panel=document.getElementById('api-key-panel');
