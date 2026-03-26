@@ -615,6 +615,9 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="puspha">Puspha Motors</option>
               </select>
               
+              <select id="hist-user-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
+                <option value="">👤 All Users</option>
+              </select>
               </div>
               <button onclick="toggleSelectMode()" id="btn-select-mode" style="padding:5px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">☑️ Select</button>
               <button onclick="deleteSelected()" id="btn-delete-selected" style="display:none;padding:5px 10px;background:rgba(178,34,34,.6);border:1px solid rgba(178,34,34,.8);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Delete Selected</button>
@@ -1325,6 +1328,8 @@ function showPage(pg){
     if(sfEl) sfEl.value='';
     if(cfEl) cfEl.value='';
     if(qEl) qEl.value='';
+    var ufEl2=document.getElementById('hist-user-filter');
+    if(ufEl2) ufEl2.value='';
     // Force Firebase sync if localStorage is empty
     if(getHist().length===0&&typeof fbRead==='function'){
       fbRead('history',function(data){
@@ -1739,7 +1744,7 @@ function initFirebaseSync(){
       merged=merged.filter(function(x){return x&&typeof x==='object';});
       // NEVER block sync — always keep MORE data (staff uploads must reach admin)
       if(merged.length===0){if(local.length>0)fbWrite('history',local);return;}
-      if(typeof autoFixStatus==='function') autoFixStatus(merged);
+      if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
       fbWrite('history',merged);updatePendingBadge();
       if(typeof renderDashboard==='function')renderDashboard();
@@ -1790,6 +1795,8 @@ function initFirebaseSync(){
           });
           merged=merged.filter(function(x){return x&&typeof x==='object';});
           if(merged.length>0){
+            // Run autoFixStatus before saving to upgrade draft→pending
+            if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
             localStorage.setItem('ngrd_hist',JSON.stringify(merged));
             fbWrite('history',merged);
             updatePendingBadge();
@@ -1797,8 +1804,10 @@ function initFirebaseSync(){
             if(typeof renderHistory==='function')renderHistory();
             showToast('✅ Synced! '+merged.length+' quotations','t-s');
           } else if(remote.length>0){
-            // Remote has data but merge failed — use remote directly
+            // Remote has data but merge failed — run autoFixStatus then use
+            if(typeof autoFixStatus==='function') remote=autoFixStatus(remote);
             localStorage.setItem('ngrd_hist',JSON.stringify(remote));
+            fbWrite('history',remote);
             updatePendingBadge();
             if(typeof renderDashboard==='function')renderDashboard();
             if(typeof renderHistory==='function')renderHistory();
@@ -2815,17 +2824,24 @@ function renderHistory(){
   var isAdmin=CU&&CU.role==='admin';
   if(!isAdmin&&CU){
     h=h.filter(function(e){
-      // Staff sees only their own uploads
-      if(e.savedBy===CU.name) return true;
-      if(e.owner===CU.username) return true;
-      if(e.assignedTo===CU.username) return true;
-      // Check steps - if staff did any step
+      // Hide entries uploaded ONLY by admin (Administrator/Admin)
+      var adminNames=['Administrator','Admin'];
+      var savedByAdmin=adminNames.indexOf(e.savedBy||'')>=0;
+      // Check if any staff person touched this entry
+      var hasStaffStep=false;
       if(e.steps){
-        if(e.steps.uploaded&&e.steps.uploaded.by===CU.name) return true;
-        if(e.steps.priced&&e.steps.priced.by===CU.name) return true;
-        if(e.steps.submitted&&e.steps.submitted.by===CU.name) return true;
+        var stepBys=[
+          e.steps.uploaded&&e.steps.uploaded.by,
+          e.steps.priced&&e.steps.priced.by,
+          e.steps.submitted&&e.steps.submitted.by,
+          e.steps.approved&&e.steps.approved.by,
+        ].filter(Boolean);
+        hasStaffStep=stepBys.some(function(n){return adminNames.indexOf(n)<0;});
       }
-      return false;
+      // Show if: saved by staff OR any staff touched it
+      if(!savedByAdmin) return true;        // saved by staff → show
+      if(hasStaffStep) return true;         // staff did a step → show
+      return false;                         // admin-only entry → hide
     });
   }
   var bulkBtn=document.getElementById('btn-bulk-reassign');
@@ -2856,6 +2872,19 @@ function renderHistory(){
   if(sf) h=h.filter(x=>x.status===sf);
   var cf=document.getElementById('hist-company-filter')?.value||'';
   if(cf) h=h.filter(function(x){return (x.company||'ngrd')===cf;});
+  // User filter — populate and apply
+  var ufSel=document.getElementById('hist-user-filter');
+  if(ufSel){
+    var curUF=ufSel.value;
+    ufSel.innerHTML='<option value="">👤 All Users</option>';
+    var allUsers=[...new Set(getHist().map(function(e){return e.savedBy||'';}).filter(Boolean))].sort();
+    allUsers.forEach(function(u){
+      var o=document.createElement('option');o.value=u;o.textContent='👤 '+u;ufSel.appendChild(o);
+    });
+    if(curUF) ufSel.value=curUF;
+  }
+  var uf=document.getElementById('hist-user-filter')?.value||'';
+  if(uf) h=h.filter(function(x){return (x.savedBy||'')=== uf;});
   const q=document.getElementById('hist-search')?.value?.toLowerCase()||'';
   if(q) h=h.filter(x=>(x.vehicle+x.vNo+x.eqNo+x.refNo+x.entity).toLowerCase().includes(q));
   const c=document.getElementById('history-list');
