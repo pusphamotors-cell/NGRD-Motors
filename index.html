@@ -2608,6 +2608,8 @@ function saveToHistory(){
       var orig=hist[idx];
       if(!orig.steps) orig.steps={};
       if(hasPrices&&!orig.steps.priced){orig.steps.priced={by:CU.name,role:CU.role,at:now};}
+      if(quotStatus==='submitted'&&!orig.steps.submitted){orig.steps.submitted={by:CU.name,role:CU.role,at:now};}
+      if(quotStatus==='approved'&&!orig.steps.approved){orig.steps.approved={by:CU.name,role:CU.role,at:now};}
       hist[idx]=Object.assign({},orig,{
         refNo:refNo,eqNo:eqNo,vehicle:g('f-vname'),vNo:g('f-vno'),
         entity:g('f-entity'),title:g('f-title'),closingDate:g('f-close'),
@@ -2629,6 +2631,8 @@ function saveToHistory(){
   if(dup){showToast('🚫 Duplicate! "'+(eqNo||refNo)+'" already saved','t-e');return;}
   var steps={uploaded:{by:CU.name,role:CU.role,at:now}};
   if(hasPrices) steps.priced={by:CU.name,role:CU.role,at:now};
+  if(quotStatus==='submitted') steps.submitted={by:CU.name,role:CU.role,at:now};
+  if(quotStatus==='approved') steps.approved={by:CU.name,role:CU.role,at:now};
   var entry={
     id:Date.now(),date:now,savedBy:CU.name,owner:CU.username,
     refNo:refNo,eqNo:eqNo,vehicle:g('f-vname'),vNo:g('f-vno'),
@@ -2669,22 +2673,26 @@ function markSubmitted(id){
 
 function autoFixStatus(hist){
   var changed=false;
+  var FINAL=['submitted','approved','awarded','rejected'];
   hist.forEach(function(e){
     if(!e.status) e.status='draft';
+    // Preserve final statuses — never downgrade
+    if(FINAL.indexOf(e.status)>=0) return;
+    // Check actual item prices (works for old AND new entries)
+    var hasPrice=e.items&&e.items.some(function(item){
+      return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
+    });
     // If approved step exists → approved
-    if(e.steps&&e.steps.approved&&e.status!=='awarded'&&e.status!=='rejected'){
-      e.status='approved';changed=true;
+    if(e.steps&&e.steps.approved){
+      e.status='approved';changed=true;return;
     }
     // If submitted step exists → submitted
-    if(e.steps&&e.steps.submitted&&(e.status==='draft'||e.status==='pending'||!e.status)){
-      e.status='submitted';changed=true;
+    if(e.steps&&e.steps.submitted){
+      e.status='submitted';changed=true;return;
     }
-    // If has prices + price step → pending
-    if(e.steps&&e.steps.price&&(e.status==='draft'||!e.status)){
-      var hasPrice=e.items&&e.items.some(function(item){
-        return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
-      });
-      if(hasPrice){e.status='pending';changed=true;}
+    // If has prices → at least pending (upgrade draft only)
+    if(hasPrice&&(e.status==='draft'||!e.status)){
+      e.status='pending';changed=true;
     }
   });
   if(changed){localStorage.setItem('ngrd_hist',JSON.stringify(hist));if(typeof fbWrite==='function')fbWrite('history',hist);}
