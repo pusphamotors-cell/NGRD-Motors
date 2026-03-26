@@ -445,6 +445,27 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           </div>
         </div>
 
+        <div class="panel" style="margin-bottom:14px;" id="company-submitter-panel">
+          <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Company Submitter Settings</span></div>
+          <div class="panel-body">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">⚠️ Admin: NGRD & Puspha-க்கு யார் quotation submit பண்ணணும் என்று set பண்ணுங்க</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;">
+              <div>
+                <label style="font-size:12px;font-weight:700;color:#0D1B2A;display:block;margin-bottom:6px;">🔵 NGRD Motors — Submitter</label>
+                <select id="ngrd-submitter" onchange="saveSubmitterSettings()" style="width:100%;padding:8px;border:2px solid #0D1B2A;border-radius:4px;font-size:13px;font-family:var(--fb);">
+                  <option value="">— Select Staff —</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:700;color:#4A0E0E;display:block;margin-bottom:6px;">🟤 Puspha Motors — Submitter</label>
+                <select id="puspha-submitter" onchange="saveSubmitterSettings()" style="width:100%;padding:8px;border:2px solid #4A0E0E;border-radius:4px;font-size:13px;font-family:var(--fb);">
+                  <option value="">— Select Staff —</option>
+                </select>
+              </div>
+            </div>
+            <div id="submitter-status" style="font-size:12px;color:#1A6B3C;"></div>
+          </div>
+        </div>
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
           <div class="panel-body" style="text-align:center;">
@@ -1020,7 +1041,14 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 // CONSTANTS
 // ═══════════════════════════════════════════════════
 const VEHICLES=['All Vehicles','Suzuki SX4','Mitsubishi L200 K34 Japan Cab','Mitsubishi L200 K14 Japan Cab','Mitsubishi KB40','Mitsubishi KB70','Mitsubishi Thailand Cab','Mitsubishi Van','Mitsubishi Pajero Jeep V36','Mitsubishi Pajero Palathsabha Jeep','Isuzu TFR Cab','Toyota LH113 Dolphin Van','Toyota KDH Van','Toyota Cab LN85','Toyota Cab LN166','Toyota Cab LN106','Toyota Cab LN107'];
-const COUNTRIES=['Japan','India','China','Taiwan','South Korea','Germany','USA','UK','Thailand','Malaysia','Sri Lanka','Other'];
+const COUNTRIES=[
+  'Japan','India','China','Taiwan','South Korea',
+  'Germany','USA','UK','Thailand','Malaysia',
+  'Sri Lanka','Indonesia','Vietnam','Philippines',
+  'Turkey','Italy','France','Spain','Sweden',
+  'Australia','Brazil','Mexico','Canada',
+  'Singapore','Hong Kong','UAE','Other'
+];
 const SESSION_TIMEOUT=30*60*1000; // 30 minutes
 
 // ═══════════════════════════════════════════════════
@@ -1243,7 +1271,13 @@ function resetStorage(){
 
 function initApp(){
   // Load saved company preference
-  var savedCo = localStorage.getItem('ngrd_company')||'ngrd';
+  // Set company based on user's assigned company
+  var savedCo;
+  if(CU&&CU.company&&CU.company!=='both'){
+    savedCo=CU.company; // Use user's assigned company
+  } else {
+    savedCo=localStorage.getItem('ngrd_company')||'ngrd';
+  }
   setCompany(savedCo, true); // silent restore
   // Try to load API key from Firebase for all users
   if(typeof loadAPIKeyFromFirebase==='function'&&!getAPIKey()){
@@ -1373,7 +1407,7 @@ function showPage(pg){
   }
   if(pg==='analytics')renderAnalytics();
   if(pg==='log')renderLog();
-  if(pg==='backup')renderBackupPage();
+  if(pg==='backup'){loadSubmitterSettings();renderBackupPage();}
   if(pg==='prices')renderPriceList();
   if(pg==='vehicles')renderVehicleSettings();
   if(pg==='new'){if(typeof refreshAllVehicleDropdowns==='function')refreshAllVehicleDropdowns();}
@@ -2034,6 +2068,13 @@ function getCompany(){
 }
 
 function setCompany(id, silent){
+  // Staff company restriction
+  if(!silent&&CU&&CU.role!=='admin'&&CU.company&&CU.company!=='both'){
+    if(id!==CU.company){
+      showToast('⛔ '+CU.name+' is assigned to '+(CU.company==='ngrd'?'N.G.R.D. Motors':'Puspha Motors')+' only!','t-e');
+      return;
+    }
+  }
   curCompany = id;
   localStorage.setItem('ngrd_company', id);
   // Update toggle buttons
@@ -2746,6 +2787,13 @@ function openEditPerms(uid){
     inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-approve"> Approve</label>';
     inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-admin"> Admin</label>';
     inner+='</div></div>';
+    inner+='<div style="margin-bottom:12px;padding:10px;background:#f8f9fa;border-radius:6px;">';
+    inner+='<div style="font-size:12px;font-weight:700;color:#333;margin-bottom:8px;">🏢 COMPANY ACCESS:</div>';
+    inner+='<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:13px;"><input type="radio" name="ep-company" id="ep-co-both" value="both"> Both</label>';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:13px;"><input type="radio" name="ep-company" id="ep-co-ngrd" value="ngrd"> 🔵 NGRD Only</label>';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:13px;"><input type="radio" name="ep-company" id="ep-co-puspha" value="puspha"> 🟤 Puspha Only</label>';
+    inner+='</div></div>';
     inner+='<div style="margin-bottom:14px;">';
     inner+='<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">VEHICLES:</div>';
     inner+='<div id="ep-vehicle-checks" style="padding:8px;border:1px solid var(--border);border-radius:4px;max-height:150px;overflow-y:auto;"></div>';
@@ -2765,6 +2813,11 @@ function openEditPerms(uid){
     if(el) el.checked=perms.includes(p);
   });
   renderVehicleChecks('ep-vehicle-checks', u.vehicles||['All Vehicles']);
+  // Set company radio
+  var userCo=u.company||'both';
+  var coEl=document.getElementById('ep-co-'+userCo);
+  if(coEl) coEl.checked=true;
+  else { var bothEl=document.getElementById('ep-co-both'); if(bothEl) bothEl.checked=true; }
   modal.style.display='flex';
 }
 
@@ -2779,6 +2832,8 @@ function saveEditPerms(){
   });
   var vehs=getCheckedVehicles('ep-vehicle-checks');
   var rl=perms.includes('admin')?'admin':perms.length>0?perms[0]:'staff';
+  var coEl=document.querySelector('input[name="ep-company"]:checked');
+  users[idx].company=coEl?coEl.value:'both';
   users[idx].permissions=perms;
   users[idx].vehicles=vehs;
   users[idx].role=rl;
@@ -4966,6 +5021,51 @@ function reExport(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.com
 function reExportPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});curStatus=e.status||'draft';downloadPDF();curItems=s;}
 function reExportArmyExcel(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});downloadArmyExcel();curItems=s;}
 function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});curStatus=e.status||'draft';downloadArmyPDF();curItems=s;}
+
+// ══════════════════════════════════════════════════
+// COMPANY SUBMITTER SETTINGS
+// ══════════════════════════════════════════════════
+function loadSubmitterSettings(){
+  var panel=document.getElementById('company-submitter-panel');
+  if(!panel) return;
+  panel.style.display=(CU&&CU.role==='admin')?'block':'none';
+  var users=getUsers().filter(function(u){return u.active!==false;});
+  var ngrdSel=document.getElementById('ngrd-submitter');
+  var pushaSel=document.getElementById('puspha-submitter');
+  if(!ngrdSel||!pushaSel) return;
+  // Populate dropdowns
+  var opts='<option value="">— Select Staff —</option>';
+  users.forEach(function(u){ opts+='<option value="'+u.name+'">'+u.name+'</option>'; });
+  ngrdSel.innerHTML=opts;
+  pushaSel.innerHTML=opts;
+  // Load saved settings
+  var settings=LS.get('ngrd_submitter_settings')||{};
+  if(settings.ngrd) ngrdSel.value=settings.ngrd;
+  if(settings.puspha) pushaSel.value=settings.puspha;
+  // Show current
+  var st=document.getElementById('submitter-status');
+  if(st){
+    st.innerHTML=(settings.ngrd||settings.puspha)?
+      '✅ NGRD: <b>'+(settings.ngrd||'Not set')+'</b> &nbsp;|&nbsp; Puspha: <b>'+(settings.puspha||'Not set')+'</b>':'';
+  }
+}
+
+function saveSubmitterSettings(){
+  var ngrd=document.getElementById('ngrd-submitter')?.value||'';
+  var puspha=document.getElementById('puspha-submitter')?.value||'';
+  LS.set('ngrd_submitter_settings',{ngrd:ngrd,puspha:puspha});
+  // Save to Firebase for all devices
+  if(typeof fbWrite==='function') fbWrite('settings/submitters',{ngrd:ngrd,puspha:puspha});
+  var st=document.getElementById('submitter-status');
+  if(st) st.innerHTML='✅ NGRD: <b>'+(ngrd||'Not set')+'</b> &nbsp;|&nbsp; Puspha: <b>'+(puspha||'Not set')+'</b>';
+  showToast('✅ Submitter settings saved!','t-s');
+  addLog('Submitter set — NGRD:'+ngrd+' | Puspha:'+puspha);
+}
+
+function getSubmitter(company){
+  var settings=LS.get('ngrd_submitter_settings')||{};
+  return company==='puspha'?settings.puspha:settings.ngrd;
+}
 
 // ══════════════════════════════════════════════════
 // RESET & TOAST
