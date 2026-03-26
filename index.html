@@ -2829,6 +2829,9 @@ function renderHistory(){
   c.innerHTML='<div class="hist-empty">📁 No saved quotations found.</div><div style="font-size:10px;color:#888;text-align:center;margin-top:4px;">Total in storage: '+debugCount+' | Filtered: '+h.length+'</div>';return;}
   c.innerHTML=h.map(e=>{
     const sb=getStatusBadge(e.status);
+    const coBadge=e.company==='puspha'?
+      '<span style="background:#4A0E0E;color:#fff;padding:1px 6px;border-radius:2px;font-size:9px;margin-left:4px;">PUSPHA</span>':
+      '<span style="background:#0D1B2A;color:#fff;padding:1px 6px;border-radius:2px;font-size:9px;margin-left:4px;">NGRD</span>';
     const chk=selectModeOn?`<input type="checkbox" class="hist-chk" value="${e.id}" style="width:18px;height:18px;cursor:pointer;flex-shrink:0;margin-right:6px;">`:'<div style="font-size:18px;flex-shrink:0;">📄</div>';
     return `<div class="hist-item">
       ${chk}
