@@ -2594,6 +2594,9 @@ function saveToHistory(){
   var g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
   var refNo=g('f-refno'),eqNo=g('f-eqno');
   var quotStatus=curStatus||g('quot-status')||'draft';
+  // Auto upgrade: if has prices and still draft → pending
+  var _hasPrices=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
+  if(_hasPrices&&quotStatus==='draft') quotStatus='pending';
   var _hp=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
   if(_hp&&quotStatus==='draft'&&CU&&CU.role!=='admin'){quotStatus='pending';}
   var hist=getHist();
@@ -2666,7 +2669,24 @@ function markSubmitted(id){
 
 function autoFixStatus(hist){
   var changed=false;
-  hist.forEach(function(e){if(e.steps&&e.steps.submitted&&(e.status==='draft'||e.status==='pending'||!e.status)){e.status='submitted';changed=true;}});
+  hist.forEach(function(e){
+    if(!e.status) e.status='draft';
+    // If approved step exists → approved
+    if(e.steps&&e.steps.approved&&e.status!=='awarded'&&e.status!=='rejected'){
+      e.status='approved';changed=true;
+    }
+    // If submitted step exists → submitted
+    if(e.steps&&e.steps.submitted&&(e.status==='draft'||e.status==='pending'||!e.status)){
+      e.status='submitted';changed=true;
+    }
+    // If has prices + price step → pending
+    if(e.steps&&e.steps.price&&(e.status==='draft'||!e.status)){
+      var hasPrice=e.items&&e.items.some(function(item){
+        return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
+      });
+      if(hasPrice){e.status='pending';changed=true;}
+    }
+  });
   if(changed){localStorage.setItem('ngrd_hist',JSON.stringify(hist));if(typeof fbWrite==='function')fbWrite('history',hist);}
   return hist;
 }
