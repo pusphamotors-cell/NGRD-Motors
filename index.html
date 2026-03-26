@@ -1310,7 +1310,31 @@ function showPage(pg){
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
   });
-  if(pg==='history')renderHistory();
+  if(pg==='history'){
+    // Reset all filters to show everything
+    var vfEl=document.getElementById('hist-vehicle-filter');
+    var sfEl=document.getElementById('hist-status-filter');
+    var cfEl=document.getElementById('hist-company-filter');
+    var qEl=document.getElementById('hist-search');
+    if(vfEl) vfEl.value='';
+    if(sfEl) sfEl.value='';
+    if(cfEl) cfEl.value='';
+    if(qEl) qEl.value='';
+    // Force Firebase sync if localStorage is empty
+    if(getHist().length===0&&typeof fbRead==='function'){
+      fbRead('history',function(data){
+        if(data&&typeof data==='object'){
+          var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+          if(remote.length>0){
+            localStorage.setItem('ngrd_hist',JSON.stringify(remote));
+            renderHistory();
+            updatePendingBadge();
+          }
+        }
+      });
+    }
+    renderHistory();
+  }
   if(pg==='users'){
     // Pull latest users from Firebase before rendering
     if(typeof FB_READY!=='undefined'&&FB_READY){
@@ -1767,6 +1791,13 @@ function initFirebaseSync(){
             if(typeof renderDashboard==='function')renderDashboard();
             if(typeof renderHistory==='function')renderHistory();
             showToast('✅ Synced! '+merged.length+' quotations','t-s');
+          } else if(remote.length>0){
+            // Remote has data but merge failed — use remote directly
+            localStorage.setItem('ngrd_hist',JSON.stringify(remote));
+            updatePendingBadge();
+            if(typeof renderDashboard==='function')renderDashboard();
+            if(typeof renderHistory==='function')renderHistory();
+            showToast('✅ Synced! '+remote.length+' quotations','t-s');
           }
         }catch(e){
           fbWrite('history',getHist());// fallback push
@@ -2794,7 +2825,8 @@ function renderHistory(){
   if(q) h=h.filter(x=>(x.vehicle+x.vNo+x.eqNo+x.refNo+x.entity).toLowerCase().includes(q));
   const c=document.getElementById('history-list');
   if(!c) return;
-  if(!h.length){c.innerHTML='<div class="hist-empty">📁 No saved quotations found.</div>';return;}
+  if(!h.length){var debugCount=getHist().length;
+  c.innerHTML='<div class="hist-empty">📁 No saved quotations found.</div><div style="font-size:10px;color:#888;text-align:center;margin-top:4px;">Total in storage: '+debugCount+' | Filtered: '+h.length+'</div>';return;}
   c.innerHTML=h.map(e=>{
     const sb=getStatusBadge(e.status);
     const chk=selectModeOn?`<input type="checkbox" class="hist-chk" value="${e.id}" style="width:18px;height:18px;cursor:pointer;flex-shrink:0;margin-right:6px;">`:'<div style="font-size:18px;flex-shrink:0;">📄</div>';
@@ -4694,7 +4726,7 @@ function downloadPDFDirect(){
   if(!curItems.length){showToast('No items','t-e');return;}
   const d=buildQData();
   const content=generatePDFHtml(d);
-  const fname='NGRD_'+(d.eqNo||d.refNo||'Quotation').replace(/[\s\/]/g,'_')+'.html';
+  var coPDF=getCompany();const fname=(coPDF.shortName||'NGRD')+'_'+(d.eqNo||d.refNo||'Quotation').replace(/[\s\/]/g,'_')+'.html';
   // Direct download as HTML file - opens perfectly in any browser as PDF-ready
   const blob=new Blob([content],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -4756,7 +4788,7 @@ function generateArmyLetterHtml(d){
     </div>
     <div style="margin-bottom:10px;font-size:12px;line-height:1.7;"><b>To,</b><br>${d.entity||'Sri Lanka Army — Directorate of EME'}<br>Colombo 02, Sri Lanka.</div>
     <div style="margin-bottom:10px;font-size:12px;"><b>Subject:</b> Quotation — ${d.title||'Purchase of Spare Parts for '+d.vehicle+' ('+d.vNo+')'}</div>
-    <div style="margin-bottom:10px;font-size:12px;">With reference to the above, we N.G.R.D. Motors hereby submit our price quotation for the supply of spare parts as per your requirement.</div>
+    <div style="margin-bottom:10px;font-size:12px;">With reference to the above, we ${co.name} hereby submit our price quotation for the supply of spare parts as per your requirement.</div>
     <table style="margin-bottom:8px;font-size:10px;">
       <tr style="background:#f0f4f8;"><td style="padding:4px 8px;border:1px solid #ccc;font-weight:700;width:120px;">Vehicle</td><td style="padding:4px 8px;border:1px solid #ccc;">${d.vehicle||'—'}</td><td style="padding:4px 8px;border:1px solid #ccc;font-weight:700;width:120px;">Vehicle No.</td><td style="padding:4px 8px;border:1px solid #ccc;">${d.vNo||'—'}</td></tr>
       <tr><td style="padding:4px 8px;border:1px solid #ccc;font-weight:700;">Engine No.</td><td style="padding:4px 8px;border:1px solid #ccc;">${d.eng||'—'}</td><td style="padding:4px 8px;border:1px solid #ccc;font-weight:700;">Chassis No.</td><td style="padding:4px 8px;border:1px solid #ccc;">${d.chas||'—'}</td></tr>
@@ -4776,10 +4808,10 @@ function generateArmyLetterHtml(d){
     </div>
     <div style="font-size:12px;margin-bottom:14px;">We trust our quotation meets your requirements and look forward to your favorable response.</div>
     <div class="sig">
-      <div class="sc"><div class="sl"></div><div style="font-size:10px;font-weight:700;">${d.preparedBy||'Authorized Signatory'}</div><div style="font-size:9px;color:#555;">N.G.R.D. Motors | Date: ${d.date}</div></div>
-      <div class="sc"><div class="stmp">OFFICIAL STAMP</div><div style="font-size:10px;font-weight:700;margin-top:4px;">For N.G.R.D. Motors</div></div>
+      <div class="sc"><div class="sl"></div><div style="font-size:10px;font-weight:700;">${d.preparedBy||'Authorized Signatory'}</div><div style="font-size:9px;color:#555;">${co.name} | Date: ${d.date}</div></div>
+      <div class="sc"><div class="stmp">OFFICIAL STAMP</div><div style="font-size:10px;font-weight:700;margin-top:4px;">For ${co.name}</div></div>
     </div>
-    <div class="ftr"><span>N.G.R.D. Motors | Panchikawatta, Colombo 10 | Authorized Govt. Spare Parts Supplier</span><span>Ref: ${d.eqNo||d.refNo} | ${d.date}</span></div>
+    <div class="ftr"><span>${co.name} | ${co.addressShort} | Authorized Govt. Spare Parts Supplier</span><span>Ref: ${d.eqNo||d.refNo} | ${d.date}</span></div>
   </div></body></html>`;
 }
 
@@ -4798,6 +4830,7 @@ function downloadArmyPDF(){
 
 function downloadArmyExcel(){
   if(!curItems.length){showToast('No items','t-e');return;}
+  var co=getCompany();
   const g=id=>document.getElementById(id)?.value||'';
   const esc=v=>String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const sc=(v,sid)=>('<Cell'+(sid?' ss:StyleID="'+String(sid)+'"':'')+'>'+"<Data ss:Type=\"String\">"+esc(v)+"</Data></Cell>");
@@ -4848,9 +4881,9 @@ function downloadArmyExcel(){
   ${itemRows}<Row/>
   <Row ss:Height="20"><Cell/><Cell/><Cell/><Cell/><Cell/><Cell/>${sc('GRAND TOTAL (LKR)','gl')}${nc(grand,'gv')}<Cell/></Row><Row/>
   <Row ss:Height="14"><Cell ss:MergeAcross="8" ss:StyleID="val"><Data ss:Type="String">Terms: All prices in LKR | Warranty: 6 months | Delivery: ${esc(g('f-deliv')||'21 days')} from LOA | Destination: ${esc(g('f-dest')||'Colombo 02')}</Data></Cell></Row>
-  <Row/><Row ss:Height="15"><Cell ss:StyleID="val"><Data ss:Type="String">Prepared by: ${esc(CU?.name||'')} | Date: ${today}</Data></Cell><Cell/><Cell/><Cell/><Cell/><Cell/>${sc('For N.G.R.D. Motors','lbl')}<Cell/><Cell/></Row>
+  <Row/><Row ss:Height="15"><Cell ss:StyleID="val"><Data ss:Type="String">Prepared by: ${esc(CU?.name||'')} | Date: ${today}</Data></Cell><Cell/><Cell/><Cell/><Cell/><Cell/>${sc('For '+co.name,'lbl')}<Cell/><Cell/></Row>
 </Table></Worksheet></Workbook>`;
-  _downloadBlob(xml,'application/vnd.ms-excel','NGRD_ArmyLetter_'+(g('f-eqno')||'Letter').replace(/\s/g,'_')+'.xls');
+  _downloadBlob(xml,'application/vnd.ms-excel',(co.shortName||'NGRD')+'_ArmyLetter_'+(g('f-eqno')||'Letter').replace(/\s/g,'_')+'.xls');
   addLog('Army Letter Excel: '+(g('f-eqno')||g('f-refno')));showToast('Army Letter Excel!','t-s');
 }
 
