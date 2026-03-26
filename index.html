@@ -4686,7 +4686,7 @@ function generatePDFHtml(d){
   @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
 </head><body>
   <div class="page">
-    <div class="hdr"><div><div class="hc">NGRD <span>MOTORS</span></div><div class="haddr">${co.addressShort}</div></div><div class="hbadge">PRICE QUOTATION</div></div>
+    <div class="hdr"><div><div class="hc">${co.name.split(" ")[0]} <span>${co.name.split(" ").slice(1).join(" ")}</span></div><div class="haddr">${co.addressShort}</div></div><div class="hbadge">PRICE QUOTATION</div></div>
     <div class="gline"></div>
     <div class="ibox">
       <div class="it">📋 Procurement Details</div>
