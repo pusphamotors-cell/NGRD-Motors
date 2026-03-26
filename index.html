@@ -594,7 +594,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="panel-hdr">
             <span class="panel-hdr-icon">🗂️</span><span class="panel-hdr-title">Quotation History</span>
             <div class="panel-hdr-right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-              <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;"><option value="">🚗 All Vehicles</option></select>
               <select id="hist-status-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:2px;font-size:12px;outline:none;font-family:var(--fb);">
                 <option value="">All Status</option>
                 <option value="draft">Draft</option>
@@ -604,16 +603,22 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="rejected">Rejected</option>
                 <option value="pending">Pending</option>
               </select>
+              <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;"><option value="">🚗 All Vehicles</option></select>
+              <input type="text" id="hist-search" placeholder="Search..." oninput="renderHistory()"
+                style="padding:5px 9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;outline:none;width:120px;font-family:var(--fb);">
+              <div id="hist-admin-filters" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              
+              
               <select id="hist-company-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
                 <option value="">🏢 All Companies</option>
                 <option value="ngrd">NGRD Motors</option>
                 <option value="puspha">Puspha Motors</option>
               </select>
-              <input type="text" id="hist-search" placeholder="Search..." oninput="renderHistory()"
-                style="padding:5px 9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;outline:none;width:120px;font-family:var(--fb);">
+              
+              </div>
               <button onclick="toggleSelectMode()" id="btn-select-mode" style="padding:5px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">☑️ Select</button>
               <button onclick="deleteSelected()" id="btn-delete-selected" style="display:none;padding:5px 10px;background:rgba(178,34,34,.6);border:1px solid rgba(178,34,34,.8);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Delete Selected</button>
-              <button onclick="clearAllHistory()" style="padding:5px 10px;background:rgba(178,34,34,.3);border:1px solid rgba(178,34,34,.5);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Clear All</button>
+              <button onclick="clearAllHistory()" id="btn-clear-all" style="padding:5px 10px;background:rgba(178,34,34,.3);border:1px solid rgba(178,34,34,.5);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Clear All</button>
               <button id="btn-bulk-reassign" onclick="bulkReassign()" style="padding:5px 10px;background:rgba(201,149,42,.4);border:1px solid rgba(201,149,42,.6);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🔄 Bulk Reassign</button>
             </div>
           </div>
@@ -2810,30 +2815,32 @@ function renderHistory(){
   var isAdmin=CU&&CU.role==='admin';
   if(!isAdmin&&CU){
     h=h.filter(function(e){
+      // Staff sees only their own uploads
+      if(e.savedBy===CU.name) return true;
       if(e.owner===CU.username) return true;
       if(e.assignedTo===CU.username) return true;
-      if(e.owner==='__all__'||!e.owner){
-        const list=getVehicleList(CU);
-        if(list.includes('All Vehicles')) return true;
-        const ev=(e.vehicle||'').toLowerCase();
-        return list.some(function(v){return ev.includes(v.toLowerCase())||v.toLowerCase().includes((ev.split(' ')[0]||''));});
+      // Check steps - if staff did any step
+      if(e.steps){
+        if(e.steps.uploaded&&e.steps.uploaded.by===CU.name) return true;
+        if(e.steps.priced&&e.steps.priced.by===CU.name) return true;
+        if(e.steps.submitted&&e.steps.submitted.by===CU.name) return true;
       }
       return false;
     });
   }
   var bulkBtn=document.getElementById('btn-bulk-reassign');
   if(bulkBtn) bulkBtn.style.display=isAdmin?'block':'none';
-  if(CU&&CU.role!=='admin'){
-    const list=getVehicleList(CU);
-    h=h.filter(e=>{
-      var myUpload=(e.savedBy===CU.name)||(e.steps&&e.steps.uploaded&&e.steps.uploaded.by===CU.name);
-      var myEdit=(e.updatedBy===CU.name);
-      return myUpload||myEdit;
-    });
-    if(!list.includes('All Vehicles')){
-      h=h.filter(e=>{const ev=(e.vehicle||'').toLowerCase();return list.some(v=>ev.includes(v.toLowerCase())||v.toLowerCase().includes((ev.split(' ')[0])));});
-    }
-  }
+  // Admin-only buttons: Clear All, Select, Delete
+  // Show/hide filter row (admin only)
+  var filterDiv=document.getElementById('hist-admin-filters');
+  if(filterDiv) filterDiv.style.display=isAdmin?'flex':'none';
+  var clearBtn=document.getElementById('btn-clear-all');
+  var selBtn=document.getElementById('btn-select-mode');
+  var delBtn2=document.getElementById('btn-delete-selected');
+  if(clearBtn) clearBtn.style.display=isAdmin?'inline-block':'none';
+  if(selBtn) selBtn.style.display=isAdmin?'inline-block':'none';
+  if(!isAdmin&&delBtn2) delBtn2.style.display='none';
+
   const vf=(document.getElementById('hist-vehicle-filter')?.value||'').toLowerCase();
   const sf=document.getElementById('hist-status-filter')?.value||'';
   var vfSel=document.getElementById('hist-vehicle-filter');
@@ -3859,6 +3866,7 @@ function toggleSelectMode(){
 }
 
 function deleteSelected(){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin only!','t-e');return;}
   var checked = [...document.querySelectorAll('.hist-chk:checked')].map(function(el){return parseInt(el.value);});
   if(!checked.length){showToast('எதுவும் select பண்ணவில்லை','t-e');return;}
   if(!confirm(checked.length+' quotation(s) delete பண்ணட்டுமா?')) return;
@@ -3876,6 +3884,7 @@ function deleteSelected(){
 }
 
 function clearAllHistory(){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
   var h = getHist();
   if(!h.length){showToast('History empty','t-i');return;}
   if(!confirm('ALL '+h.length+' quotations delete ஆகும்! Sure?')) return;
