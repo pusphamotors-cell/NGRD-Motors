@@ -1964,9 +1964,15 @@ function vehicleMatchesUser(vn){
   return list.some(v=>{const vl=v.toLowerCase();return ex.includes(vl)||vl.includes(ex.replace(/\s+/g,'').substring(0,4));});
 }
 
-function findDuplicate(refNo,eqNo){
+function findDuplicate(refNo,eqNo,company){
   const h=getHist();if(!refNo&&!eqNo)return null;
-  return h.find(e=>(refNo&&e.refNo&&e.refNo.trim()===refNo.trim())||(eqNo&&e.eqNo&&e.eqNo.trim()===eqNo.trim()))||null;
+  var co=company||curCompany||'ngrd';
+  return h.find(function(e){
+    var sameRef=(refNo&&e.refNo&&e.refNo.trim()===refNo.trim());
+    var sameEq=(eqNo&&e.eqNo&&e.eqNo.trim()===eqNo.trim());
+    var sameCo=(e.company||'ngrd')===co;
+    return (sameRef||sameEq)&&sameCo;
+  })||null;
 }
 
 // ══════════════════════════════════════════════════
@@ -2641,7 +2647,7 @@ function saveToHistory(){
       return;
     }
   }
-  var dup=findDuplicate(refNo,eqNo);
+  var dup=findDuplicate(refNo,eqNo,curCompany||'ngrd');
   if(dup){showToast('🚫 Duplicate! "'+(eqNo||refNo)+'" already saved','t-e');return;}
   var steps={uploaded:{by:CU.name,role:CU.role,at:now}};
   if(hasPrices) steps.priced={by:CU.name,role:CU.role,at:now};
