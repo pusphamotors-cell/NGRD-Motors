@@ -5029,24 +5029,51 @@ function loadSubmitterSettings(){
   var panel=document.getElementById('company-submitter-panel');
   if(!panel) return;
   panel.style.display=(CU&&CU.role==='admin')?'block':'none';
-  var users=getUsers().filter(function(u){return u.active!==false;});
-  var ngrdSel=document.getElementById('ngrd-submitter');
-  var pushaSel=document.getElementById('puspha-submitter');
-  if(!ngrdSel||!pushaSel) return;
-  // Populate dropdowns
-  var opts='<option value="">— Select Staff —</option>';
-  users.forEach(function(u){ opts+='<option value="'+u.name+'">'+u.name+'</option>'; });
-  ngrdSel.innerHTML=opts;
-  pushaSel.innerHTML=opts;
-  // Load saved settings
-  var settings=LS.get('ngrd_submitter_settings')||{};
-  if(settings.ngrd) ngrdSel.value=settings.ngrd;
-  if(settings.puspha) pushaSel.value=settings.puspha;
-  // Show current
-  var st=document.getElementById('submitter-status');
-  if(st){
-    st.innerHTML=(settings.ngrd||settings.puspha)?
-      '✅ NGRD: <b>'+(settings.ngrd||'Not set')+'</b> &nbsp;|&nbsp; Puspha: <b>'+(settings.puspha||'Not set')+'</b>':'';
+  
+  function _fillSubmitters(users){
+    var ngrdSel=document.getElementById('ngrd-submitter');
+    var pushaSel=document.getElementById('puspha-submitter');
+    if(!ngrdSel||!pushaSel) return;
+    var opts='<option value="">— Select Staff —</option>';
+    users.forEach(function(u){ 
+      if(u.active!==false) opts+='<option value="'+u.name+'">'+u.name+'</option>'; 
+    });
+    ngrdSel.innerHTML=opts;
+    pushaSel.innerHTML=opts;
+    // Load saved settings from Firebase first, then localStorage
+    var settings=LS.get('ngrd_submitter_settings')||{};
+    if(typeof fbRead==='function'){
+      fbRead('settings/submitters',function(fbSettings){
+        if(fbSettings&&typeof fbSettings==='object'){
+          settings=fbSettings;
+          LS.set('ngrd_submitter_settings',settings);
+        }
+        if(settings.ngrd) ngrdSel.value=settings.ngrd;
+        if(settings.puspha) pushaSel.value=settings.puspha;
+        var st=document.getElementById('submitter-status');
+        if(st) st.innerHTML=(settings.ngrd||settings.puspha)?
+          '✅ NGRD: <b>'+(settings.ngrd||'Not set')+'</b> &nbsp;|&nbsp; Puspha: <b>'+(settings.puspha||'Not set')+'</b>':'';
+      });
+    } else {
+      if(settings.ngrd) ngrdSel.value=settings.ngrd;
+      if(settings.puspha) pushaSel.value=settings.puspha;
+    }
+  }
+  
+  // Try Firebase users first for latest list
+  var localUsers=getUsers();
+  if(localUsers.length>0){
+    _fillSubmitters(localUsers);
+  }
+  if(typeof fbRead==='function'){
+    fbRead('users',function(fbUsers){
+      if(fbUsers&&Array.isArray(fbUsers)&&fbUsers.length>0){
+        _fillSubmitters(fbUsers);
+      } else if(fbUsers&&typeof fbUsers==='object'){
+        var arr=Object.values(fbUsers).filter(function(x){return x&&x.name;});
+        if(arr.length>0) _fillSubmitters(arr);
+      }
+    });
   }
 }
 
