@@ -445,7 +445,22 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           </div>
         </div>
 
-
+        <div class="panel">
+          <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
+          <div class="panel-body" style="text-align:center;">
+            <div class="upload-zone" id="drop-zone">
+              <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile(this)">
+              <div style="font-size:34px;margin-bottom:8px;">📄</div>
+              <div style="font-size:15px;font-weight:600;color:var(--navy);margin-bottom:4px;">Drop PDF here or click to browse</div>
+              <div style="font-size:12px;color:var(--muted);">Sri Lanka Army e-GP / Promise.lk quotation PDFs</div>
+              <div id="upload-fname" style="display:none;margin-top:10px;font-size:13px;color:var(--green);font-weight:600;"></div>
+            </div>
+            <button class="process-btn" id="process-btn" onclick="processFile()">🤖 Extract with AI</button>
+            <div style="margin-top:10px;"><button onclick="openME()" style="padding:9px 20px;background:transparent;border:2px solid var(--gold);border-radius:3px;color:var(--gold);font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer;">✏️ Manual Entry (AI இல்லாம)</button>
+              <button onclick="resetAPIKey()" style="padding:7px 12px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:3px;color:var(--gold);font-size:11px;font-weight:700;cursor:pointer;" title="Update API Key">🔑 Key</button></div>
+            <div class="ai-status" id="ai-status"><div class="spinner"></div><span id="ai-st">AI is reading...</span></div>
+          </div>
+        </div>
         <div class="panel" id="info-panel" style="display:none;">
           <div class="panel-hdr"><span class="panel-hdr-icon">📋</span><span class="panel-hdr-title">Procurement Details</span>
             <div class="panel-hdr-right">
@@ -886,22 +901,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <button onclick="loadSubmitterSettings()" style="margin-top:8px;padding:5px 12px;background:#0D1B2A;color:#fff;border:none;border-radius:3px;font-size:11px;cursor:pointer;">🔄 Refresh Users</button>
           </div>
         </div>
-        <div class="panel">
-          <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Upload e-GP Quotation PDF</span></div>
-          <div class="panel-body" style="text-align:center;">
-            <div class="upload-zone" id="drop-zone">
-              <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile(this)">
-              <div style="font-size:34px;margin-bottom:8px;">📄</div>
-              <div style="font-size:15px;font-weight:600;color:var(--navy);margin-bottom:4px;">Drop PDF here or click to browse</div>
-              <div style="font-size:12px;color:var(--muted);">Sri Lanka Army e-GP / Promise.lk quotation PDFs</div>
-              <div id="upload-fname" style="display:none;margin-top:10px;font-size:13px;color:var(--green);font-weight:600;"></div>
-            </div>
-            <button class="process-btn" id="process-btn" onclick="processFile()">🤖 Extract with AI</button>
-            <div style="margin-top:10px;"><button onclick="openME()" style="padding:9px 20px;background:transparent;border:2px solid var(--gold);border-radius:3px;color:var(--gold);font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer;">✏️ Manual Entry (AI இல்லாம)</button>
-              <button onclick="resetAPIKey()" style="padding:7px 12px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:3px;color:var(--gold);font-size:11px;font-weight:700;cursor:pointer;" title="Update API Key">🔑 Key</button></div>
-            <div class="ai-status" id="ai-status"><div class="spinner"></div><span id="ai-st">AI is reading...</span></div>
-          </div>
-        </div>
+        
 
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Export Backup</span></div>
