@@ -1648,14 +1648,29 @@ function showPurchaseHistory(itemIdx,brandIdx){
     if(!entry.items||!Array.isArray(entry.items))return;
     entry.items.forEach(function(it){
       if(!it.description)return;
-      // STRICT: only show same vehicle history
-      if(vehicle&&entry.vehicle&&entry.vehicle.toLowerCase()!==vehicle.toLowerCase()&&
-         !entry.vehicle.toLowerCase().includes(vehicle.toLowerCase().split(' ').pop()||'')&&
-         !vehicle.toLowerCase().includes((entry.vehicle||'').toLowerCase().split(' ').pop()||'')) return;
-      var aW=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
-      var bW=desc.toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
-      var matched=bW.filter(function(w){return aW.includes(w);}).length;
-      if(bW.length===0||matched/bW.length<0.5)return;
+      // STRICT vehicle match: exact same vehicle OR same family
+      if(vehicle&&entry.vehicle){
+        var ev=entry.vehicle.toLowerCase().trim();
+        var cv=vehicle.toLowerCase().trim();
+        var sameVeh=(ev===cv);
+        var sameFam=(typeof isSameFamily==='function')&&isSameFamily(entry.vehicle,vehicle);
+        if(!sameVeh&&!sameFam) return; // Different vehicle → skip!
+      }
+      // STRICT description match: require 70%+ matching AND first word must match
+      var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
+        'upper','lower','inner','outer','no','for','the','and','with','12v','24v',
+        'type','mm','pair','oem','genuine','original','std','a','b','c','no1','no2'];
+      function getWords(s){
+        return s.toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ')
+          .filter(function(w){return w.length>2&&NOISE.indexOf(w)<0;});
+      }
+      var aW=getWords(it.description);
+      var bW=getWords(desc);
+      if(bW.length===0||aW.length===0) return;
+      // First key word must match
+      if(bW[0]!==aW[0]) return;
+      var matched=bW.filter(function(w){return aW.indexOf(w)>=0;}).length;
+      if(matched/bW.length<0.7) return; // Need 70% match
       var rows=it.brandRows||[];
       if(!rows.length&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
       rows.forEach(function(br){
@@ -2546,7 +2561,7 @@ function findAllPriceMatches(desc,prices,vehicle){
       }
     }
 
-    if(score<55) return;
+    if(score<75) return; // Strict match only
 
     // ── Categorize by vehicle match type ──
 
@@ -2617,7 +2632,7 @@ function findAllPriceMatches(desc,prices,vehicle){
   }
 
   exactMatches.slice(0,3).forEach(addIfNew);
-  familyMatches.slice(0,2).forEach(addIfNew);
+  // familyMatches removed — strict same vehicle only
   universalMatches.slice(0,2).forEach(addIfNew);
 
   // LH/RH pairing
