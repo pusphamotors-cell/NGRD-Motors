@@ -1312,6 +1312,18 @@ function initApp(){
   setTimeout(migrateOwnerField,3000);
   setTimeout(applyViewOnlyMode,600);
   updatePendingBadge();
+  // Load submitter settings from Firebase for all devices
+  setTimeout(function(){
+    if(typeof fbRead==='function'){
+      fbRead('settings/submitters',function(s){
+        if(s&&typeof s==='object'&&(s.ngrd||s.puspha)){
+          LS.set('ngrd_submitter_settings',s);
+          // Refresh workflow bar if quotation open
+          if(typeof updateWorkflowBar==='function') updateWorkflowBar();
+        }
+      });
+    }
+  },2000);
 }
 
 // ── SESSION TIMER ──
@@ -2203,10 +2215,11 @@ function getRole(){
       seePurchase:isAdmin||p.includes('price'),
       canPurchase:isAdmin||p.includes('price'),
       canMargin:isAdmin||p.includes('price'),
-      canSave:isAdmin||p.includes('submit'),
+      canSave:isAdmin||p.includes('submit')||p.includes('upload'),
       canExport:isAdmin||p.includes('export')||p.includes('submit'),
       canApprove:isAdmin||p.includes('approve'),
       canUpload:isAdmin||p.includes('upload'),
+      canSubmit:isAdmin||p.includes('submit'),
       viewOnly:p.length===0
     };
   }
@@ -5350,7 +5363,7 @@ function updateWorkflowBar(){
     // Check if this user is the assigned submitter
     var co=(entry&&entry.company)||curCompany||'ngrd';
     var assignedSub=getSubmitter(co);
-    var canSubNow=isAdmin||(getRole().canSubmit&&(!assignedSub||assignedSub===CU.name));
+    var canSubNow=isAdmin||(!assignedSub&&getRole().canSubmit)||(assignedSub&&assignedSub===CU.name);
     if(canSubNow){
       btn.textContent='✅ Submit to Promise.lk →';
       btn.style.background='linear-gradient(135deg,#1A6B3C,#2a9d5c)';
@@ -5405,7 +5418,7 @@ function handleNextStep(){
   } else if(step==='approved'){
     var co2=(entry&&entry.company)||curCompany||'ngrd';
     var assignedSub2=getSubmitter(co2);
-    var canSubNow2=isAdmin||(role.canSubmit&&(!assignedSub2||assignedSub2===CU.name));
+    var canSubNow2=isAdmin||(!assignedSub2&&role.canSubmit)||(assignedSub2&&assignedSub2===CU.name);
     if(!canSubNow2){showToast('⛔ '+co2.toUpperCase()+' submitter: '+(assignedSub2||'Not set')+' மட்டும்!','t-e');return;}
     submitToPromise();
   } else if(step==='submitted'){
