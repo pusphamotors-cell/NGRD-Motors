@@ -2102,6 +2102,18 @@ function setCompany(id, silent){
     logoEl.style.color=id==='puspha'?'#FF6B6B':'';
   }
   if(!silent) showToast('🏢 '+getCompany().name+' selected', 't-s');
+  // Hide wrong company button for restricted staff
+  if(CU&&CU.role!=='admin'&&CU.company&&CU.company!=='both'){
+    var ngrdBtnH=document.getElementById('co-ngrd');
+    var pushaBtnH=document.getElementById('co-puspha');
+    if(CU.company==='ngrd'){
+      if(pushaBtnH) pushaBtnH.style.display='none';
+      if(ngrdBtnH)  ngrdBtnH.style.display='block';
+    } else if(CU.company==='puspha'){
+      if(ngrdBtnH)  ngrdBtnH.style.display='none';
+      if(pushaBtnH) pushaBtnH.style.display='block';
+    }
+  }
 }
 
 
@@ -2277,7 +2289,7 @@ function renderItems(items){
       });
     }
     var rc=item.brandRows.length;
-    var hint=getPriceHint(item.description,prices);
+    var hint=getPriceHint(item.description,prices,curVeh);
     var bg=idx%2===0?'#f7fafd':'#fff';
     var reqBrand=item.brand||'';
     item.brandRows.forEach(function(br,bi){
@@ -2619,7 +2631,7 @@ function findAllPriceMatches(desc,prices,vehicle){
   return combined.slice(0,3);
 }
 
-function getPriceHint(desc,prices){var matches=findAllPriceMatches(desc,prices);return matches.length>0?matches[0]:null;}
+function getPriceHint(desc,prices,vehicle){var matches=findAllPriceMatches(desc,prices,vehicle);return matches.length>0?matches[0]:null;}
 function savePartNo(idx,val){if(curItems[idx])curItems[idx].partNo=val;}
 function saveCountry(idx,val){if(curItems[idx])curItems[idx].country=val;}
 
@@ -2649,6 +2661,8 @@ function submitToPromise(){
   curStatus='submitted';
   var qsEl=document.getElementById('quot-status');if(qsEl) qsEl.value='submitted';
   saveToHistory();
+  curStatus='draft'; // Reset after submit
+  window.curEditId=null;
   showToast('📤 Submitted! Admin review பண்ணுவாங்க.','t-s');
 }
 
@@ -2682,7 +2696,7 @@ function saveToHistory(){
         grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
         status:quotStatus,updatedBy:CU.name,updatedAt:now,steps:orig.steps
       });
-      setHist(hist);autoSavePrices(curItems);window.curEditId=null;
+      setHist(hist);autoSavePrices(curItems);window.curEditId=null;curStatus='draft';
       addLog('Updated: '+(eqNo||refNo)+' by '+CU.name);
       showToast('✅ Updated successfully!','t-s');
       updatePendingBadge();setTimeout(updateWorkflowBar,200);
@@ -2709,6 +2723,7 @@ function saveToHistory(){
   };
   hist.unshift(entry);if(hist.length>200) hist.pop();
   setHist(hist);autoSavePrices(curItems);
+  window.curEditId=null; curStatus='draft';
   addLog('Saved: '+(eqNo||refNo)+' ('+entry.vehicle+') — '+quotStatus);
   checkAfterSave();
   showToast('Saved to history!','t-s');
@@ -2725,13 +2740,32 @@ function updatePendingBadge(){
 }
 
 function markSubmitted(id){
-  if(!confirm('Promise.lk-ல் submit பண்ணிவிட்டீர்களா?')) return;
+  if(!CU){showToast('⛔ Login required!','t-e');return;}
   var h=getHist();var idx=h.findIndex(function(e){return e.id===id;});if(idx<0) return;
-  if(!h[idx].steps) h[idx].steps={};
-  h[idx].steps.submitted={by:CU.name,role:CU.role,at:new Date().toLocaleString('en-LK')};
-  h[idx].status='submitted';setHist(h);renderHistory();
-  addLog('Submitted: '+(h[idx].eqNo||h[idx].refNo)+' by '+CU.name);
-  showToast('✅ Submitted by '+CU.name+' marked!','t-s');
+  var entry=h[idx];
+  // Check submitter permission
+  var isAdmin=CU.role==='admin';
+  var role=getRole();
+  if(!isAdmin&&!role.canSubmit){
+    showToast('⛔ Submit permission இல்லை!','t-e');return;
+  }
+  // Check if this user is the assigned submitter for this company
+  if(!isAdmin){
+    var co=entry.company||'ngrd';
+    var assignedSubmitter=getSubmitter(co);
+    if(assignedSubmitter&&assignedSubmitter!==CU.name){
+      showToast('⛔ '+co.toUpperCase()+' submitter: '+assignedSubmitter+' மட்டும்!','t-e');return;
+    }
+  }
+  if(!confirm('Promise.lk-ல் submit பண்ணிவிட்டீர்களா?')) return;
+  if(!entry.steps) entry.steps={};
+  entry.steps.submitted={by:CU.name,role:CU.role,at:new Date().toLocaleString('en-LK')};
+  entry.status='submitted';
+  setHist(h);
+  if(typeof fbWrite==='function') fbWrite('history',h);
+  renderHistory();
+  addLog('Submitted: '+(entry.eqNo||entry.refNo)+' by '+CU.name);
+  showToast('✅ Submitted by '+CU.name+'!','t-s');
 }
 
 function autoFixStatus(hist){
@@ -2977,7 +3011,18 @@ function renderHistory(){
         <button class="hist-btn" onclick="openQV(${e.id})" title="View">👁️</button>
         <button class="hist-btn" onclick="${['submitted','approved','awarded'].indexOf(e.status||'')<0?'loadHist('+e.id+')':'openQV('+e.id+')'}" title="${['submitted','approved','awarded'].indexOf(e.status||'')<0?'Edit':'View'}">📂</button>
         <button class="hist-btn" onclick="changeStatus(${e.id})" title="Change Status">🔄</button>
-        <button class="hist-btn" onclick="markSubmitted(${e.id})" title="Mark Submitted" style="color:#1A6B3C;">📤</button>
+        ${(function(){
+          var isAdm=CU&&CU.role==='admin';
+          var rl=getRole();
+          var co=e.company||'ngrd';
+          var assignedSub=getSubmitter(co);
+          var canSub=isAdm||rl.canSubmit;
+          var isAssigned=!assignedSub||isAdm||(assignedSub===CU.name);
+          var alreadyDone=['submitted','approved','awarded'].indexOf(e.status||'')>=0;
+          return (canSub&&isAssigned&&!alreadyDone)?
+            '<button class="hist-btn" onclick="markSubmitted('+e.id+')" title="Mark Submitted" style="color:#1A6B3C;">📤</button>':
+            '<button class="hist-btn" style="color:#ccc;cursor:default;" title="Not assigned" disabled>📤</button>';
+        })()}
         <button class="hist-btn" onclick="reExport(${e.id})">📥Q</button>
         <button class="hist-btn" onclick="reExportPDF(${e.id})">📄Q</button>
         <button class="hist-btn" onclick="reExportArmyExcel(${e.id})" style="color:var(--steel);">📥L</button>
@@ -4029,9 +4074,32 @@ function renderStaffDashboard(){
   var now=new Date();
   var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
 
-  // My quotations only
+  // My quotations only — check savedBy, steps, or owner
+  var adminNames=['Administrator','Admin'];
   var myHist=allHist.filter(function(e){
-    return e.owner===CU.username||e.owner==='__all__'||!e.owner;
+    // Uploaded by me
+    if(e.savedBy===CU.name) return true;
+    // Assigned to me
+    if(e.owner===CU.username||e.assignedTo===CU.username) return true;
+    // I did any step
+    if(e.steps){
+      if(e.steps.uploaded&&e.steps.uploaded.by===CU.name) return true;
+      if(e.steps.priced&&e.steps.priced.by===CU.name) return true;
+      if(e.steps.submitted&&e.steps.submitted.by===CU.name) return true;
+    }
+    // Hide admin-only entries from staff
+    var savedByAdmin=adminNames.indexOf(e.savedBy||'')>=0;
+    if(savedByAdmin){
+      var hasMyStep=false;
+      if(e.steps){
+        var bys=[e.steps.uploaded&&e.steps.uploaded.by,
+                 e.steps.priced&&e.steps.priced.by,
+                 e.steps.submitted&&e.steps.submitted.by].filter(Boolean);
+        hasMyStep=bys.indexOf(CU.name)>=0;
+      }
+      return hasMyStep;
+    }
+    return false;
   });
 
   var html2='';
