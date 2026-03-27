@@ -1424,14 +1424,27 @@ let pdfB64=null,curItems=[],curStatus='draft';
 
 function handleFile(inp){
   const f=inp.files[0];if(!f)return;
+  // File type check
+  if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf')){
+    showToast('⚠️ PDF file மட்டும் upload பண்ணுங்கள்!','t-e');
+    inp.value='';return;
+  }
+  // File size check (max 20MB)
+  if(f.size>20*1024*1024){
+    showToast('⚠️ File size 20MB-க்கு மேல் இருக்கு! சிறிய file பயன்படுத்துங்கள்.','t-e');
+    inp.value='';return;
+  }
   // Reset edit mode and status for fresh upload
   window.curEditId=null;
   curStatus='draft';
   var qs=document.getElementById('quot-status');if(qs)qs.value='draft';
   const fn=document.getElementById('upload-fname');
-  fn.textContent='[OK] '+f.name;fn.style.display='block';
+  fn.textContent='✅ '+f.name+' ('+(f.size/1024).toFixed(0)+' KB)';fn.style.display='block';
   document.getElementById('process-btn').classList.add('show');
-  const r=new FileReader();r.onload=e=>{pdfB64=e.target.result.split(',')[1];};r.readAsDataURL(f);
+  const r=new FileReader();
+  r.onload=e=>{pdfB64=e.target.result.split(',')[1];};
+  r.onerror=function(){showToast('⚠️ File read பண்ண முடியலை! Try again.','t-e');};
+  r.readAsDataURL(f);
 }
 document.addEventListener('DOMContentLoaded',function(){
   var dz=document.getElementById('drop-zone');if(!dz)return;
@@ -2936,24 +2949,19 @@ function renderHistory(){
   var isAdmin=CU&&CU.role==='admin';
   if(!isAdmin&&CU){
     h=h.filter(function(e){
-      // Hide entries uploaded ONLY by admin (Administrator/Admin)
-      var adminNames=['Administrator','Admin'];
-      var savedByAdmin=adminNames.indexOf(e.savedBy||'')>=0;
-      // Check if any staff person touched this entry
-      var hasStaffStep=false;
+      // Show ONLY entries where THIS staff member was involved
+      // 1. Uploaded/saved by this staff member
+      if(e.savedBy===CU.name) return true;
+      // 2. Any step done by this staff member
       if(e.steps){
-        var stepBys=[
-          e.steps.uploaded&&e.steps.uploaded.by,
-          e.steps.priced&&e.steps.priced.by,
-          e.steps.submitted&&e.steps.submitted.by,
-          e.steps.approved&&e.steps.approved.by,
-        ].filter(Boolean);
-        hasStaffStep=stepBys.some(function(n){return adminNames.indexOf(n)<0;});
+        if(e.steps.uploaded&&e.steps.uploaded.by===CU.name) return true;
+        if(e.steps.priced&&e.steps.priced.by===CU.name) return true;
+        if(e.steps.submitted&&e.steps.submitted.by===CU.name) return true;
+        if(e.steps.approved&&e.steps.approved.by===CU.name) return true;
       }
-      // Show if: saved by staff OR any staff touched it
-      if(!savedByAdmin) return true;        // saved by staff → show
-      if(hasStaffStep) return true;         // staff did a step → show
-      return false;                         // admin-only entry → hide
+      // 3. Assigned to this staff
+      if(e.assignedTo===CU.username||e.owner===CU.username) return true;
+      return false; // other staff entries → hidden admin-only entry → hide
     });
   }
   var bulkBtn=document.getElementById('btn-bulk-reassign');
