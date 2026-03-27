@@ -1665,8 +1665,7 @@ function showPurchaseHistory(itemIdx,brandIdx){
         var ev=entry.vehicle.toLowerCase().trim();
         var cv=vehicle.toLowerCase().trim();
         var sameVeh=(ev===cv);
-        var sameFam=(typeof isSameFamily==='function')&&isSameFamily(entry.vehicle,vehicle);
-        if(!sameVeh&&!sameFam) return; // Different vehicle → skip!
+        if(!sameVeh) return; // STRICT: only exact same vehicle → skip all others!
       }
       // STRICT description match: require 70%+ matching AND first word must match
       var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
@@ -2643,9 +2642,10 @@ function findAllPriceMatches(desc,prices,vehicle){
     combined.push(itemCopy);
   }
 
+  // Only exact same vehicle matches — strict mode
   exactMatches.slice(0,3).forEach(addIfNew);
   // familyMatches removed — strict same vehicle only
-  universalMatches.slice(0,2).forEach(addIfNew);
+  // universalMatches removed — user wants own vehicle data only
 
   // LH/RH pairing
   var descHasLHRH=/\b(lh|rh|lh\/rh|l\/h|r\/h|left|right)\b/i.test(desc);
@@ -5346,9 +5346,21 @@ function updateWorkflowBar(){
     // Price added — show "Send for Approval" 
     btn.textContent='📤 Send for Approval →';
     btn.style.background='linear-gradient(135deg,#1A3A6B,#2060a0)';
-  } else if(step==='approved'&&isAdmin){
-    btn.textContent='✅ Submit to Promise.lk →';
-    btn.style.background='linear-gradient(135deg,#1A6B3C,#2a9d5c)';
+  } else if(step==='approved'){
+    // Check if this user is the assigned submitter
+    var co=(entry&&entry.company)||curCompany||'ngrd';
+    var assignedSub=getSubmitter(co);
+    var canSubNow=isAdmin||(getRole().canSubmit&&(!assignedSub||assignedSub===CU.name));
+    if(canSubNow){
+      btn.textContent='✅ Submit to Promise.lk →';
+      btn.style.background='linear-gradient(135deg,#1A6B3C,#2a9d5c)';
+    } else {
+      btn.textContent='⏳ Waiting for Submitter...';
+      btn.style.background='#999';
+      btn.disabled=true;
+      btnWrap.style.display='block';
+      return;
+    }
   } else if(step==='submitted'){
     btn.textContent='🏆 Mark as Awarded';
     btn.style.background='linear-gradient(135deg,#8B6914,#C9952A)';
@@ -5390,7 +5402,11 @@ function handleNextStep(){
     if(!confirm('Admin-க்கு Approval request அனுப்பட்டுமா?')) return;
     saveToHistory();
     _sendWAToAdmin('📤 Approval Request','Price ready — Approve பண்ணுங்கள்');
-  } else if(step==='approved'&&isAdmin){
+  } else if(step==='approved'){
+    var co2=(entry&&entry.company)||curCompany||'ngrd';
+    var assignedSub2=getSubmitter(co2);
+    var canSubNow2=isAdmin||(role.canSubmit&&(!assignedSub2||assignedSub2===CU.name));
+    if(!canSubNow2){showToast('⛔ '+co2.toUpperCase()+' submitter: '+(assignedSub2||'Not set')+' மட்டும்!','t-e');return;}
     submitToPromise();
   } else if(step==='submitted'){
     if(!confirm('Awarded-ஆ mark பண்ணட்டுமா?')) return;
