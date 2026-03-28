@@ -3882,7 +3882,7 @@ function parseClosingDate(s){
 
 function getDeadlineBadge(closingDate,status){
   if(!closingDate) return '';
-  if(status==='awarded'||status==='rejected'||status==='approved') return '';
+  if(status==='awarded'||status==='rejected'||status==='approved'||status==='submitted') return '';
   var cd=parseClosingDate(closingDate);
   if(!cd) return '';
   var today=new Date();today.setHours(0,0,0,0);
@@ -3922,7 +3922,7 @@ function renderDashboard(){
   var closingToday=[];
   var closing3Days=[];
   h.forEach(function(e){
-    if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='approved') return;
+    if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='approved'||e.status==='submitted') return;
     var cd=parseClosingDate(e.closingDate);
     if(!cd) return;
     var days=Math.floor((cd-today)/86400000);
