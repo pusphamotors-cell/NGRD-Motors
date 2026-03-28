@@ -3046,6 +3046,7 @@ function renderHistory(){
         <button class="hist-btn" onclick="openQV(${e.id})" title="View">👁️</button>
         <button class="hist-btn" onclick="${['submitted','approved','awarded'].indexOf(e.status||'')<0?'loadHist('+e.id+')':'openQV('+e.id+')'}" title="${['submitted','approved','awarded'].indexOf(e.status||'')<0?'Edit':'View'}">📂</button>
         <button class="hist-btn" onclick="changeStatus(${e.id})" title="Change Status">🔄</button>
+        ${CU&&CU.role==='admin'?`<button class="hist-btn" onclick="markResult(${e.id},'awarded')" title="Mark Won" style="color:#1A6B3C;font-weight:700;" ${e.status==='awarded'?'disabled style="opacity:.4;cursor:default;"':''}>✅</button><button class="hist-btn" onclick="markResult(${e.id},'rejected')" title="Mark Lost" style="color:#B22222;font-weight:700;" ${e.status==='rejected'?'disabled style="opacity:.4;cursor:default;"':''}>❌</button>`:''}
         ${(function(){
           var isAdm=CU&&CU.role==='admin';
           var rl=getRole();
@@ -3083,6 +3084,27 @@ function changeStatus(id){
   e.status=next;setHist(h);renderHistory();
   addLog('Status changed: '+(e.eqNo||e.refNo)+' → '+next);
   showToast(`Status: ${next}`,'t-i');
+  updatePendingBadge();
+}
+
+// ── MARK RESULT (Admin only — Won ✅ / Lost ❌) ──
+function markResult(id, result){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin only!','t-e');return;}
+  const h=getHist();const e=h.find(x=>x.id===id);if(!e)return;
+  const label=result==='awarded'?'✅ Won':'❌ Lost';
+  if(!confirm(label+' mark பண்ணட்டுமா?\n'+( e.eqNo||e.refNo)+' — '+(e.vehicle||'')+' '+(e.vNo||'')))return;
+  const prev=e.status;
+  e.status=result;
+  // Log result date for reporting
+  if(!e.resultDate) e.resultDate=new Date().toLocaleDateString('en-LK');
+  e.resultBy=CU.name;
+  e.resultAt=new Date().toLocaleString('en-LK');
+  setHist(h);
+  if(typeof fbWrite==='function') fbWrite('history',h);
+  renderHistory();
+  if(typeof renderDashboard==='function') renderDashboard();
+  addLog('Result marked: '+(e.eqNo||e.refNo)+' → '+result+' (was: '+prev+') by '+CU.name);
+  showToast(label+' marked!','t-s');
   updatePendingBadge();
 }
 
@@ -3403,15 +3425,11 @@ function renderAllStaffSummary(){
   var body=document.getElementById('all-staff-summary');if(!body)return;
   var users=getUsers().filter(function(u){return u.active;});var hist=getHist();
   if(!users.length){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No active users</div>';return;}
-
-  var today=new Date();
-  var todayStr=today.toLocaleDateString('en-LK');
-
-  // Build per-user stats
+  var today=new Date();var todayStr=today.toLocaleDateString('en-LK');
   var savedByMap={};
   hist.forEach(function(e){
     var key=e.savedBy||e.owner||'Unknown';
-    if(!savedByMap[key]) savedByMap[key]={count:0,pending:0,approved:0,submitted:0,awarded:0,rejected:0,value:0,lastDate:'',todayCount:0};
+    if(!savedByMap[key]) savedByMap[key]={count:0,pending:0,approved:0,submitted:0,awarded:0,rejected:0,value:0,lastDate:'',todayCount:0,uploads:0,priced:0,submits:0};
     savedByMap[key].count++;
     if(e.status==='pending') savedByMap[key].pending++;
     if(e.status==='approved') savedByMap[key].approved++;
@@ -3420,54 +3438,82 @@ function renderAllStaffSummary(){
     if(e.status==='rejected') savedByMap[key].rejected++;
     savedByMap[key].value+=(e.grandTotal||0);
     if(e.date&&e.date>savedByMap[key].lastDate) savedByMap[key].lastDate=e.date;
-    // Today's activity
-    if(e.date&&e.date.startsWith(todayStr.split('/').reverse().join('/'))) savedByMap[key].todayCount++;
-    // Also check by timestamp
-    if(e.id){
-      var d=new Date(e.id);
-      if(!isNaN(d)&&d.toLocaleDateString('en-LK')===todayStr) savedByMap[key].todayCount++;
+    if(e.id){var d=new Date(e.id);if(!isNaN(d)&&d.toLocaleDateString('en-LK')===todayStr) savedByMap[key].todayCount++;}
+    if(e.steps){
+      if(e.steps.uploaded&&e.steps.uploaded.by){var uk=e.steps.uploaded.by;if(!savedByMap[uk])savedByMap[uk]={count:0,pending:0,approved:0,submitted:0,awarded:0,rejected:0,value:0,lastDate:'',todayCount:0,uploads:0,priced:0,submits:0};savedByMap[uk].uploads++;}
+      if(e.steps.priced&&e.steps.priced.by){var pk=e.steps.priced.by;if(!savedByMap[pk])savedByMap[pk]={count:0,pending:0,approved:0,submitted:0,awarded:0,rejected:0,value:0,lastDate:'',todayCount:0,uploads:0,priced:0,submits:0};savedByMap[pk].priced++;}
+      if(e.steps.submitted&&e.steps.submitted.by){var sk=e.steps.submitted.by;if(!savedByMap[sk])savedByMap[sk]={count:0,pending:0,approved:0,submitted:0,awarded:0,rejected:0,value:0,lastDate:'',todayCount:0,uploads:0,priced:0,submits:0};savedByMap[sk].submits++;}
     }
   });
-
+  // ── USER REPORT CARDS ──
+  var cardHtml='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px;">';
+  users.forEach(function(u){
+    var name=u.name||u.username;
+    var s=savedByMap[name]||{count:0,pending:0,approved:0,submitted:0,awarded:0,rejected:0,value:0,todayCount:0,uploads:0,priced:0,submits:0};
+    var winRate=s.count>0?((s.awarded/s.count)*100).toFixed(0):0;
+    var roleLabel=u.role==='admin'?'👑 Admin':(u.permissions||[]).map(function(p){return p==='upload'?'📤':p==='price'?'💰':p==='submit'?'📨':p==='approve'?'✅':'';}).filter(Boolean).join(' ')||'Staff';
+    var lastLogin=u.lastLogin||'—';
+    var isOnline=s.todayCount>0;
+    var headerBg=u.role==='admin'?'linear-gradient(135deg,#0D1B2A,#1A2E45)':'linear-gradient(135deg,#1A2E45,#2C4A6E)';
+    var avColor=u.role==='admin'?'#C9952A':'#2C4A6E';
+    var onlineBg=isOnline?'rgba(26,107,60,.3)':'rgba(255,255,255,.1)';
+    var onlineColor=isOnline?'#6fcf6f':'rgba(255,255,255,.4)';
+    var onlineLabel=isOnline?'🟢 Today':'⚪ Offline';
+    cardHtml+='<div style="background:#fff;border:1px solid var(--border);border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);">';
+    cardHtml+='<div style="background:'+headerBg+';padding:10px 14px;display:flex;align-items:center;gap:8px;">';
+    cardHtml+='<div style="width:36px;height:36px;border-radius:50%;background:'+avColor+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;flex-shrink:0;">'+name.charAt(0).toUpperCase()+'</div>';
+    cardHtml+='<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</div>';
+    cardHtml+='<div style="font-size:10px;color:rgba(255,255,255,.6);">'+roleLabel+'</div></div>';
+    cardHtml+='<span style="font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;background:'+onlineBg+';color:'+onlineColor+';">'+onlineLabel+'</span>';
+    cardHtml+='</div>';
+    cardHtml+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);">';
+    var steps=[['📤 Upload',s.uploads,'#1A3A6B'],['💰 Price',s.priced,'#1A4A2A'],['📨 Submit',s.submits,'#4A1A1A']];
+    steps.forEach(function(item){
+      cardHtml+='<div style="padding:8px 6px;text-align:center;border-right:1px solid var(--border);">';
+      cardHtml+='<div style="font-size:16px;font-weight:700;color:'+item[2]+';">'+item[1]+'</div>';
+      cardHtml+='<div style="font-size:9px;color:var(--muted);margin-top:1px;">'+item[0]+'</div>';
+      cardHtml+='</div>';
+    });
+    cardHtml+='</div>';
+    var wColor=winRate>=60?'#1A6B3C':winRate>=30?'#8B6914':'#B22222';
+    var wBarColor=winRate>=60?'#1A6B3C':winRate>=30?'#C9952A':'#B22222';
+    cardHtml+='<div style="padding:10px 14px;">';
+    cardHtml+='<div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:11px;"><span style="color:var(--muted);">📄 Total</span><span style="font-weight:700;color:var(--navy);">'+s.count+'</span></div>';
+    cardHtml+='<div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:11px;"><span style="color:var(--muted);">🏆 Won / ❌ Lost</span><span style="font-weight:700;"><span style="color:#1A6B3C;">'+s.awarded+'</span> / <span style="color:#B22222;">'+s.rejected+'</span></span></div>';
+    cardHtml+='<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:11px;"><span style="color:var(--muted);">🎯 Win Rate</span><span style="font-weight:700;color:'+wColor+';">'+winRate+'%</span></div>';
+    cardHtml+='<div style="background:#f0f0f0;border-radius:4px;height:5px;overflow:hidden;margin-bottom:8px;"><div style="width:'+winRate+'%;height:100%;background:'+wBarColor+';border-radius:4px;"></div></div>';
+    cardHtml+='<div style="font-size:10px;color:var(--muted);">🕐 Last Login: '+lastLogin+'</div>';
+    cardHtml+='</div></div>';
+  });
+  cardHtml+='</div>';
+  // ── SUMMARY TABLE ──
   var h2='<div style="overflow-x:auto;">';
-  h2+='<div style="font-size:11px;font-weight:700;color:#2060a0;padding:8px 12px;background:#f0f4ff;border-radius:4px 4px 0 0;margin-bottom:0;">👥 Staff Performance Summary</div>';
-  h2+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;"><thead>';
+  h2+='<div style="font-size:11px;font-weight:700;color:#2060a0;padding:8px 12px;background:#f0f4ff;border-radius:4px 4px 0 0;">📊 Staff Performance Table</div>';
+  h2+='<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead>';
   h2+='<tr style="background:#0D1B2A;color:#fff;">';
-  var headers=['👤 Staff','📄 Total','⏳ Pending','📤 Submitted','✅ Approved','🏆 Won','❌ Lost','🎯 Win%','💰 Total Value','📊 Avg Value','📅 Last Upload','🕐 Last Login','⚡ Today'];
-  headers.forEach(function(h){h2+='<th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;">'+h+'</th>';});
+  ['👤 Staff','📤 Uploads','💰 Priced','📨 Submits','📄 Total','🏆 Won','❌ Lost','🎯 Win%','💰 Value','📅 Last Active','⚡ Today'].forEach(function(hdr){h2+='<th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;">'+hdr+'</th>';});
   h2+='</tr></thead><tbody>';
-
   Object.keys(savedByMap).sort().forEach(function(name,i){
     var s=savedByMap[name];
     var bg=i%2===0?'#f7fafd':'#fff';
     var winRate=s.count>0?((s.awarded/s.count)*100).toFixed(0):0;
-    var avgValue=s.count>0?(s.value/s.count):0;
-    var winColor=winRate>=50?'#1A6B3C':winRate>=25?'#E8B84B':'#B22222';
-
-    // Find last login from users array
-    var userObj=users.find(function(u){return u.name===name||u.username===name;});
-    var lastLogin=userObj&&userObj.lastLogin?userObj.lastLogin:'—';
-
+    var winColor=winRate>=60?'#1A6B3C':winRate>=30?'#E8B84B':'#B22222';
     h2+='<tr style="background:'+bg+';border-bottom:1px solid #eee;">';
     h2+='<td style="padding:8px 10px;font-weight:700;">'+name+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#1A3A6B;font-weight:700;">'+s.uploads+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#1A4A2A;font-weight:700;">'+s.priced+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;color:#4A1A1A;font-weight:700;">'+s.submits+'</td>';
     h2+='<td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--navy);">'+s.count+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;color:#E8B84B;font-weight:700;">'+s.pending+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;color:#2060a0;font-weight:700;">'+s.submitted+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;color:#1A6B3C;font-weight:700;">'+s.approved+'</td>';
     h2+='<td style="padding:8px 10px;text-align:center;color:#C9952A;font-weight:700;">'+s.awarded+'</td>';
     h2+='<td style="padding:8px 10px;text-align:center;color:#B22222;font-weight:700;">'+s.rejected+'</td>';
     h2+='<td style="padding:8px 10px;text-align:center;font-weight:700;color:'+winColor+';">'+winRate+'%</td>';
     h2+='<td style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#1A6B3C;">'+lkr(s.value)+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:right;font-size:11px;color:#555;">'+lkr(avgValue)+'</td>';
     h2+='<td style="padding:8px 10px;text-align:center;font-size:10px;color:var(--muted);">'+s.lastDate+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;font-size:10px;color:var(--muted);">'+lastLogin+'</td>';
-    h2+='<td style="padding:8px 10px;text-align:center;font-weight:700;color:'+(s.todayCount>0?'#1A6B3C':'var(--muted)')+';">'+(s.todayCount>0?'🟢 '+s.todayCount:'—')+'</td>';
+    h2+='<td style="padding:8px 10px;text-align:center;font-weight:700;color:'+(s.todayCount>0?'#1A6B3C':'var(--muted)')+';"> '+(s.todayCount>0?'🟢 '+s.todayCount:'—')+'</td>';
     h2+='</tr>';
   });
-
-  h2+='</tbody></table>';
-  h2+='</div>';
-  body.innerHTML=h2;
+  h2+='</tbody></table></div>';
+  body.innerHTML=cardHtml+h2;
 }
 
 function renderTodayActivity(){
@@ -3546,9 +3592,68 @@ function renderAnalytics(){
   var maxWL=Math.max.apply(null,Object.values(wl).concat([1]));
   var wlL={awarded:'✅ Awarded',rejected:'❌ Rejected',submitted:'📤 Submitted',draft:'📝 Draft',pending:'⏳ Pending',approved:'✅ Approved',assigned:'📋 Assigned'};
   document.getElementById('chart-winloss').innerHTML='<div class="chart-bar-wrap">'+Object.entries(wl).filter(function(kv){return kv[1]>0&&wlL[kv[0]];}).map(function(kv){return '<div class="chart-row"><div class="chart-label">'+wlL[kv[0]]+'</div><div class="chart-bar-bg"><div class="chart-bar '+(kv[0]==='awarded'?'win':kv[0]==='rejected'?'loss':'')+'" style="width:'+(kv[1]/maxWL*100).toFixed(1)+'%"></div></div><div class="chart-val">'+kv[1]+'</div></div>';}).join('')+'</div>';
-  var mMap={};h.forEach(function(e){var d=new Date(e.id);if(isNaN(d))return;var key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');mMap[key]=(mMap[key]||0)+1;});
-  var months=Object.keys(mMap).sort().slice(-6);var maxM=Math.max.apply(null,months.map(function(m){return mMap[m];}).concat([1]));
-  document.getElementById('chart-monthly').innerHTML=months.length?'<div class="chart-bar-wrap">'+months.map(function(m){return '<div class="chart-row"><div class="chart-label">'+m+'</div><div class="chart-bar-bg"><div class="chart-bar" style="width:'+(mMap[m]/maxM*100).toFixed(1)+'%"></div></div><div class="chart-val">'+mMap[m]+'</div></div>';}).join('')+'</div>':'<div style="text-align:center;padding:20px;color:var(--muted);">Data இல்லை</div>';
+  // ── MONTHLY SUMMARY (upgraded) ──
+  var mData={};
+  h.forEach(function(e){
+    var d=new Date(e.id);if(isNaN(d))return;
+    var key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    if(!mData[key])mData[key]={count:0,won:0,lost:0,value:0};
+    mData[key].count++;
+    if(e.status==='awarded')mData[key].won++;
+    if(e.status==='rejected')mData[key].lost++;
+    mData[key].value+=(e.grandTotal||0);
+  });
+  var months=Object.keys(mData).sort().slice(-6);
+  var maxM=Math.max.apply(null,months.map(function(m){return mData[m].count;}).concat([1]));
+  var monthNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if(months.length){
+    var mHtml='<div style="overflow-x:auto;">';
+    mHtml+='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    mHtml+='<thead><tr>';
+    mHtml+='<th style="background:var(--navy);color:#fff;padding:8px 10px;text-align:left;">📅 Month</th>';
+    mHtml+='<th style="background:var(--navy);color:#fff;padding:8px 10px;text-align:center;">📄 Total</th>';
+    mHtml+='<th style="background:#1A3A1A;color:#6fcf6f;padding:8px 10px;text-align:center;">✅ Won</th>';
+    mHtml+='<th style="background:#3A1A1A;color:#f08080;padding:8px 10px;text-align:center;">❌ Lost</th>';
+    mHtml+='<th style="background:#1A2A3A;color:#70b8f0;padding:8px 10px;text-align:center;">🎯 Win%</th>';
+    mHtml+='<th style="background:#2A1A0A;color:#f0a050;padding:8px 10px;text-align:right;">💰 Value (LKR)</th>';
+    mHtml+='</tr></thead><tbody>';
+    months.forEach(function(m,i){
+      var s=mData[m];
+      var parts=m.split('-');
+      var mLabel=monthNames[parseInt(parts[1])]||parts[1];
+      var mFull=mLabel+' '+parts[0];
+      var winPct=s.count>0?((s.won/s.count)*100).toFixed(0):0;
+      var valStr=s.value>=1000000?'Rs.'+(s.value/1000000).toFixed(2)+'M':s.value>=1000?'Rs.'+(s.value/1000).toFixed(1)+'K':'Rs.'+s.value.toFixed(0);
+      var bg=i%2===0?'#f7fafd':'#fff';
+      mHtml+='<tr style="background:'+bg+';">';
+      mHtml+='<td style="padding:8px 10px;font-weight:700;color:var(--navy);">'+mFull+'</td>';
+      mHtml+='<td style="padding:8px 10px;text-align:center;font-weight:700;">'+s.count+'</td>';
+      mHtml+='<td style="padding:8px 10px;text-align:center;color:#1A6B3C;font-weight:700;">'+s.won+'</td>';
+      mHtml+='<td style="padding:8px 10px;text-align:center;color:#B22222;font-weight:700;">'+s.lost+'</td>';
+      mHtml+='<td style="padding:8px 10px;text-align:center;"><span style="background:'+(winPct>=60?'rgba(26,107,60,.15)':winPct>=40?'rgba(201,149,42,.15)':'rgba(178,34,34,.1)')+';color:'+(winPct>=60?'#1A6B3C':winPct>=40?'#8B6914':'#B22222')+';padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;">'+winPct+'%</span></td>';
+      mHtml+='<td style="padding:8px 10px;text-align:right;font-weight:700;color:#8B4500;">'+valStr+'</td>';
+      mHtml+='</tr>';
+    });
+    // Total row
+    var totCount=months.reduce(function(s,m){return s+mData[m].count;},0);
+    var totWon=months.reduce(function(s,m){return s+mData[m].won;},0);
+    var totLost=months.reduce(function(s,m){return s+mData[m].lost;},0);
+    var totVal=months.reduce(function(s,m){return s+mData[m].value;},0);
+    var totWinPct=totCount>0?((totWon/totCount)*100).toFixed(0):0;
+    var totValStr=totVal>=1000000?'Rs.'+(totVal/1000000).toFixed(2)+'M':totVal>=1000?'Rs.'+(totVal/1000).toFixed(1)+'K':'Rs.'+totVal.toFixed(0);
+    mHtml+='<tr style="background:var(--navy);color:#fff;font-weight:700;">';
+    mHtml+='<td style="padding:8px 10px;color:#E8B84B;">📊 Total ('+months.length+' months)</td>';
+    mHtml+='<td style="padding:8px 10px;text-align:center;color:#fff;">'+totCount+'</td>';
+    mHtml+='<td style="padding:8px 10px;text-align:center;color:#6fcf6f;">'+totWon+'</td>';
+    mHtml+='<td style="padding:8px 10px;text-align:center;color:#f08080;">'+totLost+'</td>';
+    mHtml+='<td style="padding:8px 10px;text-align:center;"><span style="background:rgba(201,149,42,.3);color:#E8B84B;padding:2px 8px;border-radius:10px;font-size:11px;">'+totWinPct+'%</span></td>';
+    mHtml+='<td style="padding:8px 10px;text-align:right;color:#E8B84B;">'+totValStr+'</td>';
+    mHtml+='</tr>';
+    mHtml+='</tbody></table></div>';
+    document.getElementById('chart-monthly').innerHTML=mHtml;
+  } else {
+    document.getElementById('chart-monthly').innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Data இல்லை — quotations save பண்ணினா இங்கே காட்டும்</div>';
+  }
 }
 
 function renderLog(){
