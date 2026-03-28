@@ -1301,12 +1301,34 @@ function initApp(){
   if(typeof refreshAllVehicleDropdowns==='function') setTimeout(refreshAllVehicleDropdowns,500);
   if(typeof startAutoSync==='function') startAutoSync();
   setTimeout(autoFixGarbage,800);
+  // Fix status on login — restore submitted/approved from steps
+  setTimeout(function(){
+    if(typeof autoFixStatus==='function'){
+      var h=getHist();
+      var fixed=autoFixStatus(h);
+      if(typeof renderDashboard==='function') renderDashboard();
+      if(typeof renderHistory==='function'){
+        var ph=document.getElementById('page-history');
+        if(ph&&ph.style.display!=='none') renderHistory();
+      }
+    }
+  },1000);
   setTimeout(function(){
     if(typeof initFirebaseSync==='function') initFirebaseSync();
     // Re-render dashboard after Firebase loads
     setTimeout(function(){
       if(typeof renderDashboard==='function') renderDashboard();
       updatePendingBadge();
+      // Run autoFixStatus after Firebase data loads
+      if(typeof autoFixStatus==='function'){
+        var hh=getHist();
+        autoFixStatus(hh);
+        if(typeof renderDashboard==='function') renderDashboard();
+        if(typeof renderHistory==='function'){
+          var phh=document.getElementById('page-history');
+          if(phh&&phh.style.display!=='none') renderHistory();
+        }
+      }
     },2500);
   },1500);
   setTimeout(migrateOwnerField,3000);
