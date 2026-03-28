@@ -3089,9 +3089,15 @@ function changeStatus(id){
   const opts=['draft','submitted','awarded','rejected','pending'];
   const cur=e.status||'draft';
   const next=opts[(opts.indexOf(cur)+1)%opts.length];
-  e.status=next;setHist(h);renderHistory();
+  e.status=next;
+  // Save steps so autoFixStatus can restore status after sync
+  if(!e.steps) e.steps={};
+  if(next==='submitted'&&!e.steps.submitted) e.steps.submitted={by:CU?CU.name:'Admin',role:CU?CU.role:'admin',at:new Date().toLocaleString('en-LK')};
+  if(next==='approved'&&!e.steps.approved) e.steps.approved={by:CU?CU.name:'Admin',role:CU?CU.role:'admin',at:new Date().toLocaleString('en-LK')};
+  if(next==='draft'||next==='pending'){delete e.steps.submitted;delete e.steps.approved;}
+  setHist(h);renderHistory();
   addLog('Status changed: '+(e.eqNo||e.refNo)+' → '+next);
-  showToast(`Status: ${next}`,'t-i');
+  showToast('Status: '+next,'t-i');
   updatePendingBadge();
 }
 
