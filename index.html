@@ -903,6 +903,17 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         
 
         <div class="panel">
+          <!-- FIX SUBMITTED DATA PANEL — Admin only -->
+          <div class="panel" style="margin-bottom:14px;border:2px solid #C9952A;">
+            <div class="panel-hdr" style="background:#8B4500;"><span class="panel-hdr-icon">🔧</span><span class="panel-hdr-title">Fix Submitted Status (One-Time)</span></div>
+            <div class="panel-body">
+              <div style="background:#fff9e6;border:1px solid #ffd966;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#856404;">
+                ⚠️ ✅ badge இருக்கற எல்லா quotations-க்கும் status=submitted சரிபண்ணி Firebase-க்கு push பண்ணும். ஒரே ஒரு முறை பண்ணினா போதும்!
+              </div>
+              <div id="fix-submitted-result" style="margin-bottom:10px;font-size:12px;"></div>
+              <button onclick="bulkFixSubmitted()" style="padding:10px 20px;background:#8B4500;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">🔧 Fix All Submitted Status → Firebase</button>
+            </div>
+          </div>
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Export Backup</span></div>
           <div class="panel-body">
             <div id="backup-summary" style="margin-bottom:14px;"></div>
@@ -1304,13 +1315,9 @@ function initApp(){
   // Fix status on login — restore submitted/approved from steps
   setTimeout(function(){
     if(typeof autoFixStatus==='function'){
-      var h=getHist();
-      var fixed=autoFixStatus(h);
+      var h=getHist();autoFixStatus(h);
       if(typeof renderDashboard==='function') renderDashboard();
-      if(typeof renderHistory==='function'){
-        var ph=document.getElementById('page-history');
-        if(ph&&ph.style.display!=='none') renderHistory();
-      }
+      if(typeof renderHistory==='function'){var ph=document.getElementById('page-history');if(ph&&ph.style.display!=='none') renderHistory();}
     }
   },1000);
   setTimeout(function(){
@@ -1319,16 +1326,8 @@ function initApp(){
     setTimeout(function(){
       if(typeof renderDashboard==='function') renderDashboard();
       updatePendingBadge();
-      // Run autoFixStatus after Firebase data loads
-      if(typeof autoFixStatus==='function'){
-        var hh=getHist();
-        autoFixStatus(hh);
-        if(typeof renderDashboard==='function') renderDashboard();
-        if(typeof renderHistory==='function'){
-          var phh=document.getElementById('page-history');
-          if(phh&&phh.style.display!=='none') renderHistory();
-        }
-      }
+      // Run autoFixStatus after Firebase loads
+      if(typeof autoFixStatus==='function'){var hh=getHist();autoFixStatus(hh);if(typeof renderDashboard==='function')renderDashboard();}
     },2500);
   },1500);
   setTimeout(migrateOwnerField,3000);
@@ -5418,6 +5417,38 @@ function checkDeadlineAlarms(){
       }).join(' | ');}
   else banner.className='alarm-banner';
 }
+function bulkFixSubmitted(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  var h=getHist();
+  var fixed=0;
+  h.forEach(function(e){
+    // Fix 1: has steps.submitted but status is not submitted
+    if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){
+      e.status='submitted';fixed++;
+    }
+    // Fix 2: has steps.approved but status is not approved
+    if(e.steps&&e.steps.approved&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){
+      e.status='approved';fixed++;
+    }
+  });
+  if(fixed>0){
+    localStorage.setItem('ngrd_hist',JSON.stringify(h));
+    // Force push to Firebase
+    if(typeof fbWrite==='function') fbWrite('history',h);
+    var el=document.getElementById('fix-submitted-result');
+    if(el) el.innerHTML='<div style="color:#1A6B3C;font-weight:700;">✅ '+fixed+' entries fixed & pushed to Firebase! Now all devices will show correct status.</div>';
+    renderHistory();
+    if(typeof renderDashboard==='function') renderDashboard();
+    updatePendingBadge();
+    showToast('✅ '+fixed+' Fixed & Synced to Firebase!','t-s');
+    addLog('Bulk fix: '+fixed+' submitted entries updated in Firebase');
+  } else {
+    var el=document.getElementById('fix-submitted-result');
+    if(el) el.innerHTML='<div style="color:#2060a0;">ℹ️ No entries need fixing — all correct!</div>';
+    showToast('All correct — no fix needed!','t-i');
+  }
+}
+
 function dismissAlarm(){if(typeof alarmDismissed!=='undefined')alarmDismissed=true;var b=document.getElementById('alarm-banner');if(b)b.className='alarm-banner';}
 // ══════════════════════════════════════════════════
 // WORKFLOW — Next Step Smart Button
