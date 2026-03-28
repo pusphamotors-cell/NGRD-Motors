@@ -1842,6 +1842,8 @@ function initFirebaseSync(){
       // NEVER block sync — always keep MORE data (staff uploads must reach admin)
       if(merged.length===0){if(local.length>0)fbWrite('history',local);return;}
       if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
+      // Auto fix submitted status before saving
+      merged.forEach(function(e){if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){e.status='submitted';}});
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
       fbWrite('history',merged);updatePendingBadge();
       if(typeof renderDashboard==='function')renderDashboard();
@@ -1896,6 +1898,8 @@ function initFirebaseSync(){
           if(merged.length>0){
             // Run autoFixStatus before saving to upgrade draft→pending
             if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
+            // Auto fix submitted status
+            merged.forEach(function(e){if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){e.status='submitted';}});
             localStorage.setItem('ngrd_hist',JSON.stringify(merged));
             fbWrite('history',merged);
             updatePendingBadge();
