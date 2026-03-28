@@ -1485,7 +1485,7 @@ async function callAIWithPDF(b64, prompt, akey){
 async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatches){
   var rangeHint=fromPage?('\nNOTE: Focus on pages '+fromPage+' to '+toPage+' only.'):'';
   var batchHint=totalBatches>1?('\nBatch '+batchNum+'/'+totalBatches+'.'+(batchNum===1?' Extract header AND items.':' Extract items only.')):'';
-  var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+'\n\nThe PDF has items in this EXACT format:\nItem No\n\n1\n\nItem Name\n\nPISTON SET\n\nUnit\n\nNumber\n\nQuantity\n\n1.00\n\nFind EVERY "Item No" occurrence and extract each item.\nReturn ONLY valid JSON:\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"PISTON SET","qty":1,"unit":"Number","brand":""}]}\nCRITICAL: Extract ALL items. description=Item Name value, qty=Quantity value.';
+  var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+'\n\nThis PDF has TWO sections:\n1. Schedule Of Requirements — Item No, Item Name, Qty, Unit\n2. Specifications — Required Brand per item (Mandatory)\n\nBRAND EXTRACTION: In Specifications section, each item lists a brand as Mandatory (e.g. Tenacity, Genuine, RBI, Denso, Bando, KYB, NSK, NTN, Bosch, OMX, FBL, Subros). Extract that brand. If none, leave empty.\n\nHEADER: vehicleName (e.g. Suzuki SX4, Mitsubishi L200), vehicleNo (reg no like UHA-16097), engineNo (EN- prefix), chassisNo (CH- or MA3 prefix), closingDate, validityPeriod, deliveryPeriod, destination.\n\nReturn ONLY valid JSON (no markdown):\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"PISTON SET","qty":1,"unit":"Number","brand":"Genuine"}]}\nCRITICAL: Extract ALL items. brand=Required Mandatory brand from Specifications page.';
 
   var resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
@@ -3054,10 +3054,11 @@ function renderHistory(){
           var assignedSub=getSubmitter(co);
           var canSub=isAdm||rl.canSubmit;
           var isAssigned=!assignedSub||isAdm||(assignedSub===CU.name);
-          var alreadyDone=['submitted','approved','awarded'].indexOf(e.status||'')>=0;
+          var alreadyDone=['submitted','approved','awarded'].indexOf(e.status||'')>=0||(e.steps&&e.steps.submitted);
+          var submittedBy=e.steps&&e.steps.submitted?e.steps.submitted.by:'';
           return (canSub&&isAssigned&&!alreadyDone)?
             '<button class="hist-btn" onclick="markSubmitted('+e.id+')" title="Mark Submitted" style="color:#1A6B3C;">📤</button>':
-            '<button class="hist-btn" style="color:#ccc;cursor:default;" title="Not assigned" disabled>📤</button>';
+            '<button class="hist-btn" style="color:'+(e.steps&&e.steps.submitted?'#1A6B3C':'#ccc')+';opacity:.4;cursor:default;" title="'+(e.steps&&e.steps.submitted?'✅ Submitted: '+submittedBy:'Not assigned')+'" disabled>📤</button>';
         })()}
         <button class="hist-btn" onclick="reExport(${e.id})">📥Q</button>
         <button class="hist-btn" onclick="reExportPDF(${e.id})">📄Q</button>
