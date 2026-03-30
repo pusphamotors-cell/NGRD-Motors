@@ -2615,6 +2615,16 @@ function findAllPriceMatches(desc,prices,vehicle){
       }
     }
 
+    // VEHICLE-SPECIFIC KEYWORD MATCH:
+    // All price list keywords must exist in client description
+    // (price list = generic, client = specific with extra words)
+    if(score<75){
+      // Try: all pMainWords exist in dWords (price list is subset of client)
+      var allPInD=pMainWords.every(function(pw){
+        return dWords.some(function(dw){return dw===pw||(dw.length>3&&pw.length>3&&(dw.includes(pw)||pw.includes(dw)));});
+      });
+      if(allPInD&&pMainWords.length>=2) score=80; // keyword subset match
+    }
     if(score<75) return; // Strict match only
 
     // ── Categorize by vehicle match type ──
