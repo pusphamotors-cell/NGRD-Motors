@@ -2746,6 +2746,11 @@ function saveToHistory(){
   if(_hasPrices&&quotStatus==='draft') quotStatus='pending';
   var _hp=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
   if(_hp&&quotStatus==='draft'&&CU&&CU.role!=='admin'){quotStatus='pending';}
+  // AUTO SUBMIT: canSubmit role + approved status → auto submitted on save!
+  var _role=getRole();
+  if(_role.canSubmit&&quotStatus==='approved'&&CU&&CU.role!=='admin'){
+    quotStatus='submitted';
+  }
   var hist=getHist();
   var hasPrices=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
   var now=new Date().toLocaleString('en-LK');
@@ -3116,7 +3121,14 @@ function getStatusBadge(status){
 
 function changeStatus(id){
   const h=getHist();const e=h.find(x=>x.id===id);if(!e)return;
-  const opts=['draft','submitted','awarded','rejected','pending'];
+  // Admin only lock for final statuses
+  const ADMIN_LOCK=['submitted','awarded','rejected'];
+  if(ADMIN_LOCK.indexOf(e.status||'')>=0 && CU && CU.role!=='admin'){
+    showToast('🔒 '+e.status.toUpperCase()+' — Admin மட்டும் change பண்ணலாம்!','t-e');
+    return;
+  }
+  // Correct workflow order
+  const opts=['draft','pending','approved','submitted','awarded','rejected'];
   const cur=e.status||'draft';
   const next=opts[(opts.indexOf(cur)+1)%opts.length];
   e.status=next;
