@@ -3982,8 +3982,8 @@ function renderDashboard(){
   var total=isAdmin?allHist.length:h.length;
   var totalValue=h.reduce(function(s,e){return s+(e.grandTotal||0);},0);
   var pendingApproval=isAdmin
-    ?allHist.filter(function(e){return e.status==='submitted'||e.status==='pending';}).length
-    :h.filter(function(e){return e.status==='submitted'||e.status==='pending';}).length;
+    ?allHist.filter(function(e){return e.status==='pending';}).length
+    :h.filter(function(e){return e.status==='pending';}).length;
   var approved=h.filter(function(e){return e.status==='approved';}).length;
 
   // Closing alerts — ONLY user's own vehicles
@@ -4100,7 +4100,7 @@ function renderDashboard(){
   var role=getRole();
   var canApproveNow=role.canApprove||isAdmin;
   var approvalEl=document.getElementById('db-approval-list');
-  var pendingList=h.filter(function(e){return e.status==='submitted'||e.status==='pending';});
+  var pendingList=h.filter(function(e){return e.status==='pending';});
   if(approvalEl){
     if(pendingList.length===0){
       approvalEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">✅ No pending approvals</div>';
