@@ -186,6 +186,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 .sb-awarded{background:rgba(26,107,60,.12);color:var(--green);border:1px solid rgba(26,107,60,.3);}
 .sb-rejected{background:rgba(178,34,34,.1);color:var(--red);border:1px solid rgba(178,34,34,.25);}
 .sb-pending{background:rgba(212,105,26,.12);color:var(--orange);border:1px solid rgba(212,105,26,.3);}
+.sb-approved{background:rgba(26,107,60,.15);color:#1A6B3C;border:1px solid rgba(26,107,60,.3);}
 
 /* ── TOTALS ── */
 .totals-box{display:flex;justify-content:flex-end;margin-top:12px;}
@@ -1825,7 +1826,7 @@ function initFirebaseSync(){
       if(!data||typeof data!=='object'){if(local.length>0)fbWrite('history',local);return;}
       var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       if(!remote.length){if(local.length>0)fbWrite('history',local);return;}
-      var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:6};
+      var statusOrder={draft:0,assigned:1,pending:2,approved:3,submitted:4,awarded:5,rejected:6};
       var allIds={};
       local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
       remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
@@ -1880,7 +1881,7 @@ function initFirebaseSync(){
           var local=getHist();
           var remote=remoteData&&typeof remoteData==='object'?(Array.isArray(remoteData)?remoteData:Object.values(remoteData).filter(function(x){return x&&typeof x==='object';})):[];
           // Merge ALL — keep highest status per ID
-          var statusOrder={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:6};
+          var statusOrder={draft:0,assigned:1,pending:2,approved:3,submitted:4,awarded:5,rejected:6};
           var allIds={};
           local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
           remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
@@ -1943,12 +1944,12 @@ function startAutoSync(){
         if(!remote.length)return;
         var local=getHist();
         var localIds=local.map(function(x){return x&&x.id?String(x.id):null;}).filter(Boolean);
-        var statusOrder2={draft:0,assigned:1,pending:2,submitted:3,approved:4,awarded:5,rejected:6};
+        var statusOrder2={draft:0,assigned:1,pending:2,approved:3,submitted:4,awarded:5,rejected:6};
         // Always merge — staff uploads must reach admin
         var allIds={};
         local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
         remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
-        var statusOrder={draft:0,pending:1,submitted:2,approved:3,awarded:4,rejected:3};
+        var statusOrder={draft:0,assigned:1,pending:2,approved:3,submitted:4,awarded:5,rejected:6};
         var merged=[];
         Object.keys(allIds).forEach(function(id){
           var lo=local.find(function(x){return x&&String(x.id)===id;});
@@ -2765,6 +2766,9 @@ function saveToHistory(){
         grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
         status:quotStatus,updatedBy:CU.name,updatedAt:now,steps:orig.steps
       });
+      // submitOnlyMode — force keep submitted status
+      if(window._submitOnlyMode) hist[idx].status='submitted';
+      window._submitOnlyMode=false;
       setHist(hist);autoSavePrices(curItems);window.curEditId=null;
       // Don't reset to draft if already submitted/approved/awarded
       if(['submitted','approved','awarded','rejected'].indexOf(quotStatus)<0) curStatus='draft';
@@ -3086,7 +3090,8 @@ function renderHistory(){
           var assignedSub=getSubmitter(co);
           var canSub=isAdm||rl.canSubmit;
           var isAssigned=!assignedSub||isAdm||(assignedSub===CU.name);
-          var alreadyDone=['submitted','approved','awarded'].indexOf(e.status||'')>=0||(e.steps&&e.steps.submitted);
+          var alreadyDone=['submitted','awarded'].indexOf(e.status||'')>=0||(e.steps&&e.steps.submitted);
+          // approved → can still submit!
           var submittedBy=e.steps&&e.steps.submitted?e.steps.submitted.by:'';
           return (canSub&&isAssigned&&!alreadyDone)?
             '<button class="hist-btn" onclick="markSubmitted('+e.id+')" title="Mark Submitted" style="color:#1A6B3C;">📤</button>':
@@ -3103,7 +3108,7 @@ function renderHistory(){
 }
 
 function getStatusBadge(status){
-  const map={draft:'sb-draft 📝 Draft',submitted:'sb-submitted 📤 Submitted',awarded:'sb-awarded ✅ Awarded',rejected:'sb-rejected ❌ Rejected',pending:'sb-pending ⏳ Pending'};
+  const map={draft:'sb-draft 📝 Draft',submitted:'sb-submitted 📤 Submitted',awarded:'sb-awarded ✅ Awarded',rejected:'sb-rejected ❌ Rejected',pending:'sb-pending ⏳ Pending',approved:'sb-approved ✅ Approved',assigned:'sb-pending 📋 Assigned'};
   const val=map[status||'draft']||'sb-draft 📝 Draft';
   const [cls,...rest]=val.split(' ');
   return `<span class="status-badge ${cls}">${rest.join(' ')}</span>`;
@@ -3152,9 +3157,17 @@ function loadHist(id){
   // LOCK: non-admin cannot edit submitted/approved/awarded
   const LOCKED=['submitted','approved','awarded'];
   if(LOCKED.indexOf(e.status||'')>=0 && CU && CU.role!=='admin'){
-    openQV(id);
-    showToast('🔒 Submitted — View Only. Admin only can edit.','t-i');
-    return;
+    var rl=getRole();
+    // canSubmit users → open in submit-only mode (all fields locked, only Save+Submit work)
+    if(e.status==='submitted' && rl.canSubmit){
+      window._submitOnlyMode=true;
+    } else {
+      openQV(id);
+      showToast('🔒 Submitted — View Only.','t-i');
+      return;
+    }
+  } else {
+    window._submitOnlyMode=false;
   }
   // SET EDIT MODE — save will UPDATE not create new
   window.curEditId=id;
@@ -3171,7 +3184,19 @@ function loadHist(id){
   document.getElementById('items-panel').style.display='block';
   document.getElementById('ai-status').className='ai-status success';
   document.getElementById('ai-st').textContent='✅ Loaded from history — '+(e.items?.length||0)+' items — Edit mode 📝';
-  setStep(3);showToast('✏️ Edit mode — prices add பண்ணி Save பண்ணுங்கள்','t-i');
+  if(window._submitOnlyMode){
+    // Lock ALL fields — only Save+Submit buttons work
+    setTimeout(function(){
+      var allFields=['f-refno','f-eqno','f-vname','f-vno','f-entity','f-title','f-close','f-valid','f-deliv','f-dest','f-eng','f-chas'];
+      allFields.forEach(function(fid){var el=document.getElementById(fid);if(el){el.readOnly=true;el.style.background='#f0f0f0';el.style.color='#888';}});
+      // Lock item price fields too
+      document.querySelectorAll('.item-price,.price-input,input[name*=price]').forEach(function(el){el.readOnly=true;el.style.background='#f0f0f0';});
+      showToast('📤 Submit Mode — Save & Submit only 🔒','t-i');
+    },500);
+    setStep(3);
+  } else {
+    setStep(3);showToast('✏️ Edit mode — prices add பண்ணி Save பண்ணுங்கள்','t-i');
+  }
   setTimeout(updateWorkflowBar,300);
 }
 
