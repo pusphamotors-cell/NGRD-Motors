@@ -4335,13 +4335,13 @@ function renderStaffDashboard(){
 
   // ── Closing Alerts ──
   var closingToday=myHist.filter(function(e){
-    if(!e.closingDate||e.status==='awarded'||e.status==='rejected') return false;
+    if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='submitted'||e.status==='approved') return false;
     var cd=parseClosingDate(e.closingDate);
     if(!cd) return false;
     return Math.floor((cd-today)/86400000)===0;
   });
   var closing3=myHist.filter(function(e){
-    if(!e.closingDate||e.status==='awarded'||e.status==='rejected') return false;
+    if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='submitted'||e.status==='approved') return false;
     var cd=parseClosingDate(e.closingDate);
     if(!cd) return false;
     var d=Math.floor((cd-today)/86400000);
