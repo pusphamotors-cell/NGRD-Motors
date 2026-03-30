@@ -3095,8 +3095,8 @@ function renderHistory(){
           var assignedSub=getSubmitter(co);
           var canSub=isAdm||rl.canSubmit;
           var isAssigned=!assignedSub||isAdm||(assignedSub===CU.name);
-          var alreadyDone=['submitted','awarded'].indexOf(e.status||'')>=0||(e.steps&&e.steps.submitted);
-          // approved → can still submit!
+          var alreadyDone=['submitted','awarded'].indexOf(e.status||'')>=0;
+          // Status is the truth — steps.submitted alone should NOT block!
           var submittedBy=e.steps&&e.steps.submitted?e.steps.submitted.by:'';
           return (canSub&&isAssigned&&!alreadyDone)?
             '<button class="hist-btn" onclick="markSubmitted('+e.id+')" title="Mark Submitted" style="color:#1A6B3C;">📤</button>':
@@ -5460,16 +5460,21 @@ function checkDeadlineAlarms(){
 }
 function bulkFixSubmitted(){
   if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  if(!confirm('எல்லா Approved entries-ஐயும் Submitted-ஆ மாத்தணுமா? (Promise.lk-ல் submit பண்ணிவிட்டீர்களா?)')) return;
   var h=getHist();
   var fixed=0;
+  var now=new Date().toLocaleString('en-LK');
   h.forEach(function(e){
-    // Fix 1: has steps.submitted but status is not submitted
+    // Bulk submit all approved entries
+    if(e.status==='approved'){
+      e.status='submitted';
+      if(!e.steps) e.steps={};
+      if(!e.steps.submitted) e.steps.submitted={by:CU.name,role:CU.role,at:now};
+      fixed++;
+    }
+    // Fix steps.submitted but wrong status
     if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){
       e.status='submitted';fixed++;
-    }
-    // Fix 2: has steps.approved but status is not approved
-    if(e.steps&&e.steps.approved&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){
-      e.status='approved';fixed++;
     }
   });
   if(fixed>0){
