@@ -2905,6 +2905,12 @@ function openEditPerms(uid){
     var inner='<div style="background:#fff;border-radius:8px;padding:20px;width:92vw;max-width:400px;max-height:90vh;overflow-y:auto;">';
     inner+='<div style="font-weight:700;font-size:15px;margin-bottom:14px;color:var(--navy);">✏️ Edit: <span id="epu-name"></span></div>';
     inner+='<input type="hidden" id="epu-id">';
+    inner+='<div style="margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+    inner+='<div><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">👤 Name:</div>';
+    inner+='<input type="text" id="ep-name" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:4px;font-size:13px;font-family:var(--fb);box-sizing:border-box;"></div>';
+    inner+='<div><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">📱 WhatsApp:</div>';
+    inner+='<input type="text" id="ep-wa" placeholder="94XXXXXXXXX" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:4px;font-size:13px;font-family:var(--fb);box-sizing:border-box;"></div>';
+    inner+='</div>';
     inner+='<div style="margin-bottom:12px;">';
     inner+='<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">PERMISSIONS:</div>';
     inner+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;border:1px solid var(--border);border-radius:4px;">';
@@ -2940,6 +2946,8 @@ function openEditPerms(uid){
     document.body.appendChild(modal);
   }
   document.getElementById('epu-name').textContent=u.name;
+  var epName=document.getElementById('ep-name');if(epName) epName.value=u.name||'';
+  var epWa=document.getElementById('ep-wa');if(epWa) epWa.value=u.whatsapp||'';
   document.getElementById('epu-id').value=u.id;
   var perms=u.permissions||[];
   ['upload','price','submit','export','approve','admin'].forEach(function(p){
@@ -2973,6 +2981,10 @@ function saveEditPerms(){
   users[idx].priceCompany=pcEl?pcEl.value:'both';
   users[idx].submitCompany=scEl?scEl.value:'both';
   users[idx].company=users[idx].priceCompany; // backward compat
+  var epNameEl=document.getElementById('ep-name');
+  var epWaEl=document.getElementById('ep-wa');
+  if(epNameEl&&epNameEl.value.trim()) users[idx].name=epNameEl.value.trim();
+  if(epWaEl) users[idx].whatsapp=epWaEl.value.trim().replace(/[^0-9]/g,'');
   users[idx].permissions=perms;
   users[idx].vehicles=vehs;
   users[idx].role=rl;
