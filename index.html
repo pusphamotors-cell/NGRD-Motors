@@ -760,6 +760,23 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div id="db-staff-content"></div>
         </div>
 
+        <!-- User Work Summary — ADMIN ONLY -->
+        <div class="panel" id="db-user-work-panel" style="margin-bottom:14px;">
+          <div class="panel-hdr">
+            <span class="panel-hdr-icon">👥</span>
+            <span class="panel-hdr-title">User Work Summary</span>
+            <div class="panel-hdr-right">
+              <select id="db-user-work-filter" onchange="renderUserWorkTable()" style="padding:4px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:3px;font-size:11px;font-family:var(--fb);">
+                <option value="all">📅 All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+              </select>
+            </div>
+          </div>
+          <div class="panel-body" id="db-user-work-list" style="overflow-x:auto;"></div>
+        </div>
+
         <!-- Pending Approval — ADMIN ONLY -->
         <div class="panel" id="db-approval-panel" style="margin-bottom:14px;">
           <div class="panel-hdr">
@@ -4143,6 +4160,9 @@ function renderDashboard(){
   if(approvalPanel) approvalPanel.style.display=isAdmin?'block':'none';
   if(allPanel) allPanel.style.display=isAdmin?'block':'none';
 
+  // User Work Summary — admin only
+  if(isAdmin&&typeof renderUserWorkTable==='function') setTimeout(renderUserWorkTable,100);
+
   // Pending Approval list
   var role=getRole();
   var canApproveNow=role.canApprove||isAdmin;
@@ -4521,6 +4541,81 @@ function renderStaffDashboard(){
   html2+='</div>';
 
   staffContent.innerHTML=html2;
+}
+
+function renderUserWorkTable(){
+  var filterEl=document.getElementById('db-user-work-filter');
+  var filter=filterEl?filterEl.value:'all';
+  var el=document.getElementById('db-user-work-list');
+  if(!el) return;
+
+  var allHist=getHist();
+  var now=new Date();
+  var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  var weekStart=new Date(today);weekStart.setDate(today.getDate()-today.getDay());
+  var monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+
+  // Filter by date
+  var filtered=allHist.filter(function(e){
+    if(filter==='all') return true;
+    var d=new Date(e.id||0);
+    if(filter==='today') return d>=today;
+    if(filter==='week') return d>=weekStart;
+    if(filter==='month') return d>=monthStart;
+    return true;
+  });
+
+  // Get all users
+  var users=getUsers().filter(function(u){return u.active&&u.role!=='admin'&&!u.permissions.includes('admin');});
+  if(!users.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No staff users</div>';return;}
+
+  var html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+  html+='<thead><tr style="background:#f0f4f8;">';
+  html+='<th style="padding:8px 10px;text-align:left;border-bottom:2px solid #ddd;">👤 User</th>';
+  html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#888;">📝 Draft</th>';
+  html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#E8B84B;">⏳ Pending</th>';
+  html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#1A6B3C;">✅ Approved</th>';
+  html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#2060a0;">📤 Submitted</th>';
+  html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#C9952A;">🏆 Awarded</th>';
+  html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#B22222;">❌ Rejected</th>';
+  html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;">📋 Total</th>';
+  html+='</tr></thead><tbody>';
+
+  users.forEach(function(u,i){
+    var bg=i%2===0?'#fff':'#f7fafd';
+    // Count entries where user was involved
+    var uHist=filtered.filter(function(e){
+      if(e.savedBy===u.name) return true;
+      if(e.owner===u.username||e.assignedTo===u.username) return true;
+      if(e.steps){
+        if(e.steps.uploaded&&e.steps.uploaded.by===u.name) return true;
+        if(e.steps.priced&&e.steps.priced.by===u.name) return true;
+        if(e.steps.submitted&&e.steps.submitted.by===u.name) return true;
+      }
+      return false;
+    });
+    var draft=uHist.filter(function(e){return e.status==='draft'||e.status==='assigned';}).length;
+    var pending=uHist.filter(function(e){return e.status==='pending';}).length;
+    var approved=uHist.filter(function(e){return e.status==='approved';}).length;
+    var submitted=uHist.filter(function(e){return e.status==='submitted';}).length;
+    var awarded=uHist.filter(function(e){return e.status==='awarded';}).length;
+    var rejected=uHist.filter(function(e){return e.status==='rejected';}).length;
+    var total=uHist.length;
+
+    html+='<tr style="background:'+bg+';border-bottom:1px solid #eee;">';
+    html+='<td style="padding:8px 10px;font-weight:700;">'+u.name+'<div style="font-size:10px;color:var(--muted);font-weight:400;">'+u.role+(u.priceCompany&&u.priceCompany!=='both'?' | 💰'+u.priceCompany.toUpperCase():'')+(u.submitCompany&&u.submitCompany!=='both'?' | 📤'+u.submitCompany.toUpperCase():'')+'</div></td>';
+    html+='<td style="padding:8px 6px;text-align:center;color:#888;font-weight:700;">'+(draft||'-')+'</td>';
+    html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(pending>0?'#E8B84B':'#ccc')+'">'+(pending||'-')+'</td>';
+    html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(approved>0?'#1A6B3C':'#ccc')+'">'+(approved||'-')+'</td>';
+    html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(submitted>0?'#2060a0':'#ccc')+'">'+(submitted||'-')+'</td>';
+    html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(awarded>0?'#C9952A':'#ccc')+'">'+(awarded||'-')+'</td>';
+    html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(rejected>0?'#B22222':'#ccc')+'">'+(rejected||'-')+'</td>';
+    html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:var(--navy);">'+total+'</td>';
+    html+='</tr>';
+  });
+
+  html+='</tbody></table>';
+  el.innerHTML=html;
 }
 
 function renderPendingPanel(title, color, items, subtitle){
