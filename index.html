@@ -4380,14 +4380,34 @@ function renderStaffDashboard(){
   html2+='<div style="font-size:12px;color:rgba(255,255,255,.7);">உங்கள் pending வேலை கீழே தெரிகிறது</div>';
   html2+='</div>';
 
-  // ── Closing Alerts ──
-  var closingToday=myHist.filter(function(e){
+  // ── Closing Alerts — company filtered ──
+  // Use company filter: submit team sees own company entries only
+  var _sCo=CU.submitCompany||'both';
+  var _pCo=CU.priceCompany||'both';
+  var companyHist=allHist.filter(function(e){
+    // Submit company filter
+    if(perms.includes('submit')||CU.role==='submitter'){
+      if(_sCo==='none') return false;
+      if(_sCo!=='both'&&e.company&&(e.company||'ngrd')!==_sCo) return false;
+    }
+    // Price company filter
+    if(perms.includes('price')||CU.role==='price'){
+      if(_pCo==='none') return false;
+      if(_pCo!=='both'&&e.company&&(e.company||'ngrd')!==_pCo) return false;
+    }
+    // Upload — own entries
+    if(!perms.includes('submit')&&!perms.includes('price')){
+      if(e.savedBy!==CU.name&&e.owner!==CU.username&&e.assignedTo!==CU.username) return false;
+    }
+    return true;
+  });
+  var closingToday=companyHist.filter(function(e){
     if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='submitted'||e.status==='approved') return false;
     var cd=parseClosingDate(e.closingDate);
     if(!cd) return false;
     return Math.floor((cd-today)/86400000)===0;
   });
-  var closing3=myHist.filter(function(e){
+  var closing3=companyHist.filter(function(e){
     if(!e.closingDate||e.status==='awarded'||e.status==='rejected'||e.status==='submitted'||e.status==='approved') return false;
     var cd=parseClosingDate(e.closingDate);
     if(!cd) return false;
