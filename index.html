@@ -2917,11 +2917,17 @@ function openEditPerms(uid){
     inner+='</div></div>';
     inner+='<div style="margin-bottom:12px;padding:10px;background:#f8f9fa;border-radius:6px;">';
     inner+='<div style="font-size:12px;font-weight:700;color:#333;margin-bottom:8px;">🏢 COMPANY ACCESS:</div>';
-    inner+='<div style="display:flex;gap:12px;flex-wrap:wrap;">';
-    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:13px;"><input type="radio" name="ep-company" id="ep-co-both" value="both"> Both</label>';
-    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:13px;"><input type="radio" name="ep-company" id="ep-co-ngrd" value="ngrd"> 🔵 NGRD Only</label>';
-    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:13px;"><input type="radio" name="ep-company" id="ep-co-puspha" value="puspha"> 🟤 Puspha Only</label>';
+    inner+='<div style="margin-bottom:8px;"><div style="font-size:11px;color:#666;margin-bottom:4px;">💰 Price Permission:</div><div style="display:flex;gap:10px;flex-wrap:wrap;">';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-price-co" value="both" checked> Both</label>';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-price-co" value="ngrd"> 🔵 NGRD</label>';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-price-co" value="puspha"> 🟤 Puspha</label>';
     inner+='</div></div>';
+    inner+='<div><div style="font-size:11px;color:#666;margin-bottom:4px;">📤 Submit Permission:</div><div style="display:flex;gap:10px;flex-wrap:wrap;">';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-submit-co" value="both" checked> Both</label>';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-submit-co" value="ngrd"> 🔵 NGRD</label>';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-submit-co" value="puspha"> 🟤 Puspha</label>';
+    inner+='</div></div>';
+    inner+='</div>';
     inner+='<div style="margin-bottom:14px;">';
     inner+='<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">VEHICLES:</div>';
     inner+='<div id="ep-vehicle-checks" style="padding:8px;border:1px solid var(--border);border-radius:4px;max-height:150px;overflow-y:auto;"></div>';
@@ -2941,11 +2947,13 @@ function openEditPerms(uid){
     if(el) el.checked=perms.includes(p);
   });
   renderVehicleChecks('ep-vehicle-checks', u.vehicles||['All Vehicles']);
-  // Set company radio
-  var userCo=u.company||'both';
-  var coEl=document.getElementById('ep-co-'+userCo);
-  if(coEl) coEl.checked=true;
-  else { var bothEl=document.getElementById('ep-co-both'); if(bothEl) bothEl.checked=true; }
+  // Set price/submit company radios
+  var priceCo=u.priceCompany||'both';
+  var submitCo=u.submitCompany||'both';
+  var pcEl=document.querySelector('input[name="ep-price-co"][value="'+priceCo+'"]');
+  if(pcEl) pcEl.checked=true;
+  var scEl=document.querySelector('input[name="ep-submit-co"][value="'+submitCo+'"]');
+  if(scEl) scEl.checked=true;
   modal.style.display='flex';
 }
 
@@ -2960,8 +2968,11 @@ function saveEditPerms(){
   });
   var vehs=getCheckedVehicles('ep-vehicle-checks');
   var rl=perms.includes('admin')?'admin':perms.length>0?perms[0]:'staff';
-  var coEl=document.querySelector('input[name="ep-company"]:checked');
-  users[idx].company=coEl?coEl.value:'both';
+  var pcEl=document.querySelector('input[name="ep-price-co"]:checked');
+  var scEl=document.querySelector('input[name="ep-submit-co"]:checked');
+  users[idx].priceCompany=pcEl?pcEl.value:'both';
+  users[idx].submitCompany=scEl?scEl.value:'both';
+  users[idx].company=users[idx].priceCompany; // backward compat
   users[idx].permissions=perms;
   users[idx].vehicles=vehs;
   users[idx].role=rl;
@@ -3014,10 +3025,16 @@ function renderHistory(){
   if(!isAdmin&&CU){
     var _role=getRole();
     h=h.filter(function(e){
-      // Price team — can see ALL draft/pending entries to add prices
-      if(_role.canPrice&&(e.status==='draft'||e.status==='pending'||e.status==='assigned')) return true;
-      // Submit team — can see ALL approved entries to submit
-      if(_role.canSubmit&&e.status==='approved') return true;
+      // Price team — can see draft/pending entries filtered by priceCompany
+      if(_role.canPrice&&(e.status==='draft'||e.status==='pending'||e.status==='assigned')){
+        var pCo=CU.priceCompany||'both';
+        if(pCo==='both'||!e.company||(e.company||'ngrd')===pCo) return true;
+      }
+      // Submit team — can see approved entries filtered by submitCompany
+      if(_role.canSubmit&&e.status==='approved'){
+        var sCo=CU.submitCompany||'both';
+        if(sCo==='both'||!e.company||(e.company||'ngrd')===sCo) return true;
+      }
       // Show entries where THIS staff member was involved
       // 1. Uploaded/saved by this staff member
       if(e.savedBy===CU.name) return true;
