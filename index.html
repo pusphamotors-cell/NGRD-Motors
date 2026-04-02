@@ -4594,9 +4594,36 @@ function renderUserWorkTable(){
       }
       return false;
     });
+    // Role-based counts using company filter
+    var uPerms=u.permissions||[];
+    var uPriceCo=u.priceCompany||'both';
+    var uSubmitCo=u.submitCompany||'both';
+
+    // Price role → count ALL pending/draft in their company
+    var pricePending=0;
+    if(uPerms.includes('price')&&uPriceCo!=='none'){
+      pricePending=filtered.filter(function(e){
+        if(e.status!=='pending'&&e.status!=='draft'&&e.status!=='assigned') return false;
+        if(uPriceCo==='both') return true;
+        return (e.company||'ngrd')===uPriceCo;
+      }).length;
+    }
+
+    // Submit role → count ALL approved in their company
+    var submitApproved=0;
+    if(uPerms.includes('submit')&&uSubmitCo!=='none'){
+      submitApproved=filtered.filter(function(e){
+        if(e.status!=='approved') return false;
+        if(uSubmitCo==='both') return true;
+        return (e.company||'ngrd')===uSubmitCo;
+      }).length;
+    }
+
     var draft=uHist.filter(function(e){return e.status==='draft'||e.status==='assigned';}).length;
-    var pending=uHist.filter(function(e){return e.status==='pending';}).length;
-    var approved=uHist.filter(function(e){return e.status==='approved';}).length;
+    // Use pricePending if price role, else own pending
+    var pending=pricePending>0?pricePending:uHist.filter(function(e){return e.status==='pending';}).length;
+    // Use submitApproved if submit role, else own approved
+    var approved=submitApproved>0?submitApproved:uHist.filter(function(e){return e.status==='approved';}).length;
     var submitted=uHist.filter(function(e){return e.status==='submitted';}).length;
     var awarded=uHist.filter(function(e){return e.status==='awarded';}).length;
     var rejected=uHist.filter(function(e){return e.status==='rejected';}).length;
