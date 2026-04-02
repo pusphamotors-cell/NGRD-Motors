@@ -4451,10 +4451,14 @@ function renderStaffDashboard(){
     }
   }
 
-  // SUBMITTER role
+  // SUBMITTER role — use company filter to show ALL approved entries
   if(perms.includes('submit')||CU.role==='submitter'||CU.role==='staff'){
-    var readyToSubmit=myHist.filter(function(e){
-      return e.status==='approved';
+    var sCo=CU.submitCompany||'both';
+    var readyToSubmit=allHist.filter(function(e){
+      if(e.status!=='approved') return false;
+      if(sCo==='none') return false;
+      if(sCo==='both') return true;
+      return (e.company||'ngrd')===sCo;
     });
     if(readyToSubmit.length>0){
       html2+=renderPendingPanel(
@@ -4465,11 +4469,29 @@ function renderStaffDashboard(){
     }
   }
 
+  // PRICE role — use company filter
+  var _role2=getRole();
+  if(_role2.canPrice){
+    var pCo=CU.priceCompany||'both';
+    var priceReady=allHist.filter(function(e){
+      if(pCo==='none') return false;
+      if(e.status!=='draft'&&e.status!=='pending'&&e.status!=='assigned') return false;
+      if(pCo==='both') return true;
+      return (e.company||'ngrd')===pCo;
+    });
+    // already shown above via needPrice — skip duplicate
+  }
+
   // ── My Stats Summary ──
+  var sCo2=CU.submitCompany||'both';
+  var statsHist=sCo2!=='none'?allHist.filter(function(e){
+    if(sCo2==='both') return true;
+    return (e.company||'ngrd')===sCo2;
+  }):myHist;
   var total=myHist.length;
-  var approved=myHist.filter(function(e){return e.status==='approved';}).length;
-  var submitted=myHist.filter(function(e){return e.status==='submitted';}).length;
-  var awarded=myHist.filter(function(e){return e.status==='awarded';}).length;
+  var approved=statsHist.filter(function(e){return e.status==='approved';}).length;
+  var submitted=statsHist.filter(function(e){return e.status==='submitted';}).length;
+  var awarded=statsHist.filter(function(e){return e.status==='awarded';}).length;
 
   html2+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">';
   html2+='<div style="background:#0D1B2A;color:#fff;border-radius:5px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#E8B84B;">'+total+'</div><div style="font-size:10px;color:#aaa;margin-top:3px;">Total</div></div>';
