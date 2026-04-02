@@ -2927,11 +2927,13 @@ function openEditPerms(uid){
     inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-price-co" value="both" checked> Both</label>';
     inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-price-co" value="ngrd"> 🔵 NGRD</label>';
     inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-price-co" value="puspha"> 🟤 Puspha</label>';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-price-co" value="none"> 🚫 Not Allow</label>';
     inner+='</div></div>';
     inner+='<div><div style="font-size:11px;color:#666;margin-bottom:4px;">📤 Submit Permission:</div><div style="display:flex;gap:10px;flex-wrap:wrap;">';
     inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-submit-co" value="both" checked> Both</label>';
     inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-submit-co" value="ngrd"> 🔵 NGRD</label>';
     inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-submit-co" value="puspha"> 🟤 Puspha</label>';
+    inner+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="radio" name="ep-submit-co" value="none"> 🚫 Not Allow</label>';
     inner+='</div></div>';
     inner+='</div>';
     inner+='<div style="margin-bottom:14px;">';
@@ -3040,12 +3042,12 @@ function renderHistory(){
       // Price team — can see draft/pending entries filtered by priceCompany
       if(_role.canPrice&&(e.status==='draft'||e.status==='pending'||e.status==='assigned')){
         var pCo=CU.priceCompany||'both';
-        if(pCo==='both'||!e.company||(e.company||'ngrd')===pCo) return true;
+        if(pCo!=='none'&&(pCo==='both'||!e.company||(e.company||'ngrd')===pCo)) return true;
       }
       // Submit team — can see approved entries filtered by submitCompany
       if(_role.canSubmit&&e.status==='approved'){
         var sCo=CU.submitCompany||'both';
-        if(sCo==='both'||!e.company||(e.company||'ngrd')===sCo) return true;
+        if(sCo!=='none'&&(sCo==='both'||!e.company||(e.company||'ngrd')===sCo)) return true;
       }
       // Show entries where THIS staff member was involved
       // 1. Uploaded/saved by this staff member
