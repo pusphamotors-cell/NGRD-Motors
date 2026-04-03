@@ -1743,7 +1743,25 @@ function showPurchaseHistory(itemIdx,brandIdx){
     });
   });
   var prices=getPrices();
-  var priceMatches=typeof findAllPriceMatches==='function'?findAllPriceMatches(desc,prices,vehicle):[];
+  var priceMatches=typeof findAllPriceMatches==='function'?findAllPriceMatches(desc,prices,vehicle).filter(function(p){
+    // Remove price=0 entries
+    if((p.price||0)<=0) return false;
+    // Remove wrong vehicle (exact vehicle only — no family/history from other vehicles)
+    if(vehicle&&p.vehicle&&p.vehicle!=='UNIVERSAL'&&p._matchType!=='universal'){
+      var pv=(p.vehicle||'').toLowerCase().trim();
+      var cv=vehicle.toLowerCase().trim();
+      if(pv!==cv) return false;
+    }
+    return true;
+  }):[];
+  // Remove duplicates by brand+description
+  var seenBrandDesc={};
+  priceMatches=priceMatches.filter(function(p){
+    var key=(p.brand||'').toLowerCase()+'|'+(p.partNo||'').toLowerCase();
+    if(seenBrandDesc[key]) return false;
+    seenBrandDesc[key]=true;
+    return true;
+  });
   var ex=document.getElementById('purchase-hist-popup');if(ex)ex.remove();
   var popup=document.createElement('div');
   popup.id='purchase-hist-popup';
@@ -1772,6 +1790,14 @@ function showPurchaseHistory(itemIdx,brandIdx){
     });
     h2+='</div>';
   }
+  // Deduplicate histMatches by brand+partNo
+  var seenHist={};
+  histMatches=histMatches.filter(function(m){
+    var key=(m.brand||'').toLowerCase()+'|'+(m.partNo||'').toLowerCase();
+    if(seenHist[key]) return false;
+    seenHist[key]=true;
+    return true;
+  });
   var last5=histMatches.slice(0,5);
   if(last5.length>0){
     h2+='<div style="padding:12px 16px;">';
