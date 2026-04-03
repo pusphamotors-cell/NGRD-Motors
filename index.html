@@ -4617,6 +4617,7 @@ function renderUserWorkTable(){
   html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#2060a0;">📤 Submitted</th>';
   html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#C9952A;">🏆 Awarded</th>';
   html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#B22222;">❌ Rejected</th>';
+  html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#c47020;">💰 Prices</th>';
   html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;">📋 Total</th>';
   html+='</tr></thead><tbody>';
 
@@ -4658,6 +4659,10 @@ function renderUserWorkTable(){
       }).length;
     }
 
+    // Count price entries added by this user
+    var allPrices=getPrices();
+    var priceCount=allPrices.filter(function(p){return (p.by||'')=== u.name;}).length;
+
     var draft=uHist.filter(function(e){return e.status==='draft'||e.status==='assigned';}).length;
     // Use pricePending if price role, else own pending
     var pending=pricePending>0?pricePending:uHist.filter(function(e){return e.status==='pending';}).length;
@@ -4676,6 +4681,7 @@ function renderUserWorkTable(){
     html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(submitted>0?'#2060a0':'#ccc')+'">'+(submitted||'-')+'</td>';
     html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(awarded>0?'#C9952A':'#ccc')+'">'+(awarded||'-')+'</td>';
     html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(rejected>0?'#B22222':'#ccc')+'">'+(rejected||'-')+'</td>';
+    html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(priceCount>0?'#c47020':'#ccc')+'">'+(priceCount||'-')+'</td>';
     html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:var(--navy);">'+total+'</td>';
     html+='</tr>';
   });
