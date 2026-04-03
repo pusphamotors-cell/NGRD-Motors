@@ -2102,7 +2102,14 @@ function findDuplicate(refNo,eqNo,company){
 function fillForm(d){
   const s=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
   s('f-refno',d.refNo);s('f-eqno',d.eqNo);s('f-entity',d.entity);s('f-title',d.title);
-  s('f-vname',d.vehicleName);s('f-vno',d.vehicleNo);s('f-eng',d.engineNo);s('f-chas',d.chassisNo);
+  // Set vehicle name — add option if not in dropdown
+  var _vnEl=document.getElementById('f-vname');
+  if(_vnEl&&d.vehicleName){
+    var _exists=Array.from(_vnEl.options).some(function(o){return o.value===d.vehicleName;});
+    if(!_exists){var _opt=document.createElement('option');_opt.value=d.vehicleName;_opt.textContent=d.vehicleName;_vnEl.appendChild(_opt);}
+    _vnEl.value=d.vehicleName;
+  }
+  s('f-vno',d.vehicleNo);s('f-eng',d.engineNo);s('f-chas',d.chassisNo);
   s('f-close',d.closingDate);s('f-valid',d.validityPeriod);s('f-deliv',d.deliveryPeriod);s('f-dest',d.destination);
 }
 function updateQuotStatus(){curStatus=document.getElementById('quot-status')?.value||'draft';}
