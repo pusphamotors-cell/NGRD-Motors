@@ -2457,7 +2457,7 @@ function renderItems(items){
           hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hintPrice)+hintDate+matchLabel+'</div>';
         }
       }
-      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');autoMargin('+idx+','+bi+');calcTotals()" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;">'+hintHtml+'</td>';
+      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');autoMargin('+idx+','+bi+');calcTotals()" onclick="showPurchaseHistory('+idx+','+bi+')" title="Click for price history" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;cursor:pointer;">'+hintHtml+'</td>';
       h+='<td class="tr" id="rt-'+idx+'-'+bi+'" style="font-weight:700;color:var(--navy2);font-size:12px;padding:3px 6px;">—</td>';
       h+='<td class="tc" style="padding:3px 3px;white-space:nowrap;"><button onclick="addBR('+idx+')" style="width:22px;height:22px;background:var(--light);border:1px solid var(--border);border-radius:2px;cursor:pointer;font-size:12px;">➕</button>';
       if(rc>1) h+='<button onclick="remBR('+idx+','+bi+')" style="width:22px;height:22px;background:rgba(178,34,34,.07);border:1px solid rgba(178,34,34,.2);border-radius:2px;cursor:pointer;font-size:10px;color:var(--red);display:block;margin-top:2px;">✕</button>';
