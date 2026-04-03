@@ -652,6 +652,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                   <th style="width:75px;background:#1a3a1a;color:#6fcf6f;">Selling</th>
                   <th style="width:65px;background:#1a2a3a;color:#70b8f0;">Profit</th>
                   <th style="width:55px">Updated</th>
+                  <th style="width:70px" data-admin-only="by">👤 By</th>
                   <th style="width:50px">Act</th>
                 </tr></thead>
                 <tbody id="price-list-tbody"></tbody>
@@ -1645,7 +1646,7 @@ function extractPricesFromHistory(){
         var brand=br.brand||'',price=parseFloat(br.price)||0,pu=parseFloat(br.purchasePrice)||0;
         if(!brand&&!price) return;
         var idx=prices.findIndex(function(p){return (p.description||'').toLowerCase()===(item.description||'').toLowerCase()&&(p.brand||'').toLowerCase()===brand.toLowerCase();});
-        var pe={id:idx>=0?prices[idx].id:(Date.now()+Math.random()),description:item.description,vehicle:vehicle,partNo:br.partNo||'',brand:brand,country:br.country||'Japan',price:price,purchasePrice:pu,date:entry.date||new Date().toLocaleDateString('en-LK')};
+        var pe={id:idx>=0?prices[idx].id:(Date.now()+Math.random()),description:item.description,vehicle:vehicle,partNo:br.partNo||'',brand:brand,country:br.country||'Japan',price:price,purchasePrice:pu,date:entry.date||new Date().toLocaleDateString('en-LK'),by:CU?CU.name:'',updatedAt:new Date().toLocaleString('en-LK')};
         if(idx>=0){if(price>0||pu>0){prices[idx]=pe;updated++;}}else if(brand||price>0){prices.unshift(pe);added++;}
       });
     });
@@ -3470,6 +3471,7 @@ function renderPriceList(){
   var _isAdmin=CU&&CU.role==='admin';
   document.querySelectorAll('[data-admin-only="profit"]').forEach(function(el){el.style.display=_isAdmin?'':'none';});
   document.querySelectorAll('[data-admin-only="updated"],[data-admin-only="actions"]').forEach(function(el){el.style.display=canEdit?'':'none';});
+  document.querySelectorAll('[data-admin-only="by"]').forEach(function(el){el.style.display=_isAdmin?'':'none';});
   const q=(document.getElementById('price-search')?.value||'').toLowerCase();
   const vf_price=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();const bf_price=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();var pvSel=document.getElementById('price-vehicle-filter');if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}var pbSel=document.getElementById('price-brand-filter');if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}const filtered=prices.filter(function(p){var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;return tMatch&&pvMatch&&pbMatch;});
   // Hide admin-only buttons
@@ -3506,6 +3508,7 @@ function renderPriceList(){
     row+='<td style="text-align:right;font-weight:700;color:var(--navy);font-size:11px;">'+lkr(selling)+'</td>';
     if(isAdmin) row+='<td style="text-align:right;font-size:11px;color:'+(profit>0?'#1A6B3C':'#B22222')+';font-weight:700;">'+(purchase>0?(profit>0?'+':'')+lkr(profit)+' ('+margin+'%)':'—')+'</td>';
     if(canEdit) row+='<td style="font-size:10px;color:'+(stale?'#B22222':'var(--muted)')+';">'+(stale?'⚠️ '+daysOld+'d':p.date||'—')+'</td>';
+    if(isAdmin) row+='<td style="font-size:10px;color:var(--navy);font-weight:600;">'+(p.by||'<span style="color:var(--muted);">—</span>')+'</td>';
     if(canEdit) row+='<td style="text-align:center;"><button class="hist-btn" onclick="openEditPrice('+JSON.stringify(p.id)+')">✏️</button><button class="hist-btn" onclick="deletePrice('+JSON.stringify(p.id)+')" style="color:var(--red);">🗑️</button></td>';
     row+='</tr>';
     return row;
@@ -3568,7 +3571,9 @@ function savePartPrice(){
     brand:brand,
     purchasePrice:purchasePrice,
     marginPct:marginPct,
-    price,date:dateStr};
+    price,date:dateStr,
+    by:CU?CU.name:'',
+    updatedAt:new Date().toLocaleString('en-LK')};
   if(existId){const idx=prices.findIndex(p=>p.id==existId);if(idx>=0)prices[idx]=entry;else prices.unshift(entry);}
   else if(isLHRH){
     // Create LH entry
