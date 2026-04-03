@@ -2915,10 +2915,25 @@ function markSubmitted(id){
 function autoFixStatus(hist){
   var changed=false;
   var FINAL=['submitted','approved','awarded','rejected'];
+  var _today=new Date();_today.setHours(0,0,0,0);
   hist.forEach(function(e){
     if(!e.status) e.status='draft';
     // Preserve final statuses — never downgrade
     if(FINAL.indexOf(e.status)>=0) return;
+    // AUTO REJECT: closing date past 3 days → auto reject
+    if(e.closingDate&&!e.autoRejected){
+      var cd=typeof parseClosingDate==='function'?parseClosingDate(e.closingDate):null;
+      if(cd){
+        var daysPast=Math.floor((_today-cd)/86400000);
+        if(daysPast>3){
+          e.status='rejected';
+          e.autoRejected=true;
+          e.autoRejectedAt=new Date().toLocaleDateString('en-LK');
+          changed=true;
+          return;
+        }
+      }
+    }
     // Check actual item prices (works for old AND new entries)
     var hasPrice=e.items&&e.items.some(function(item){
       return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
