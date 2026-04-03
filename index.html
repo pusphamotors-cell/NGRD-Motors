@@ -1690,12 +1690,12 @@ function _applyHistMatch(itemIdx,brandIdx,matchIdx){
       var rows=it.brandRows||[];
       if(!rows.length&&it.brand) rows=[{brand:it.brand,partNo:it.partNo||'',price:it.unitPrice||0,purchasePrice:it.purchasePrice||0}];
       rows.forEach(function(br){
-        if(br.purchasePrice>0||br.price>0) histMatches.push({brand:br.brand||'',partNo:br.partNo||'',purchasePrice:br.purchasePrice||0});
+        if(br.purchasePrice>0||br.price>0) histMatches.push({brand:br.brand||'',partNo:br.partNo||'',purchasePrice:br.purchasePrice||0,country:br.country||'Japan',sellingPrice:br.price||0});
       });
     });
   });
   var m=histMatches[matchIdx];
-  if(m) applyPriceHistory(itemIdx,brandIdx,m.brand,m.purchasePrice,m.partNo);
+  if(m) applyPriceHistory(itemIdx,brandIdx,m.brand,m.purchasePrice,m.partNo,m.country||'Japan',m.sellingPrice||0);
   if(popup) popup.remove();
 }
 function dismissPHPopup(){var p=document.getElementById('purchase-hist-popup');if(p)p.remove();}
@@ -1711,12 +1711,13 @@ function showPurchaseHistory(itemIdx,brandIdx){
     if(!entry.items||!Array.isArray(entry.items))return;
     entry.items.forEach(function(it){
       if(!it.description)return;
-      // STRICT vehicle match: exact same vehicle OR same family
-      if(vehicle&&entry.vehicle){
+      // STRICT vehicle match: exact same vehicle ONLY
+      if(vehicle){
+        // If selected vehicle exists but entry has no vehicle → skip
+        if(!entry.vehicle) return;
         var ev=entry.vehicle.toLowerCase().trim();
         var cv=vehicle.toLowerCase().trim();
-        var sameVeh=(ev===cv);
-        if(!sameVeh) return; // STRICT: only exact same vehicle → skip all others!
+        if(ev!==cv) return; // STRICT: only exact same vehicle → skip all others!
       }
       // STRICT description match: require 70%+ matching AND first word must match
       var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
@@ -1785,7 +1786,7 @@ function showPurchaseHistory(itemIdx,brandIdx){
       h2+='<div style="text-align:right;margin-right:8px;">';
       h2+='<div style="font-size:11px;color:#c47020;font-weight:700;">Cost: '+lkr(p.purchasePrice||0)+'</div>';
       h2+='<div style="font-size:11px;color:#1A6B3C;">Sell: '+lkr(p.price||0)+'</div></div>';
-      h2+='<button data-b="'+encodeURIComponent(p.brand||'')+'" data-pu="'+(p.purchasePrice||0)+'" data-pn="'+encodeURIComponent(p.partNo||'')+'" onclick="(function(el){applyPriceHistory('+itemIdx+','+brandIdx+',decodeURIComponent(el.dataset.b),el.dataset.pu,decodeURIComponent(el.dataset.pn))})(this)" style="padding:5px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">Use ✅</button>';
+      h2+='<button data-b="'+encodeURIComponent(p.brand||'')+'" data-pu="'+(p.purchasePrice||0)+'" data-pn="'+encodeURIComponent(p.partNo||'')+'" data-co="'+encodeURIComponent(p.country||'Japan')+'" data-sp="'+(p.price||0)+'" onclick="(function(el){applyPriceHistory('+itemIdx+','+brandIdx+',decodeURIComponent(el.dataset.b),el.dataset.pu,decodeURIComponent(el.dataset.pn),decodeURIComponent(el.dataset.co),el.dataset.sp)})(this)" style="padding:5px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">Use ✅</button>';
       h2+='</div>';
     });
     h2+='</div>';
@@ -1834,7 +1835,7 @@ function applyPriceHistory(idx,bi,brand,purchasePrice,partNo,country,sellingPric
   var partEl=document.getElementById('br-p-'+idx+'-'+bi);
   var purchEl=document.getElementById('br-pu-'+idx+'-'+bi);
   var countryEl=document.getElementById('br-c-'+idx+'-'+bi);
-  var priceEl=document.getElementById('br-sp-'+idx+'-'+bi);
+  var priceEl=document.getElementById('br-s-'+idx+'-'+bi)||document.getElementById('br-sp-'+idx+'-'+bi);
   if(brandEl) brandEl.value=brand;
   if(partEl&&partNo) partEl.value=partNo;
   if(countryEl&&country) countryEl.value=country;
