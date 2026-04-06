@@ -933,6 +933,16 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <button onclick="bulkFixSubmitted()" style="padding:10px 20px;background:#8B4500;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">🔧 Fix All Submitted Status → Firebase</button>
             </div>
           </div>
+          <div class="panel" style="margin-bottom:14px;">
+            <div class="panel-hdr"><span class="panel-hdr-icon">🧹</span><span class="panel-hdr-title">Duplicate Cleanup</span></div>
+            <div class="panel-body">
+              <div style="background:rgba(178,34,34,.08);border:1px solid rgba(178,34,34,.2);border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#B22222;">
+                ⚠️ Same Ref No + Same Company duplicate entries-ஐ கண்டுபிடிச்சு oldest-ஐ delete பண்ணும். Latest entry மட்டும் வச்சிருக்கும்.
+              </div>
+              <div id="dup-cleanup-result" style="margin-bottom:10px;font-size:12px;"></div>
+              <button onclick="bulkCleanupDuplicates()" style="padding:10px 20px;background:#B22222;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">🧹 Clean Duplicate Entries</button>
+            </div>
+          </div>
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Export Backup</span></div>
           <div class="panel-body">
             <div id="backup-summary" style="margin-bottom:14px;"></div>
@@ -5781,6 +5791,37 @@ function bulkFixSubmitted(){
     if(el) el.innerHTML='<div style="color:#2060a0;">ℹ️ No entries need fixing — all correct!</div>';
     showToast('All correct — no fix needed!','t-i');
   }
+}
+
+function bulkCleanupDuplicates(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  if(!confirm('Same Ref No + Same Company duplicate entries-ஐ clean பண்ணணுமா?\nOldest entries delete ஆகும் — Latest மட்டும் வச்சிருக்கும்!')) return;
+  var h=getHist();
+  var seen={};var toDelete=[];
+  var sorted=h.slice().sort(function(a,b){return (b.id||0)-(a.id||0);});
+  sorted.forEach(function(e){
+    var ref=(e.eqNo||e.refNo||'').trim().toLowerCase();
+    if(!ref) return;
+    var co=(e.company||'ngrd').toLowerCase();
+    var key=ref+'|'+co;
+    if(seen[key]){toDelete.push(e.id);}
+    else{seen[key]=true;}
+  });
+  if(toDelete.length===0){
+    var el=document.getElementById('dup-cleanup-result');
+    if(el) el.innerHTML='<div style="color:#1A6B3C;font-weight:700;">✅ No duplicates found — all clean!</div>';
+    showToast('✅ No duplicates!','t-s');return;
+  }
+  var cleaned=h.filter(function(e){return toDelete.indexOf(e.id)<0;});
+  localStorage.setItem('ngrd_hist',JSON.stringify(cleaned));
+  if(typeof fbWrite==='function') fbWrite('history',cleaned);
+  var el=document.getElementById('dup-cleanup-result');
+  if(el) el.innerHTML='<div style="color:#1A6B3C;font-weight:700;">✅ '+toDelete.length+' duplicate(s) removed! '+cleaned.length+' entries remaining.</div>';
+  renderHistory();
+  if(typeof renderDashboard==='function') renderDashboard();
+  updatePendingBadge();
+  showToast('🧹 '+toDelete.length+' duplicates cleaned!','t-s');
+  addLog('Bulk duplicate cleanup: '+toDelete.length+' removed');
 }
 
 function dismissAlarm(){if(typeof alarmDismissed!=='undefined')alarmDismissed=true;var b=document.getElementById('alarm-banner');if(b)b.className='alarm-banner';}
