@@ -762,7 +762,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         </div>
 
         <!-- User Work Summary — ADMIN ONLY -->
-        <div class="panel" id="db-user-work-panel" style="margin-bottom:14px;">
+        <div class="panel" id="db-user-work-panel" style="margin-bottom:14px;display:none;">
           <div class="panel-hdr">
             <span class="panel-hdr-icon">👥</span>
             <span class="panel-hdr-title">User Work Summary</span>
@@ -2849,7 +2849,19 @@ function saveToHistory(){
     }
   }
   var dup=findDuplicate(refNo,eqNo,curCompany||'ngrd');
-  if(dup){showToast('🚫 Duplicate! "'+(eqNo||refNo)+'" already saved','t-e');return;}
+  if(dup&&!window.curEditId){
+    var dupRef=eqNo||refNo;
+    var dupCo=(curCompany||'ngrd').toUpperCase();
+    var dupBy=dup.savedBy||'Unknown';
+    var dupDate=dup.date||dup.updatedAt||'';
+    var dupStatus=dup.status||'draft';
+    var msg='⚠️ DUPLICATE FOUND!\n\n'+dupRef+'\nCompany: '+dupCo+'\nSaved by: '+dupBy+'\nDate: '+dupDate+'\nStatus: '+dupStatus+'\n\nUpload anyway? (Override)';
+    if(!confirm(msg)){return;}
+    var h2=getHist();
+    var idx2=h2.findIndex(function(e){return e.id===dup.id;});
+    if(idx2>=0){h2.splice(idx2,1);setHist(h2);}
+    showToast('⚠️ Override: Old entry replaced!','t-i');
+  }
   var steps={uploaded:{by:CU.name,role:CU.role,at:now}};
   if(hasPrices) steps.priced={by:CU.name,role:CU.role,at:now};
   if(quotStatus==='submitted') steps.submitted={by:CU.name,role:CU.role,at:now};
@@ -4214,8 +4226,17 @@ function renderDashboard(){
   if(approvalPanel) approvalPanel.style.display=isAdmin?'block':'none';
   if(allPanel) allPanel.style.display=isAdmin?'block':'none';
 
-  // User Work Summary — admin only
-  if(isAdmin&&typeof renderUserWorkTable==='function') setTimeout(renderUserWorkTable,100);
+  // User Work Summary — admin ONLY
+  var uwPanel=document.getElementById('db-user-work-panel');
+  if(uwPanel){
+    uwPanel.style.display=isAdmin?'block':'none';
+    if(isAdmin&&typeof renderUserWorkTable==='function') setTimeout(renderUserWorkTable,100);
+    else if(!isAdmin){
+      // Clear content for non-admin
+      var uwList=document.getElementById('db-user-work-list');
+      if(uwList) uwList.innerHTML='';
+    }
+  }
 
   // Pending Approval list
   var role=getRole();
