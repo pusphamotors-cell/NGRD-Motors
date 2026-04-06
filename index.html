@@ -2829,6 +2829,11 @@ function saveToHistory(){
   var now=new Date().toLocaleString('en-LK');
   if(window.curEditId){
     var idx=hist.findIndex(function(e){return e.id===window.curEditId;});
+    // If company changed (e.g. NGRD entry opened but saving as PUSPHA) → create NEW entry
+    if(idx>=0&&hist[idx].company&&hist[idx].company!==(curCompany||'ngrd')){
+      window.curEditId=null; // Clear edit mode → will create new entry below
+      idx=-1;
+    }
     if(idx>=0){
       var orig=hist[idx];
       if(!orig.steps) orig.steps={};
