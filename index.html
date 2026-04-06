@@ -2850,17 +2850,13 @@ function saveToHistory(){
   }
   var dup=findDuplicate(refNo,eqNo,curCompany||'ngrd');
   if(dup&&!window.curEditId){
+    // AUTO BLOCK — no confirm, just show error toast and stop
     var dupRef=eqNo||refNo;
     var dupCo=(curCompany||'ngrd').toUpperCase();
     var dupBy=dup.savedBy||'Unknown';
-    var dupDate=dup.date||dup.updatedAt||'';
-    var dupStatus=dup.status||'draft';
-    var msg='⚠️ DUPLICATE FOUND!\n\n'+dupRef+'\nCompany: '+dupCo+'\nSaved by: '+dupBy+'\nDate: '+dupDate+'\nStatus: '+dupStatus+'\n\nUpload anyway? (Override)';
-    if(!confirm(msg)){return;}
-    var h2=getHist();
-    var idx2=h2.findIndex(function(e){return e.id===dup.id;});
-    if(idx2>=0){h2.splice(idx2,1);setHist(h2);}
-    showToast('⚠️ Override: Old entry replaced!','t-i');
+    var dupDate=dup.date||'';
+    showToast('🚫 DUPLICATE! '+dupRef+' ('+dupCo+') already saved by '+dupBy+' on '+dupDate,'t-e');
+    return; // HARD BLOCK ❌
   }
   var steps={uploaded:{by:CU.name,role:CU.role,at:now}};
   if(hasPrices) steps.priced={by:CU.name,role:CU.role,at:now};
