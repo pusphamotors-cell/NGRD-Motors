@@ -2847,7 +2847,11 @@ function saveToHistory(){
         engineNo:g('f-eng'),chassisNo:g('f-chas'),
         items:JSON.parse(JSON.stringify(curItems)),
         grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
-        status:quotStatus,updatedBy:CU.name,updatedAt:now,steps:orig.steps
+        status:quotStatus,
+        // Keep original savedBy/owner — only update updatedBy
+        savedBy:orig.savedBy||CU.name,
+        owner:orig.owner||CU.username,
+        updatedBy:CU.name,updatedAt:now,steps:orig.steps
       });
       // submitOnlyMode — force keep submitted status
       if(window._submitOnlyMode) hist[idx].status='submitted';
@@ -2865,7 +2869,33 @@ function saveToHistory(){
   }
   var dup=findDuplicate(refNo,eqNo,curCompany||'ngrd');
   if(dup&&!window.curEditId){
-    // AUTO BLOCK — no confirm, just show error toast and stop
+    // Same company duplicate found
+    // Check if this is admin/price team editing existing entry → UPDATE instead of block
+    var _role2=getRole();
+    if(_isAdmin||_role2.canPrice){
+      // Admin/Price team → UPDATE existing entry with prices, keep savedBy
+      var dupIdx=hist.findIndex(function(e){return e.id===dup.id;});
+      if(dupIdx>=0){
+        var dupOrig=hist[dupIdx];
+        if(!dupOrig.steps) dupOrig.steps={};
+        if(hasPrices&&!dupOrig.steps.priced){dupOrig.steps.priced={by:CU.name,role:CU.role,at:now};}
+        hist[dupIdx]=Object.assign({},dupOrig,{
+          items:JSON.parse(JSON.stringify(curItems)),
+          grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
+          status:quotStatus,
+          savedBy:dupOrig.savedBy||CU.name,
+          owner:dupOrig.owner||CU.username,
+          updatedBy:CU.name,updatedAt:now,steps:dupOrig.steps
+        });
+        setHist(hist);autoSavePrices(curItems);
+        showToast('✅ Updated: '+(eqNo||refNo)+' (original uploader: '+(dupOrig.savedBy||'?')+')','t-s');
+        addLog('Updated via duplicate: '+(eqNo||refNo)+' by '+CU.name);
+        updatePendingBadge();
+        if(typeof renderDashboard==='function') renderDashboard();
+        return;
+      }
+    }
+    // Not admin/price → HARD BLOCK
     var dupRef=eqNo||refNo;
     var dupCo=(curCompany||'ngrd').toUpperCase();
     var dupBy=dup.savedBy||'Unknown';
