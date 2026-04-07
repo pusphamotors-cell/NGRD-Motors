@@ -618,6 +618,16 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <select id="hist-user-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
                 <option value="">👤 All Users</option>
               </select>
+              <select id="hist-closing-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
+                <option value="">📅 All Dates</option>
+                <option value="today">📅 Today</option>
+                <option value="tomorrow">📅 Tomorrow</option>
+                <option value="week">📅 This Week</option>
+                <option value="overdue">🔴 Overdue</option>
+              </select>
+              <select id="hist-entity-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;max-width:160px;">
+                <option value="">🏛️ All Entities</option>
+              </select>
               </div>
               <button onclick="toggleSelectMode()" id="btn-select-mode" style="padding:5px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">☑️ Select</button>
               <button onclick="deleteSelected()" id="btn-delete-selected" style="display:none;padding:5px 10px;background:rgba(178,34,34,.6);border:1px solid rgba(178,34,34,.8);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Delete Selected</button>
@@ -1427,6 +1437,10 @@ function showPage(pg){
     if(qEl) qEl.value='';
     var ufEl2=document.getElementById('hist-user-filter');
     if(ufEl2) ufEl2.value='';
+    var clf2=document.getElementById('hist-closing-filter');
+    if(clf2) clf2.value='';
+    var ef2=document.getElementById('hist-entity-filter');
+    if(ef2) ef2.value='';
     // Force Firebase sync if localStorage is empty
     if(getHist().length===0&&typeof fbRead==='function'){
       fbRead('history',function(data){
@@ -3231,6 +3245,38 @@ function renderHistory(){
   if(uf) h=h.filter(function(x){return (x.savedBy||'')=== uf;});
   const q=document.getElementById('hist-search')?.value?.toLowerCase()||'';
   if(q) h=h.filter(x=>(x.vehicle+x.vNo+x.eqNo+x.refNo+x.entity).toLowerCase().includes(q));
+
+  // Closing date filter
+  var clf=document.getElementById('hist-closing-filter')?.value||'';
+  if(clf){
+    var _now=new Date();_now.setHours(0,0,0,0);
+    var _tom=new Date(_now);_tom.setDate(_tom.getDate()+1);
+    var _weekEnd=new Date(_now);_weekEnd.setDate(_weekEnd.getDate()+7);
+    h=h.filter(function(e){
+      if(!e.closingDate) return false;
+      var cd=typeof parseClosingDate==='function'?parseClosingDate(e.closingDate):null;
+      if(!cd) return false;
+      var days=Math.floor((cd-_now)/86400000);
+      if(clf==='today') return days===0;
+      if(clf==='tomorrow') return days===1;
+      if(clf==='week') return days>=0&&days<=7;
+      if(clf==='overdue') return days<0;
+      return true;
+    });
+  }
+
+  // Entity filter
+  var ef=document.getElementById('hist-entity-filter')?.value||'';
+  if(ef) h=h.filter(function(e){return (e.entity||'').toLowerCase()===ef.toLowerCase();});
+
+  // Populate entity dropdown
+  var efSel=document.getElementById('hist-entity-filter');
+  if(efSel&&efSel.options.length<=1){
+    var allEntities=[...new Set(getHist().map(function(e){return e.entity||'';}).filter(Boolean))].sort();
+    allEntities.forEach(function(en){
+      var o=document.createElement('option');o.value=en;o.textContent='🏛️ '+en;efSel.appendChild(o);
+    });
+  }
   const c=document.getElementById('history-list');
   if(!c) return;
   if(!h.length){var debugCount=getHist().length;
