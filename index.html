@@ -5926,11 +5926,6 @@ function showEntitySummary(entity){
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">';
   var _isAdminEnt=CU&&CU.role==='admin';
   var _roleEnt=getRole();
-  // Role-based items:
-  // Admin — all items
-  // Price team — pending + value only
-  // Submit team — approved + submitted + total
-  // Others — submitted + total
   var allItems=[
     ['📝','Draft',counts.draft,'#888','admin'],
     ['⏳','Pending',counts.pending,'#E8B84B','price'],
@@ -5943,7 +5938,6 @@ function showEntitySummary(entity){
   ];
   allItems.forEach(function(it){
     var showFor=it[4];
-    // Check visibility by role
     var show=false;
     if(showFor==='all') show=true;
     else if(showFor==='admin'&&_isAdminEnt) show=true;
@@ -5959,9 +5953,8 @@ function showEntitySummary(entity){
     }
   });
   html+='</div>';
-  // Total value — admin + price team only
   if(_isAdminEnt||_roleEnt.canPrice) html+='<div style="font-size:11px;color:#1A6B3C;font-weight:700;text-align:right;">💰 LKR '+totalVal.toLocaleString()+'</div>';
-  html+='<button onclick="document.getElementById('entity-summary-popup').style.display='none'" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:#888;">✕</button>';
+  html+='<button onclick="var p=document.getElementById(\'entity-summary-popup\');if(p)p.style.display=\'none\'" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:#888;">✕</button>';
   popup.innerHTML=html;
   popup.style.display='block';
   // Auto close after 5 seconds
