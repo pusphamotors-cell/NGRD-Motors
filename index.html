@@ -2830,7 +2830,9 @@ function saveToHistory(){
   var hasPrices=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
   var now=new Date().toLocaleString('en-LK');
   if(window.curEditId){
-    var idx=hist.findIndex(function(e){return e.id===window.curEditId;});
+    // Use == not === to handle number/string type mismatch
+    var _eid=window.curEditId;
+    var idx=hist.findIndex(function(e){return e.id==_eid||e.id===Number(_eid)||String(e.id)===String(_eid);});
     // If company changed (e.g. NGRD entry opened but saving as PUSPHA) → create NEW entry
     if(idx>=0&&hist[idx].company&&hist[idx].company!==(curCompany||'ngrd')){
       window.curEditId=null; // Clear edit mode → will create new entry below
