@@ -5925,19 +5925,31 @@ function showEntitySummary(entity){
   var html='<div style="font-size:11px;font-weight:700;color:#0D1B2A;margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:6px;">🏛️ '+entity+'</div>';
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">';
   var _isAdminEnt=CU&&CU.role==='admin';
-  var items=[
-    ['📝','Draft',counts.draft,'#888',false],
-    ['⏳','Pending',counts.pending,'#E8B84B',false],
-    ['✅','Approved',counts.approved,'#1A6B3C',false],
-    ['📤','Submitted',counts.submitted,'#2060a0',false],
-    ['🏆','Awarded',counts.awarded,'#C9952A',true],
-    ['❌','Rejected',counts.rejected,'#B22222',true],
-    ['📋','Assigned',counts.assigned,'#666',false],
-    ['📦','Total',total,'#0D1B2A',true]
+  var _roleEnt=getRole();
+  // Role-based items:
+  // Admin — all items
+  // Price team — pending + value only
+  // Submit team — approved + submitted + total
+  // Others — submitted + total
+  var allItems=[
+    ['📝','Draft',counts.draft,'#888','admin'],
+    ['⏳','Pending',counts.pending,'#E8B84B','price'],
+    ['✅','Approved',counts.approved,'#1A6B3C','submit'],
+    ['📤','Submitted',counts.submitted,'#2060a0','submit'],
+    ['🏆','Awarded',counts.awarded,'#C9952A','admin'],
+    ['❌','Rejected',counts.rejected,'#B22222','admin'],
+    ['📋','Assigned',counts.assigned,'#666','admin'],
+    ['📦','Total',total,'#0D1B2A','all']
   ];
-  items.forEach(function(it){
-    var adminOnly=it[4];
-    if(adminOnly&&!_isAdminEnt) return; // Admin only items
+  allItems.forEach(function(it){
+    var showFor=it[4];
+    // Check visibility by role
+    var show=false;
+    if(showFor==='all') show=true;
+    else if(showFor==='admin'&&_isAdminEnt) show=true;
+    else if(showFor==='price'&&(_isAdminEnt||_roleEnt.canPrice)) show=true;
+    else if(showFor==='submit'&&(_isAdminEnt||_roleEnt.canSubmit||_roleEnt.canPrice)) show=true;
+    if(!show) return;
     if(it[2]>0||it[1]==='Total'){
       html+='<div style="text-align:center;padding:6px;background:#f7fafd;border-radius:4px;">';
       html+='<div style="font-size:16px;">'+it[0]+'</div>';
@@ -5947,8 +5959,8 @@ function showEntitySummary(entity){
     }
   });
   html+='</div>';
-  // Total value — admin only
-  if(_isAdminEnt) html+='<div style="font-size:11px;color:#1A6B3C;font-weight:700;text-align:right;">💰 LKR '+totalVal.toLocaleString()+'</div>';
+  // Total value — admin + price team only
+  if(_isAdminEnt||_roleEnt.canPrice) html+='<div style="font-size:11px;color:#1A6B3C;font-weight:700;text-align:right;">💰 LKR '+totalVal.toLocaleString()+'</div>';
   html+='<button onclick="document.getElementById('entity-summary-popup').style.display='none'" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:#888;">✕</button>';
   popup.innerHTML=html;
   popup.style.display='block';
