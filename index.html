@@ -1495,10 +1495,10 @@ function handleFile(inp){
     showToast('⚠️ File size 20MB-க்கு மேல் இருக்கு! சிறிய file பயன்படுத்துங்கள்.','t-e');
     inp.value='';return;
   }
-  // Reset edit mode and status for fresh upload
-  window.curEditId=null;
-  curStatus='draft';
-  var qs=document.getElementById('quot-status');if(qs)qs.value='draft';
+  // Reset status for fresh upload — but keep editId if in edit mode
+  // (Admin editing existing entry and re-uploading PDF)
+  if(!window.curEditId) curStatus='draft';
+  var qs=document.getElementById('quot-status');if(qs&&!window.curEditId)qs.value='draft';
   const fn=document.getElementById('upload-fname');
   fn.textContent='✅ '+f.name+' ('+(f.size/1024).toFixed(0)+' KB)';fn.style.display='block';
   document.getElementById('process-btn').classList.add('show');
@@ -1554,10 +1554,9 @@ async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatc
 }
 
 function loadExtractedData(parsed){
-  // Always reset for fresh extraction
-  window.curEditId=null;
-  curStatus='draft';
-  var qs=document.getElementById('quot-status');if(qs)qs.value='draft';
+  // Keep editId if in edit mode — admin editing existing entry
+  var _keepEdit=!!window.curEditId;
+  if(!_keepEdit){curStatus='draft';var qs=document.getElementById('quot-status');if(qs)qs.value='draft';}
   var st=document.getElementById('ai-status');
   var stx=document.getElementById('ai-st');
   if(parsed.refNo) document.getElementById('f-refno').value=parsed.refNo;
