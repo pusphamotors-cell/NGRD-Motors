@@ -2125,11 +2125,14 @@ function vehicleMatchesUser(vn){
 function findDuplicate(refNo,eqNo,company){
   const h=getHist();if(!refNo&&!eqNo)return null;
   var co=company||curCompany||'ngrd';
+  // Only find non-submitted/non-awarded duplicates for blocking
+  // Submitted/awarded entries are done — don't block new edits
   return h.find(function(e){
     var sameRef=(refNo&&e.refNo&&e.refNo.trim()===refNo.trim());
     var sameEq=(eqNo&&e.eqNo&&e.eqNo.trim()===eqNo.trim());
     var sameCo=(e.company||'ngrd')===co;
-    return (sameRef||sameEq)&&sameCo;
+    var isActive=['draft','pending','approved','assigned'].indexOf(e.status||'draft')>=0;
+    return (sameRef||sameEq)&&sameCo&&isActive;
   })||null;
 }
 
