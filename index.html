@@ -625,9 +625,12 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="week">📅 This Week</option>
                 <option value="overdue">🔴 Overdue</option>
               </select>
-              <select id="hist-entity-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;max-width:160px;">
+              <div style="position:relative;display:inline-block;">
+              <select id="hist-entity-filter" onchange="renderHistory();showEntitySummary(this.value)" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;max-width:160px;">
                 <option value="">🏛️ All Entities</option>
               </select>
+              <div id="entity-summary-popup" style="display:none;position:absolute;top:110%;left:0;width:280px;background:#fff;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.3);padding:12px;z-index:9999;margin-top:4px;"></div>
+              </div>
               </div>
               <button onclick="toggleSelectMode()" id="btn-select-mode" style="padding:5px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">☑️ Select</button>
               <button onclick="deleteSelected()" id="btn-delete-selected" style="display:none;padding:5px 10px;background:rgba(178,34,34,.6);border:1px solid rgba(178,34,34,.8);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Delete Selected</button>
@@ -5907,6 +5910,50 @@ function bulkCleanupDuplicates(){
   updatePendingBadge();
   showToast('🧹 '+toDelete.length+' duplicates cleaned!','t-s');
   addLog('Bulk duplicate cleanup: '+toDelete.length+' removed');
+}
+
+function showEntitySummary(entity){
+  var popup=document.getElementById('entity-summary-popup');
+  if(!popup) return;
+  if(!entity){popup.style.display='none';return;}
+  var h=getHist().filter(function(e){return (e.entity||'').toLowerCase()===entity.toLowerCase();});
+  if(!h.length){popup.style.display='none';return;}
+  var counts={draft:0,pending:0,approved:0,submitted:0,awarded:0,rejected:0,assigned:0};
+  h.forEach(function(e){var s=e.status||'draft';if(counts[s]!==undefined)counts[s]++;});
+  var total=h.length;
+  var totalVal=h.reduce(function(s,e){return s+(e.grandTotal||0);},0);
+  var html='<div style="font-size:11px;font-weight:700;color:#0D1B2A;margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:6px;">🏛️ '+entity+'</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">';
+  var _isAdminEnt=CU&&CU.role==='admin';
+  var items=[
+    ['📝','Draft',counts.draft,'#888',false],
+    ['⏳','Pending',counts.pending,'#E8B84B',false],
+    ['✅','Approved',counts.approved,'#1A6B3C',false],
+    ['📤','Submitted',counts.submitted,'#2060a0',false],
+    ['🏆','Awarded',counts.awarded,'#C9952A',true],
+    ['❌','Rejected',counts.rejected,'#B22222',true],
+    ['📋','Assigned',counts.assigned,'#666',false],
+    ['📦','Total',total,'#0D1B2A',true]
+  ];
+  items.forEach(function(it){
+    var adminOnly=it[4];
+    if(adminOnly&&!_isAdminEnt) return; // Admin only items
+    if(it[2]>0||it[1]==='Total'){
+      html+='<div style="text-align:center;padding:6px;background:#f7fafd;border-radius:4px;">';
+      html+='<div style="font-size:16px;">'+it[0]+'</div>';
+      html+='<div style="font-size:14px;font-weight:700;color:'+it[3]+';">'+it[2]+'</div>';
+      html+='<div style="font-size:9px;color:#888;">'+it[1]+'</div>';
+      html+='</div>';
+    }
+  });
+  html+='</div>';
+  // Total value — admin only
+  if(_isAdminEnt) html+='<div style="font-size:11px;color:#1A6B3C;font-weight:700;text-align:right;">💰 LKR '+totalVal.toLocaleString()+'</div>';
+  html+='<button onclick="document.getElementById('entity-summary-popup').style.display='none'" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:#888;">✕</button>';
+  popup.innerHTML=html;
+  popup.style.display='block';
+  // Auto close after 5 seconds
+  setTimeout(function(){if(popup) popup.style.display='none';},5000);
 }
 
 function dismissAlarm(){if(typeof alarmDismissed!=='undefined')alarmDismissed=true;var b=document.getElementById('alarm-banner');if(b)b.className='alarm-banner';}
