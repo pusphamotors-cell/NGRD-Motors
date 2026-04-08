@@ -2843,6 +2843,14 @@ function submitToPromise(){
 
 function saveToHistory(){
   if(!curItems.length){showToast('Nothing to save','t-e');return;}
+  // Force sync ALL rows from DOM to curItems before saving
+  curItems.forEach(function(item,idx){
+    if(item.brandRows){
+      item.brandRows.forEach(function(br,bi){
+        syncRow(idx,bi);
+      });
+    }
+  });
   var g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
   var refNo=g('f-refno'),eqNo=g('f-eqno');
   var quotStatus=curStatus||g('quot-status')||'draft';
