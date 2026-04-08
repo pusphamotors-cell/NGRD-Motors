@@ -1708,6 +1708,11 @@ function _applyHistMatch(itemIdx,brandIdx,matchIdx){
   var histMatches=[];
   hist.forEach(function(entry){
     if(!entry.items||!Array.isArray(entry.items))return;
+    // STRICT vehicle match — same as showPurchaseHistory
+    if(vehicle){
+      if(!entry.vehicle) return;
+      if(entry.vehicle.toLowerCase().trim()!==vehicle.toLowerCase().trim()) return;
+    }
     entry.items.forEach(function(it){
       if(!it.description)return;
       var aW=(it.description||'').toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
