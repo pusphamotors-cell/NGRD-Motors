@@ -2870,6 +2870,8 @@ function saveToHistory(){
     var idx=hist.findIndex(function(e){return e.id==_eid||e.id===Number(_eid)||String(e.id)===String(_eid);});
     // If company changed (e.g. NGRD entry opened but saving as PUSPHA) → create NEW entry
     if(idx>=0&&hist[idx].company&&hist[idx].company!==(curCompany||'ngrd')){
+      window._prevEditId=window.curEditId; // Save original editId to restore later
+      window._prevEditCompany=hist[idx].company; // Save original company
       window.curEditId=null; // Clear edit mode → will create new entry below
       idx=-1;
     }
@@ -2959,10 +2961,20 @@ function saveToHistory(){
   };
   hist.unshift(entry);if(hist.length>200) hist.pop();
   setHist(hist);autoSavePrices(curItems);
-  window.curEditId=null; curStatus='draft';
-  addLog('Saved: '+(eqNo||refNo)+' ('+entry.vehicle+') — '+quotStatus);
-  checkAfterSave();
-  showToast('Saved to history!','t-s');
+  // Restore editId if this was a cross-company save (e.g. saved PUSPHA, restore NGRD edit)
+  if(window._prevEditId&&window._prevEditCompany&&window._prevEditCompany!==(curCompany||'ngrd')){
+    window.curEditId=window._prevEditId;
+    setCompany(window._prevEditCompany,true);
+    window._prevEditId=null;window._prevEditCompany=null;
+    curStatus=getHist().find(function(e){return String(e.id)===String(window.curEditId);})||{status:'draft'};
+    curStatus=typeof curStatus==='object'?curStatus.status:'draft';
+    showToast('✅ PUSPHA saved! Now editing NGRD entry...','t-s');
+  } else {
+    window.curEditId=null; curStatus='draft';
+    addLog('Saved: '+(eqNo||refNo)+' ('+entry.vehicle+') — '+quotStatus);
+    checkAfterSave();
+    showToast('Saved to history!','t-s');
+  }
   setTimeout(updateWorkflowBar,200);
   updatePendingBadge();
   if(typeof renderDashboard==='function') renderDashboard();
