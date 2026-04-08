@@ -1193,9 +1193,17 @@ function getHist(){
     h=Object.values(h).filter(function(x){return x&&typeof x==='object';});
     if(h.length>0) LS.set('ngrd_hist',h);
   }
-  return h||[];
+  // Filter out blacklisted (deleted) entries
+  var deleted=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
+  return deleted.length>0?(h||[]).filter(function(e){return deleted.indexOf(String(e.id))<0;}):(h||[]);
 }
-function setHist(h){LS.set('ngrd_hist',h);if(typeof fbWrite==='function')fbWrite('history',h);}
+function setHist(h){
+  // Filter out blacklisted (deleted) entries
+  var deleted=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
+  var clean=deleted.length>0?h.filter(function(e){return deleted.indexOf(String(e.id))<0;}):h;
+  LS.set('ngrd_hist',clean);
+  if(typeof fbWrite==='function')fbWrite('history',clean);
+}
 function getPrices(){
   var p=LS.get('ngrd_prices');
   if(!p) return [];
@@ -3439,9 +3447,15 @@ function loadHist(id){
 
 function delHist(id){
   if(!confirm('Delete this quotation?'))return;
-  setHist(getHist().filter(x=>x.id!==id));renderHistory();
+  // Save to delete blacklist so sync doesn't bring it back
+  var deleted=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
+  if(deleted.indexOf(String(id))<0) deleted.push(String(id));
+  localStorage.setItem('ngrd_deleted',JSON.stringify(deleted));
+  // Also push delete to Firebase blacklist
+  if(typeof fbWrite==='function') fbWrite('deleted',deleted);
+  setHist(getHist().filter(x=>String(x.id)!==String(id)));renderHistory();
   addLog('Deleted quotation id:'+id);
-  showToast('Deleted','t-i');updatePendingBadge();
+  showToast('🗑️ Deleted!','t-i');updatePendingBadge();
 }
 
 // ── QUICK VIEW ──
