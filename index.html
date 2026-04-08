@@ -2913,6 +2913,7 @@ function saveToHistory(){
     // Same company duplicate found
     // Check if this is admin/price team editing existing entry → UPDATE instead of block
     var _role2=getRole();
+    var _isAdmin=CU&&CU.role==='admin';
     if(_isAdmin||_role2.canPrice){
       // Admin/Price team → UPDATE existing entry with prices, keep savedBy
       var dupIdx=hist.findIndex(function(e){return e.id===dup.id;});
