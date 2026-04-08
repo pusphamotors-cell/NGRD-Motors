@@ -606,18 +606,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;"><option value="">🚗 All Vehicles</option></select>
               <input type="text" id="hist-search" placeholder="Search..." oninput="renderHistory()"
                 style="padding:5px 9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;outline:none;width:120px;font-family:var(--fb);">
-              <div id="hist-admin-filters" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-              
-              
-              <select id="hist-company-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
-                <option value="">🏢 All Companies</option>
-                <option value="ngrd">NGRD Motors</option>
-                <option value="puspha">Puspha Motors</option>
-              </select>
-              
-              <select id="hist-user-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
-                <option value="">👤 All Users</option>
-              </select>
               <select id="hist-closing-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
                 <option value="">📅 All Dates</option>
                 <option value="today">📅 Today</option>
@@ -631,6 +619,15 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               </select>
               <div id="entity-summary-popup" style="display:none;position:absolute;top:110%;left:0;width:280px;background:#fff;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.3);padding:12px;z-index:9999;margin-top:4px;"></div>
               </div>
+              <div id="hist-admin-filters" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <select id="hist-company-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
+                <option value="">🏢 All Companies</option>
+                <option value="ngrd">NGRD Motors</option>
+                <option value="puspha">Puspha Motors</option>
+              </select>
+              <select id="hist-user-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
+                <option value="">👤 All Users</option>
+              </select>
               </div>
               <button onclick="toggleSelectMode()" id="btn-select-mode" style="padding:5px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">☑️ Select</button>
               <button onclick="deleteSelected()" id="btn-delete-selected" style="display:none;padding:5px 10px;background:rgba(178,34,34,.6);border:1px solid rgba(178,34,34,.8);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Delete Selected</button>
