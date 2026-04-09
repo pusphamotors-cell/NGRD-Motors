@@ -2128,8 +2128,9 @@ async function processFile(){
     if(pageCount===0)pageCount=1;
     var pdfSizeKB=Math.round(pdfBytes.length/1024);var isLarge=pageCount>60||pdfSizeKB>300;
     if(stx) stx.textContent='📄 '+pageCount+' pages detected...';
-    if(!isLarge){if(stx)stx.textContent='🤖 AI reading...';var r1=await extractBatch(AKEY,pdfB64,null,null,1,1);loadExtractedData(r1);return;}
-    var BATCH_SIZE=45;var MAX_PAGES=Math.min(pageCount,150);var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE);
+    // Always use batch for large item PDFs (450+ items need batching)
+    if(!isLarge&&pageCount<=15){if(stx)stx.textContent='🤖 AI reading...';var r1=await extractBatch(AKEY,pdfB64,null,null,1,1);loadExtractedData(r1);return;}
+    var BATCH_SIZE=50;var MAX_PAGES=pageCount;var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE); // No page limit — process all pages
     if(totalBatches<=1){
       if(stx) stx.textContent='🤖 AI reading PDF...';
       var result=await extractBatch(AKEY,pdfB64,null,null,1,1);
