@@ -1311,6 +1311,22 @@ function _doLoginCheck(u,p){
     }
     initApp();
     addLog('Logged in: '+CU.name);
+    // Track online presence
+    if(typeof fbWrite==='function'){
+      fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+    }
+    // Update presence every 3 minutes (heartbeat)
+    window._presenceInterval=setInterval(function(){
+      if(CU&&typeof fbWrite==='function'){
+        fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+      }
+    },180000);
+    // Set offline on page unload
+    window.addEventListener('beforeunload',function(){
+      if(CU&&typeof fbWrite==='function'){
+        fbWrite('presence/'+CU.id,{online:false,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+      }
+    });
   }else{
     var errEl=document.getElementById('login-err');
     if(errEl){
@@ -3192,7 +3208,29 @@ function saveEditPerms(){
 }
 
 
+function getPresenceStatus(lastSeen,online){
+  if(!lastSeen) return {icon:'🔴',label:'Offline',color:'#B22222'};
+  var diff=Math.floor((Date.now()-new Date(lastSeen).getTime())/60000); // minutes
+  if(online&&diff<=5) return {icon:'🟢',label:'Online',color:'#1A6B3C'};
+  if(diff<=30) return {icon:'🟡',label:'Idle',color:'#E8B84B'};
+  if(diff<=60) return {icon:'🔴',label:diff+'m ago',color:'#B22222'};
+  if(diff<=1440) return {icon:'🔴',label:Math.floor(diff/60)+'h ago',color:'#B22222'};
+  return {icon:'🔴',label:Math.floor(diff/1440)+'d ago',color:'#B22222'};
+}
+
 function renderUsers(){
+  // Load presence data from Firebase — Admin only
+  var _isAdminRU=CU&&CU.role==='admin';
+  if(_isAdminRU&&typeof fbRead==='function'&&typeof FB_READY!=='undefined'&&FB_READY){
+    fbRead('presence',function(data){
+      window._presenceData=data||{};
+      _renderUsersInternal();
+    });
+    return;
+  }
+  _renderUsersInternal();
+}
+function _renderUsersInternal(){
   const users=getUsers();
   const c=document.getElementById('users-list');if(!c)return;
   const isAdmin=CU&&CU.role==='admin';
@@ -3819,18 +3857,21 @@ function renderAllStaffSummary(){
     var winRate=s.count>0?((s.awarded/s.count)*100).toFixed(0):0;
     var roleLabel=u.role==='admin'?'👑 Admin':(u.permissions||[]).map(function(p){return p==='upload'?'📤':p==='price'?'💰':p==='submit'?'📨':p==='approve'?'✅':'';}).filter(Boolean).join(' ')||'Staff';
     var lastLogin=u.lastLogin||'—';
-    var isOnline=s.todayCount>0;
+    var pres=window._presenceData&&window._presenceData[u.id]?window._presenceData[u.id]:null;
+    var presStatus=getPresenceStatus(pres?pres.lastSeen:null,pres?pres.online:false);
     var headerBg=u.role==='admin'?'linear-gradient(135deg,#0D1B2A,#1A2E45)':'linear-gradient(135deg,#1A2E45,#2C4A6E)';
     var avColor=u.role==='admin'?'#C9952A':'#2C4A6E';
-    var onlineBg=isOnline?'rgba(26,107,60,.3)':'rgba(255,255,255,.1)';
-    var onlineColor=isOnline?'#6fcf6f':'rgba(255,255,255,.4)';
-    var onlineLabel=isOnline?'🟢 Today':'⚪ Offline';
+    var onlineBg=presStatus.icon==='🟢'?'rgba(26,107,60,.3)':presStatus.icon==='🟡'?'rgba(232,184,75,.2)':'rgba(255,255,255,.1)';
+    var onlineColor=presStatus.icon==='🟢'?'#6fcf6f':presStatus.icon==='🟡'?'#E8B84B':'rgba(255,255,255,.4)';
+    var onlineLabel=presStatus.icon+' '+presStatus.label;
     cardHtml+='<div style="background:#fff;border:1px solid var(--border);border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);">';
     cardHtml+='<div style="background:'+headerBg+';padding:10px 14px;display:flex;align-items:center;gap:8px;">';
     cardHtml+='<div style="width:36px;height:36px;border-radius:50%;background:'+avColor+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;flex-shrink:0;">'+name.charAt(0).toUpperCase()+'</div>';
     cardHtml+='<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</div>';
     cardHtml+='<div style="font-size:10px;color:rgba(255,255,255,.6);">'+roleLabel+'</div></div>';
-    cardHtml+='<span style="font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;background:'+onlineBg+';color:'+onlineColor+';">'+onlineLabel+'</span>';
+    // Status badge — admin only
+    var _isAdminCard=CU&&CU.role==='admin';
+    if(_isAdminCard) cardHtml+='<span style="font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;background:'+onlineBg+';color:'+onlineColor+';">'+onlineLabel+'</span>';
     cardHtml+='</div>';
     cardHtml+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);">';
     var steps=[['📤 Upload',s.uploads,'#1A3A6B'],['💰 Price',s.priced,'#1A4A2A'],['📨 Submit',s.submits,'#4A1A1A']];
@@ -4772,6 +4813,18 @@ function renderStaffDashboard(){
 }
 
 function renderUserWorkTable(){
+  // Load presence data if not loaded
+  var _isAdminWT=CU&&CU.role==='admin';
+  if(_isAdminWT&&!window._presenceData&&typeof fbRead==='function'&&typeof FB_READY!=='undefined'&&FB_READY){
+    fbRead('presence',function(data){
+      window._presenceData=data||{};
+      _renderUserWorkTableInternal();
+    });
+    return;
+  }
+  _renderUserWorkTableInternal();
+}
+function _renderUserWorkTableInternal(){
   var filterEl=document.getElementById('db-user-work-filter');
   var filter=filterEl?filterEl.value:'all';
   var el=document.getElementById('db-user-work-list');
@@ -4800,6 +4853,8 @@ function renderUserWorkTable(){
   var html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
   html+='<thead><tr style="background:#f0f4f8;">';
   html+='<th style="padding:8px 10px;text-align:left;border-bottom:2px solid #ddd;">👤 User</th>';
+  var _isAdminWT2=CU&&CU.role==='admin';
+  if(_isAdminWT2) html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;">🟢</th>';
   html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#888;">📝 Draft</th>';
   html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#E8B84B;">⏳ Pending</th>';
   html+='<th style="padding:8px 6px;text-align:center;border-bottom:2px solid #ddd;color:#1A6B3C;">✅ Approved</th>';
@@ -4862,8 +4917,11 @@ function renderUserWorkTable(){
     var rejected=uHist.filter(function(e){return e.status==='rejected';}).length;
     var total=uHist.length;
 
+    var _upres=window._presenceData&&window._presenceData[u.id]?window._presenceData[u.id]:null;
+    var _uStatus=getPresenceStatus(_upres?_upres.lastSeen:null,_upres?_upres.online:false);
     html+='<tr style="background:'+bg+';border-bottom:1px solid #eee;">';
     html+='<td style="padding:8px 10px;font-weight:700;">'+u.name+'<div style="font-size:10px;color:var(--muted);font-weight:400;">'+u.role+(u.priceCompany&&u.priceCompany!=='both'?' | 💰'+u.priceCompany.toUpperCase():'')+(u.submitCompany&&u.submitCompany!=='both'?' | 📤'+u.submitCompany.toUpperCase():'')+'</div></td>';
+    if(_isAdminWT2) html+='<td style="padding:8px 6px;text-align:center;font-size:13px;" title="'+_uStatus.label+'">'+_uStatus.icon+'</td>';
     html+='<td style="padding:8px 6px;text-align:center;color:#888;font-weight:700;">'+(draft||'-')+'</td>';
     html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(pending>0?'#E8B84B':'#ccc')+'">'+(pending||'-')+'</td>';
     html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:'+(approved>0?'#1A6B3C':'#ccc')+'">'+(approved||'-')+'</td>';
