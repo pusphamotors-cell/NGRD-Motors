@@ -381,7 +381,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-analytics" onclick="showPage('analytics');closeSidebarMobile()"><span class="nav-icon">📊</span>Analytics</button>
         <button class="nav-item" id="nav-users" onclick="showPage('users');closeSidebarMobile()"><span class="nav-icon">👥</span>Users</button>
         <button class="nav-item" id="nav-vehicles" onclick="showPage('vehicles');closeSidebarMobile()"><span class="nav-icon">🚗</span>Vehicles</button>
-        <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()"><span class="nav-icon">📋</span>Activity Log</button>
+        <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
       <div class="sidebar-footer">v3.0 · NGRD Motors</div>
@@ -4419,6 +4419,9 @@ function renderDashboard(){
   var allPanel=document.getElementById('db-all-panel');
   if(approvalPanel) approvalPanel.style.display=isAdmin?'block':'none';
   if(allPanel) allPanel.style.display=isAdmin?'block':'none';
+  // Activity Log — admin only
+  var logNav=document.getElementById('nav-log');
+  if(logNav) logNav.style.display=isAdmin?'flex':'none';
 
   // User Work Summary — admin ONLY
   var uwPanel=document.getElementById('db-user-work-panel');
