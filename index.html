@@ -1297,6 +1297,18 @@ function _doLoginCheck(u,p){
     if(typeof loadAPIKeyFromFirebase==='function'){
       setTimeout(loadAPIKeyFromFirebase,500);
     }
+    // Sync deleted blacklist from Firebase on login
+    if(typeof FB_READY!=='undefined'&&FB_READY&&typeof fbRead==='function'){
+      fbRead('deleted',function(data){
+        try{
+          if(data&&Array.isArray(data)&&data.length>0){
+            var local=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
+            var merged=[...new Set([...local,...data.map(String)])];
+            localStorage.setItem('ngrd_deleted',JSON.stringify(merged));
+          }
+        }catch(e){}
+      });
+    }
     initApp();
     addLog('Logged in: '+CU.name);
   }else{
@@ -1901,6 +1913,16 @@ function showWhatsAppNotify(entry){
 var ADMIN_WA='94765234296';
 function initFirebaseSync(){
   if(!FB_READY)return;
+  // Sync deleted blacklist first
+  fbRead('deleted',function(delData){
+    try{
+      if(delData&&Array.isArray(delData)&&delData.length>0){
+        var local=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
+        var merged=[...new Set([...local,...delData.map(String)])];
+        localStorage.setItem('ngrd_deleted',JSON.stringify(merged));
+      }
+    }catch(e){}
+  });
   fbRead('history',function(data){
     try{
       var local=getHist();
