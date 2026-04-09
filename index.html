@@ -1582,6 +1582,23 @@ async function callAIWithPDF(b64, prompt, akey){
   const data=await resp.json();return data.content[0].text;
 }
 
+async function extractBatchFrom(apiKey,fullPdfB64,fromItemNo,passNum){
+  var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.\n\nIMPORTANT: Extract ONLY items starting from Item No '+fromItemNo+' onwards. Skip all items before item '+fromItemNo+'.\n\nThis PDF has TWO sections:\n1. Schedule Of Requirements — Item No, Item Name, Qty, Unit\n2. Specifications — Required Brand per item\n\nBRAND EXTRACTION RULES:\n- Extract brand from brand-only row in Specifications\n- DO NOT use warranty text as brand\n- Empty string if no brand\n\nReturn ONLY valid JSON (no markdown):\n{"items":[{"itemNo":'+fromItemNo+',"description":"PART NAME","qty":1,"unit":"Unit","brand":"BrandName"}]}\nCRITICAL: Start from item number '+fromItemNo+'. Return ALL remaining items after that number.';
+  var resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:16000,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:fullPdfB64}},{type:'text',text:prompt}]}]})
+  });
+  if(!resp.ok){var e=await resp.json();throw new Error('API '+(e.error?e.error.message:resp.status));}
+  var data=await resp.json();
+  var raw=data.content[0].text;
+  console.log('Pass '+passNum+' raw (200):', raw.substring(0,200));
+  raw=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+  var s=raw.indexOf('{'),e2=raw.lastIndexOf('}');
+  if(s<0||e2<0) return {items:[]};
+  return JSON.parse(raw.substring(s,e2+1));
+}
+
 async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatches){
   var rangeHint=fromPage?('\nNOTE: Focus on pages '+fromPage+' to '+toPage+' only.'):'';
   var batchHint=totalBatches>1?('\nBatch '+batchNum+'/'+totalBatches+'.'+(batchNum===1?' Extract header AND items.':' Extract items only.')):'';
@@ -2128,29 +2145,35 @@ async function processFile(){
     if(pageCount===0)pageCount=1;
     var pdfSizeKB=Math.round(pdfBytes.length/1024);var isLarge=pageCount>60||pdfSizeKB>300;
     if(stx) stx.textContent='📄 '+pageCount+' pages detected...';
-    // Always use batch for large item PDFs (450+ items need batching)
-    if(!isLarge&&pageCount<=15){if(stx)stx.textContent='🤖 AI reading...';var r1=await extractBatch(AKEY,pdfB64,null,null,1,1);loadExtractedData(r1);return;}
-    var BATCH_SIZE=50;var MAX_PAGES=pageCount;var totalBatches=Math.ceil(MAX_PAGES/BATCH_SIZE); // No page limit — process all pages
-    if(totalBatches<=1){
-      if(stx) stx.textContent='🤖 AI reading PDF...';
-      var result=await extractBatch(AKEY,pdfB64,null,null,1,1);
-      loadExtractedData(result);return;
-    }
-    if(stx) stx.textContent='📦 '+totalBatches+' batches...';
-    var allItems=[],firstBatchData=null;
-    for(var b=0;b<totalBatches;b++){
-      var batchNum=b+1,fromPage=b*BATCH_SIZE+1,toPage=Math.min((b+1)*BATCH_SIZE,pageCount);
-      if(stx) stx.textContent='📦 Batch '+batchNum+'/'+totalBatches+'...';
+    if(stx) stx.textContent='🤖 AI reading PDF...';
+    // First pass — extract ALL items
+    var firstResult=await extractBatch(AKEY,pdfB64,null,null,1,1);
+    if(!firstResult||!firstResult.items||firstResult.items.length===0) throw new Error('No items extracted');
+    var allItems=firstResult.items;
+    if(stx) stx.textContent='📦 Pass 1: '+allItems.length+' items...';
+    // If large PDF, do additional passes asking for items after last extracted
+    var MAX_PASSES=20; // Support up to 500+ items
+    for(var pass=2;pass<=MAX_PASSES;pass++){
+      var lastItemNo=allItems.length>0?allItems[allItems.length-1].itemNo:0;
+      if(lastItemNo===0) break;
+      // Continue until no new items found
+      await new Promise(function(r){setTimeout(r,1000);});
+      if(stx) stx.textContent='📦 Pass '+pass+': fetching items after #'+lastItemNo+'...';
       try{
-        var batchResult=await extractBatch(AKEY,pdfB64,fromPage,toPage,batchNum,totalBatches);
-        if(batchNum===1)firstBatchData=batchResult;
-        if(batchResult&&batchResult.items)if(Array.isArray(batchResult.items)&&batchResult.items.length>0){var ni2=batchResult.items.filter(function(ni){return ni&&ni.itemNo&&!allItems.find(function(ai){return ai.itemNo===ni.itemNo;});});allItems=allItems.concat(ni2.length>0?ni2:batchResult.items);}
-      }catch(batchErr){console.warn('Batch '+batchNum+' failed:',batchErr.message);}
-      if(b<totalBatches-1)await new Promise(function(r){setTimeout(r,1000);});
+        var nextResult=await extractBatchFrom(AKEY,pdfB64,lastItemNo+1,pass);
+        if(!nextResult||!nextResult.items||nextResult.items.length===0) break;
+        // Only add new items not already in allItems
+        var newItems=nextResult.items.filter(function(ni){
+          return ni&&ni.itemNo&&ni.itemNo>lastItemNo&&!allItems.find(function(ai){return ai.itemNo===ni.itemNo;});
+        });
+        if(newItems.length===0) break;
+        allItems=allItems.concat(newItems);
+        if(stx) stx.textContent='📦 Pass '+pass+': total '+allItems.length+' items...';
+      }catch(e2){console.warn('Pass '+pass+' failed:',e2.message);break;}
     }
     if(stx) stx.textContent='🔀 Merging '+allItems.length+' items...';
-    if(firstBatchData){firstBatchData.items=allItems;loadExtractedData(firstBatchData);}
-    else throw new Error('No data extracted');
+    firstResult.items=allItems;
+    loadExtractedData(firstResult);
   }catch(err){
     if(st) st.className='ai-status error';
     if(st) st.innerHTML='<div style="width:100%"><div style="font-weight:700;color:#B22222;margin-bottom:8px;">❌ '+(err.message||'Error')+'</div>'+
