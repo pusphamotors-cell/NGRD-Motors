@@ -1893,8 +1893,7 @@ function showPurchaseHistory(itemIdx,brandIdx){
       h2+='<div style="text-align:right;">';
       if(m.purchasePrice>0) h2+='<div style="font-size:11px;color:#c47020;font-weight:700;">Cost: '+lkr(m.purchasePrice)+'</div>';
       h2+='<div style="font-size:11px;color:#1A6B3C;">Sell: '+lkr(m.sellingPrice)+'</div></div></div>';
-      var _bIdx=histMatches.indexOf(m);
-      h2+='<button onclick="_applyHistMatch('+itemIdx+','+brandIdx+','+_bIdx+')" style="padding:4px 10px;background:#2060a0;color:#fff;border:none;border-radius:3px;font-size:10px;cursor:pointer;margin-top:5px;">Use ✅</button>';
+      h2+='<button data-b="'+encodeURIComponent(m.brand||'')+'" data-pu="'+(m.purchasePrice||0)+'" data-pn="'+encodeURIComponent(m.partNo||'')+'" data-co="'+encodeURIComponent(m.country||'Japan')+'" data-sp="'+(m.sellingPrice||0)+'" onclick="(function(el){applyPriceHistory('+itemIdx+','+brandIdx+',decodeURIComponent(el.dataset.b),el.dataset.pu,decodeURIComponent(el.dataset.pn),decodeURIComponent(el.dataset.co),el.dataset.sp)})(this)" style="padding:4px 10px;background:#2060a0;color:#fff;border:none;border-radius:3px;font-size:10px;cursor:pointer;margin-top:5px;">Use ✅</button>';
       h2+='</div>';
     });
     h2+='</div>';
