@@ -1672,7 +1672,13 @@ function loadExtractedData(parsed){
     if(!_brs||!_brs.length){
       _brs=[{brand:item.brand||'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}];
     }
-    return {itemNo:item.itemNo||(i+1),description:_desc||('Item '+(i+1)),qty:parseFloat(item.qty)||1,unit:item.unit||'Number',brand:_brs[0].brand||item.brand||'',unitPrice:_brs[0].price||0,brandRows:_brs};
+    // reqBrand = PDF brand (LOCKED) — never change!
+    // brand rows = Our Brand (from price list or manual)
+    var _reqBrand=item.brand||''; // PDF required brand — LOCKED
+    return {itemNo:item.itemNo||(i+1),description:_desc||('Item '+(i+1)),qty:parseFloat(item.qty)||1,unit:item.unit||'Number',
+      brand:_reqBrand, // Req Brand from PDF — LOCKED
+      reqBrand:_reqBrand, // Explicit reqBrand field
+      unitPrice:_brs[0].price||0,brandRows:_brs};
   });
   renderItems(curItems);setStep(3);
   if(st){st.style.cssText='';st.className='ai-status success';}
@@ -1699,7 +1705,7 @@ function importExtractedJSON(){
         if(data.vehicleName) document.getElementById('f-vname').value=data.vehicleName;
         if(data.closingDate) document.getElementById('f-close').value=data.closingDate.split(' ')[0];
         curItems=data.items.map(function(item){
-          return {itemNo:item.itemNo,description:item.description,qty:item.qty||1,unit:item.unit||'Number',brand:item.brand||'',unitPrice:0,brandRows:[{brand:'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
+          return {itemNo:item.itemNo,description:item.description,qty:item.qty||1,unit:item.unit||'Number',brand:item.brand||'',reqBrand:item.brand||'',unitPrice:0,brandRows:[{brand:'',partNo:'',country:'Japan',marginPct:0,price:0,purchasePrice:0,totalPrice:0}]};
         });
         renderItems(curItems);setStep(3);
         var st=document.getElementById('ai-status');var stx=document.getElementById('ai-st');
