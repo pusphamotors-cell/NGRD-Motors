@@ -2523,7 +2523,9 @@ function renderItems(items){
     var rc=item.brandRows.length;
     var hint=getPriceHint(item.description,prices,curVeh);
     var bg=idx%2===0?'#f7fafd':'#fff';
-    var reqBrand=item.brand||'';
+    // Preserve reqBrand — item.brand is from PDF (required brand), item.ourBrand is what we quote
+    if(!item.reqBrand&&item.brand) item.reqBrand=item.brand; // Save original req brand
+    var reqBrand=item.reqBrand||item.brand||'';
     item.brandRows.forEach(function(br,bi){
       var tr=document.createElement('tr');tr.style.background=bg;
       var h='';
@@ -2886,7 +2888,7 @@ function calcTotals(){
     item.brandRows.forEach(function(br,bi){
       var p=parseFloat(br.price)||0;var t=p*item.qty;br.totalPrice=t;
       var el=document.getElementById('rt-'+idx+'-'+bi);if(el)el.textContent=t>0?lkr(t):'—';
-      if(bi===0){grand+=t;item.unitPrice=p;item.brand=br.brand||'';}
+      if(bi===0){grand+=t;item.unitPrice=p;item.ourBrand=br.brand||'';}
     });
   });
   var ts=document.getElementById('tot-sub');if(ts)ts.textContent=lkr(grand);
