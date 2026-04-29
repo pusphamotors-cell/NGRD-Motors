@@ -631,21 +631,34 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       <div id="page-history" style="display:none;">
         <div class="panel">
           <div class="panel-hdr">
-            <span class="panel-hdr-icon">🗂️</span><span class="panel-hdr-title">Quotation History</span>
-            <div class="panel-hdr-right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-              <select id="hist-status-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:2px;font-size:12px;outline:none;font-family:var(--fb);">
+            <span class="panel-hdr-icon">🗂️</span>
+            <span class="panel-hdr-title">Quotation History</span>
+          </div>
+          <!-- Modern Filter Bar -->
+          <div style="padding:14px 16px;background:#fff;border-bottom:1px solid var(--border);">
+            <!-- Search Row -->
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+              <div style="flex:1;position:relative;">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>
+                <input type="text" id="hist-search" placeholder="Search vehicle, ref, entity..." oninput="renderHistory()"
+                  style="width:100%;padding:10px 12px 10px 36px;border:1.5px solid #E5E7EB;border-radius:12px;font-size:13px;outline:none;background:#F9FAFB;font-family:var(--fb);box-sizing:border-box;">
+              </div>
+              <button onclick="toggleSelectMode()" id="btn-select-mode" style="padding:9px 14px;background:#F3F4F6;border:1px solid #E5E7EB;color:#374151;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">☑️ Select</button>
+              <button onclick="deleteSelected()" id="btn-delete-selected" style="display:none;padding:9px 14px;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ Delete</button>
+            </div>
+            <!-- Filter Pills Row -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <select id="hist-status-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;font-family:var(--fb);cursor:pointer;">
                 <option value="">All Status</option>
-                <option value="draft">Draft</option>
-                <option value="submitted">Submitted</option>
-                <option value="approved">Approved</option>
-                <option value="awarded">Awarded</option>
-                <option value="rejected">Rejected</option>
-                <option value="pending">Pending</option>
+                <option value="draft">📝 Draft</option>
+                <option value="pending">⏳ Pending</option>
+                <option value="approved">✅ Approved</option>
+                <option value="submitted">📤 Submitted</option>
+                <option value="awarded">🏆 Awarded</option>
+                <option value="rejected">❌ Rejected</option>
               </select>
-              <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;border-radius:3px;font-family:var(--fb);font-size:12px;outline:none;"><option value="">🚗 All Vehicles</option></select>
-              <input type="text" id="hist-search" placeholder="Search..." oninput="renderHistory()"
-                style="padding:5px 9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;outline:none;width:120px;font-family:var(--fb);">
-              <select id="hist-closing-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
+              <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;font-family:var(--fb);cursor:pointer;"><option value="">🚗 All Vehicles</option></select>
+              <select id="hist-closing-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;cursor:pointer;">
                 <option value="">📅 All Dates</option>
                 <option value="today">📅 Today</option>
                 <option value="tomorrow">📅 Tomorrow</option>
@@ -653,25 +666,23 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="overdue">🔴 Overdue</option>
               </select>
               <div style="position:relative;display:inline-block;">
-              <select id="hist-entity-filter" onchange="renderHistory();showEntitySummary(this.value)" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;max-width:160px;">
-                <option value="">🏛️ All Entities</option>
-              </select>
-              <div id="entity-summary-popup" style="display:none;position:absolute;top:110%;left:0;width:280px;background:#fff;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.3);padding:12px;z-index:9999;margin-top:4px;"></div>
+                <select id="hist-entity-filter" onchange="renderHistory();showEntitySummary(this.value)" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;cursor:pointer;max-width:160px;">
+                  <option value="">🏛️ All Entities</option>
+                </select>
+                <div id="entity-summary-popup" style="display:none;position:absolute;top:110%;left:0;width:280px;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.15);padding:14px;z-index:9999;margin-top:4px;border:1px solid #E5E7EB;"></div>
               </div>
               <div id="hist-admin-filters" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-              <select id="hist-company-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
-                <option value="">🏢 All Companies</option>
-                <option value="ngrd">NGRD Motors</option>
-                <option value="puspha">Puspha Motors</option>
-              </select>
-              <select id="hist-user-filter" onchange="renderHistory()" style="padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:2px;font-size:12px;">
-                <option value="">👤 All Users</option>
-              </select>
+                <select id="hist-company-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;cursor:pointer;">
+                  <option value="">🏢 All Companies</option>
+                  <option value="ngrd">NGRD Motors</option>
+                  <option value="puspha">Puspha Motors</option>
+                </select>
+                <select id="hist-user-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;cursor:pointer;">
+                  <option value="">👤 All Users</option>
+                </select>
+                <button onclick="clearAllHistory()" id="btn-clear-all" style="padding:7px 12px;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear All</button>
+                <button id="btn-bulk-reassign" onclick="bulkReassign()" style="padding:7px 12px;background:#FFFBEB;border:1px solid #FCD34D;color:#B45309;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Bulk Reassign</button>
               </div>
-              <button onclick="toggleSelectMode()" id="btn-select-mode" style="padding:5px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">☑️ Select</button>
-              <button onclick="deleteSelected()" id="btn-delete-selected" style="display:none;padding:5px 10px;background:rgba(178,34,34,.6);border:1px solid rgba(178,34,34,.8);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Delete Selected</button>
-              <button onclick="clearAllHistory()" id="btn-clear-all" style="padding:5px 10px;background:rgba(178,34,34,.3);border:1px solid rgba(178,34,34,.5);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🗑️ Clear All</button>
-              <button id="btn-bulk-reassign" onclick="bulkReassign()" style="padding:5px 10px;background:rgba(201,149,42,.4);border:1px solid rgba(201,149,42,.6);color:#fff;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);">🔄 Bulk Reassign</button>
             </div>
           </div>
           <div id="history-list"></div>
