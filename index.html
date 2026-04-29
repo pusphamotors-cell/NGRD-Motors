@@ -1986,8 +1986,14 @@ function initFirebaseSync(){
         var lo=local.find(function(x){return x&&String(x.id)===id;});
         var re2=remote.find(function(x){return x&&String(x.id)===id;});
         if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;
-          // Equal status → remote wins (Firebase = latest truth)
-          merged.push(reR>=loR?re2:lo);}
+          // PROTECT submitted/awarded — never downgrade via sync
+          var _PROTECT=['submitted','awarded'];
+          if(_PROTECT.indexOf(lo.status)>=0&&_PROTECT.indexOf(re2.status)<0){
+            merged.push(lo); // Keep local submitted/awarded!
+          } else {
+            merged.push(reR>=loR?re2:lo);
+          }
+        }
         else if(re2&&!lo)merged.push(re2);else if(lo)merged.push(lo);
       });
       merged=merged.filter(function(x){return x&&typeof x==='object';});
@@ -2041,7 +2047,9 @@ function initFirebaseSync(){
             var lo=local.find(function(x){return x&&String(x.id)===id;});
             var re2=remote.find(function(x){return x&&String(x.id)===id;});
             if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;
-              // Equal status → remote wins
+              var _PROTECT2=['submitted','awarded'];
+              if(_PROTECT2.indexOf(lo.status)>=0&&_PROTECT2.indexOf(re2.status)<0){merged.push(lo);}
+              else // Equal status → remote wins
               merged.push(reR>=loR?re2:lo);}
             else if(re2&&!lo)merged.push(re2);
             else if(lo)merged.push(lo);
@@ -2105,7 +2113,7 @@ function startAutoSync(){
         Object.keys(allIds).forEach(function(id){
           var lo=local.find(function(x){return x&&String(x.id)===id;});
           var re2=remote.find(function(x){return x&&String(x.id)===id;});
-          if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;merged.push(reR>=loR?re2:lo);}
+          if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;var _P3=['submitted','awarded'];merged.push((_P3.indexOf(lo.status)>=0&&_P3.indexOf(re2.status)<0)?lo:(reR>=loR?re2:lo));}
           else if(re2&&!lo)merged.push(re2);
           else if(lo)merged.push(lo);
         });
