@@ -958,6 +958,17 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <button onclick="bulkCleanupDuplicates()" style="padding:10px 20px;background:#B22222;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">🧹 Clean Duplicate Entries</button>
             </div>
           </div>
+          <!-- Restore Auto Rejected -->
+          <div class="panel" style="margin-bottom:14px;">
+            <div class="panel-hdr"><span class="panel-hdr-icon">♻️</span><span class="panel-hdr-title">Restore Auto Rejected</span></div>
+            <div class="panel-body">
+              <div style="background:rgba(26,107,60,.08);border:1px solid rgba(26,107,60,.2);border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#1A6B3C;">
+                ⚠️ Auto rejected entries-ஐ pending-க்கு restore பண்ணும். Prices இருந்தா pending, இல்லன்னா draft.
+              </div>
+              <div id="restore-rejected-result" style="margin-bottom:10px;font-size:12px;"></div>
+              <button onclick="bulkRestoreAutoRejected()" style="padding:10px 20px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">♻️ Restore Auto Rejected Entries</button>
+            </div>
+          </div>
           <div class="panel-hdr"><span class="panel-hdr-icon">📤</span><span class="panel-hdr-title">Export Backup</span></div>
           <div class="panel-body">
             <div id="backup-summary" style="margin-bottom:14px;"></div>
@@ -6134,6 +6145,38 @@ function bulkFixSubmitted(){
     if(el) el.innerHTML='<div style="color:#2060a0;">ℹ️ No entries need fixing — all correct!</div>';
     showToast('All correct — no fix needed!','t-i');
   }
+}
+
+function bulkRestoreAutoRejected(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  var h=getHist();
+  var toRestore=h.filter(function(e){return e.autoRejected&&e.status==='rejected';});
+  if(toRestore.length===0){
+    var el=document.getElementById('restore-rejected-result');
+    if(el) el.innerHTML='<div style="color:#1A6B3C;font-weight:700;">✅ No auto-rejected entries found!</div>';
+    showToast('✅ Nothing to restore!','t-s');return;
+  }
+  var restored=0;
+  h.forEach(function(e){
+    if(!e.autoRejected||e.status!=='rejected') return;
+    var hasPrice=e.items&&e.items.some(function(item){
+      return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
+    });
+    e.status=hasPrice?'pending':'draft';
+    e.autoRejected=false;
+    delete e.autoRejectedAt;
+    restored++;
+  });
+  var h2=h.filter(function(x){return typeof x==='object'&&x!==null;});
+  localStorage.setItem('ngrd_hist',JSON.stringify(h2));
+  if(typeof fbWrite==='function') fbWrite('history',h2);
+  var el=document.getElementById('restore-rejected-result');
+  if(el) el.innerHTML='<div style="color:#1A6B3C;font-weight:700;">✅ '+restored+' entries restored!</div>';
+  renderHistory();
+  if(typeof renderDashboard==='function') renderDashboard();
+  updatePendingBadge();
+  showToast('♻️ '+restored+' entries restored!','t-s');
+  addLog('Bulk restore auto-rejected: '+restored+' entries');
 }
 
 function bulkCleanupDuplicates(){
