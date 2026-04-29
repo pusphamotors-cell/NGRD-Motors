@@ -648,8 +648,8 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             </div>
             <!-- Filter Pills Row -->
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-              <select id="hist-status-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;font-family:var(--fb);cursor:pointer;">
-                <option value="">All Status</option>
+              <select id="hist-status-filter" onchange="renderHistory()" style="padding:7px 12px;background:#EFF6FF;color:#1D4ED8;border:1.5px solid #BFDBFE;border-radius:20px;font-size:12px;font-weight:600;outline:none;font-family:var(--fb);cursor:pointer;">
+                <option value="">📊 All Status</option>
                 <option value="draft">📝 Draft</option>
                 <option value="pending">⏳ Pending</option>
                 <option value="approved">✅ Approved</option>
@@ -657,8 +657,8 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="awarded">🏆 Awarded</option>
                 <option value="rejected">❌ Rejected</option>
               </select>
-              <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;font-family:var(--fb);cursor:pointer;"><option value="">🚗 All Vehicles</option></select>
-              <select id="hist-closing-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;cursor:pointer;">
+              <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:7px 12px;background:#F5F3FF;color:#6D28D9;border:1.5px solid #DDD6FE;border-radius:20px;font-size:12px;font-weight:600;outline:none;font-family:var(--fb);cursor:pointer;"><option value="">🚗 All Vehicles</option></select>
+              <select id="hist-closing-filter" onchange="renderHistory()" style="padding:7px 12px;background:#FFF7ED;color:#C2410C;border:1.5px solid #FED7AA;border-radius:20px;font-size:12px;font-weight:600;outline:none;cursor:pointer;">
                 <option value="">📅 All Dates</option>
                 <option value="today">📅 Today</option>
                 <option value="tomorrow">📅 Tomorrow</option>
@@ -666,22 +666,22 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="overdue">🔴 Overdue</option>
               </select>
               <div style="position:relative;display:inline-block;">
-                <select id="hist-entity-filter" onchange="renderHistory();showEntitySummary(this.value)" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;cursor:pointer;max-width:160px;">
+                <select id="hist-entity-filter" onchange="renderHistory();showEntitySummary(this.value)" style="padding:7px 12px;background:#F0FDFA;color:#0F766E;border:1.5px solid #99F6E4;border-radius:20px;font-size:12px;font-weight:600;outline:none;cursor:pointer;max-width:170px;">
                   <option value="">🏛️ All Entities</option>
                 </select>
                 <div id="entity-summary-popup" style="display:none;position:absolute;top:110%;left:0;width:280px;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.15);padding:14px;z-index:9999;margin-top:4px;border:1px solid #E5E7EB;"></div>
               </div>
               <div id="hist-admin-filters" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                <select id="hist-company-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;cursor:pointer;">
+                <select id="hist-company-filter" onchange="renderHistory()" style="padding:7px 12px;background:#EFF6FF;color:#1E40AF;border:1.5px solid #BFDBFE;border-radius:20px;font-size:12px;font-weight:600;outline:none;cursor:pointer;">
                   <option value="">🏢 All Companies</option>
                   <option value="ngrd">NGRD Motors</option>
                   <option value="puspha">Puspha Motors</option>
                 </select>
-                <select id="hist-user-filter" onchange="renderHistory()" style="padding:7px 10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;border-radius:20px;font-size:12px;outline:none;cursor:pointer;">
+                <select id="hist-user-filter" onchange="renderHistory()" style="padding:7px 12px;background:#FDF2F8;color:#9D174D;border:1.5px solid #FBCFE8;border-radius:20px;font-size:12px;font-weight:600;outline:none;cursor:pointer;">
                   <option value="">👤 All Users</option>
                 </select>
-                <button onclick="clearAllHistory()" id="btn-clear-all" style="padding:7px 12px;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear All</button>
-                <button id="btn-bulk-reassign" onclick="bulkReassign()" style="padding:7px 12px;background:#FFFBEB;border:1px solid #FCD34D;color:#B45309;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Bulk Reassign</button>
+                <button onclick="clearAllHistory()" id="btn-clear-all" style="padding:7px 12px;background:#FEF2F2;border:1.5px solid #FECACA;color:#DC2626;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear All</button>
+                <button id="btn-bulk-reassign" onclick="bulkReassign()" style="padding:7px 12px;background:#FFFBEB;border:1.5px solid #FCD34D;color:#B45309;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Bulk Reassign</button>
               </div>
             </div>
           </div>
@@ -3483,8 +3483,8 @@ function renderHistory(){
   c.innerHTML=h.map(e=>{
     const sb=getStatusBadge(e.status);
     const coBadge=e.company==='puspha'?
-      '<span style="background:#4A0E0E;color:#fff;padding:1px 6px;border-radius:2px;font-size:9px;margin-left:4px;">PUSPHA</span>':
-      '<span style="background:#0D1B2A;color:#fff;padding:1px 6px;border-radius:2px;font-size:9px;margin-left:4px;">NGRD</span>';
+      '<span style="background:#FFFBEB;color:#B45309;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #FCD34D;margin-left:4px;">PUSH</span>':
+      '<span style="background:#EFF6FF;color:#1D4ED8;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #BFDBFE;margin-left:4px;">NGRD</span>';
     const chk=selectModeOn?`<input type="checkbox" class="hist-chk" value="${e.id}" style="width:18px;height:18px;cursor:pointer;flex-shrink:0;margin-right:6px;">`:'<div style="font-size:18px;flex-shrink:0;">📄</div>';
     return `<div class="hist-item">
       ${chk}
@@ -3493,9 +3493,9 @@ function renderHistory(){
         <div class="hist-meta">${e.entity||''} &nbsp;•&nbsp; ${e.items?.length||0} items &nbsp;•&nbsp; ${lkr(e.grandTotal||0)} &nbsp;${sb}</div>
         <div class="hist-by">By: ${e.savedBy||'?'} &nbsp; ${getDeadlineBadge(e.closingDate,e.status)}</div>
         <div style="font-size:10px;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
-          ${e.steps&&e.steps.uploaded?'<span style="background:#1A3A6B;color:#fff;padding:1px 7px;border-radius:10px;">📤 '+e.steps.uploaded.by+'</span>':''}
-          ${e.steps&&e.steps.priced?'<span style="background:#1A4A2A;color:#fff;padding:1px 7px;border-radius:10px;">💰 '+e.steps.priced.by+'</span>':'<span style="background:#7A1414;color:#fff;padding:1px 7px;border-radius:10px;">⚠️ No Price</span>'}
-          ${e.steps&&e.steps.submitted?'<span style="background:#1A6B3C;color:#fff;padding:1px 7px;border-radius:10px;">✅ '+e.steps.submitted.by+'</span>':''}
+          ${e.steps&&e.steps.uploaded?'<span style="background:#EFF6FF;color:#1D4ED8;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #BFDBFE;">📤 '+e.steps.uploaded.by+'</span>':''}
+          ${e.steps&&e.steps.priced?'<span style="background:#F0FDF4;color:#15803D;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #86EFAC;">💰 '+e.steps.priced.by+'</span>':'<span style="background:#FEF2F2;color:#DC2626;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #FECACA;">⚠️ No Price</span>'}
+          ${e.steps&&e.steps.submitted?'<span style="background:#F0FDF4;color:#15803D;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #86EFAC;">✅ '+e.steps.submitted.by+'</span>':''}
         </div>
       </div>
       <div class="hist-date">${e.date}</div>
