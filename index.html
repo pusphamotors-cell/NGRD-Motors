@@ -5890,11 +5890,11 @@ function generatePDFHtml(d){
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">MAKE & MODEL</div>
-          <div style="font-size:9.5px;font-weight:600;color:#1565C0;">BAPI, HOLTS, HULK, SIMCO, MINDA</div>
+          <div style="font-size:9.5px;font-weight:600;color:#1565C0;">${[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.brand||i.brand||"";}).filter(Boolean))].join(", ")||"—"}</div>
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">COUNTRY OF ORIGIN</div>
-          <div style="font-size:10.5px;font-weight:600;color:#111;">India</div>
+          <div style="font-size:10.5px;font-weight:600;color:#111;">${[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.country||i.country||"";}).filter(Boolean))].join(", ")||"—"}</div>
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">VALIDITY PERIOD</div>
