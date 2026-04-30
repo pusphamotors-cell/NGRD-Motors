@@ -665,6 +665,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="tomorrow">📅 Tomorrow</option>
                 <option value="week">📅 This Week</option>
                 <option value="overdue">🔴 Overdue</option>
+                <option value="uploaded_today" style="display:none;">⚡ Uploaded Today</option>
               </select>
               <div style="position:relative;display:inline-block;">
                 <select id="hist-entity-filter" onchange="renderHistory();showEntitySummary(this.value)" style="padding:7px 12px;background:#F0FDFA;color:#0F766E;border:1.5px solid #99F6E4;border-radius:20px;font-size:12px;font-weight:600;outline:none;cursor:pointer;max-width:170px;">
@@ -5713,90 +5714,208 @@ function generatePDFHtml(d){
   const grand=d.items.reduce((s,i)=>s+((i.unitPrice||0)*i.qty),0);
   const rows=d.items.map((item,idx)=>{
     var br=(item.brandRows&&item.brandRows[0])||{};
-    var brand=br.brand||item.brand||'—';
-    var partNo=br.partNo||item.partNo||'—';
-    var country=br.country||item.country||'—';
+    var brand=br.brand||item.brand||'';
+    var country=br.country||item.country||'';
     var price=parseFloat(br.price)||item.unitPrice||0;
     var total=price*item.qty;
-    return `<tr style="background:${idx%2===0?'#f7fafd':'#fff'}">
-    <td style="text-align:center;padding:5px 6px;border:1px solid #d0dce8;font-size:10px;font-weight:700;">${item.itemNo}</td>
-    <td style="padding:5px 6px;border:1px solid #d0dce8;font-size:10px;">${item.description}</td>
-    <td style="text-align:center;padding:5px 6px;border:1px solid #d0dce8;font-size:10px;">${item.qty}</td>
-    <td style="padding:5px 6px;border:1px solid #d0dce8;font-size:10px;">${item.unit}</td>
-    <td style="padding:5px 6px;border:1px solid #d0dce8;font-size:10px;font-family:monospace;">${partNo}</td>
-    <td style="padding:5px 6px;border:1px solid #d0dce8;font-size:10px;">${country}</td>
-    <td style="text-align:right;padding:5px 6px;border:1px solid #d0dce8;font-size:10px;">${price>0?lkr(price):'—'}</td>
-    <td style="text-align:right;padding:5px 6px;border:1px solid #d0dce8;font-size:10px;font-weight:700;">${total>0?lkr(total):'—'}</td>
-    <td style="padding:5px 6px;border:1px solid #d0dce8;font-size:9px;color:#2C4A6E;">${brand}</td>
-  </tr>`;
+    var bg=idx%2===0?'#fff':'#f7f9fc';
+    return `<tr style="background:${bg}">
+      <td style="text-align:center;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#888;">${item.itemNo}</td>
+      <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;color:#111;">${item.description}</td>
+      <td style="text-align:center;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;">${item.qty}</td>
+      <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#1565C0;font-weight:600;">${brand}</td>
+      <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#555;">${country}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;">${price>0?lkr(price):'—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;font-weight:700;">${total>0?lkr(total):'—'}</td>
+    </tr>`;
   }).join('');
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation ${d.eqNo}</title>
-  <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}
-  .page{width:210mm;min-height:297mm;padding:12mm 13mm;margin:0 auto;}
-  .hdr{background:${co.color};color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;}
-  .hc{font-size:18px;font-weight:700;letter-spacing:2px;}.hc span{color:#E8B84B;}
-  .haddr{font-size:9px;color:rgba(255,255,255,.6);margin-top:2px;}
-  .hbadge{background:${co.colorAccent};color:${co.color};padding:5px 14px;font-weight:700;font-size:12px;border-radius:2px;}
-  .gline{height:3px;background:linear-gradient(90deg,${co.colorAccent},#E8B84B,${co.colorAccent});margin-bottom:10px;}
-  .ibox{border:1px solid #C8D4E0;border-top:3px solid #2C4A6E;margin:10px 0;border-radius:2px;}
-  .it{background:${co.colorLight};color:#fff;padding:6px 12px;font-weight:700;font-size:10px;letter-spacing:1px;}
-  .ig{display:grid;grid-template-columns:1fr 1fr;}
-  .ir{display:flex;border-bottom:1px solid #eef2f7;padding:5px 12px;gap:6px;}
-  .ir:last-child{border-bottom:none;}
-  .il{font-size:9px;font-weight:700;color:#6B7A8D;text-transform:uppercase;min-width:100px;flex-shrink:0;}
-  .iv{font-size:10px;color:#1A2332;font-weight:600;}
-  .tt{background:${co.color};color:#fff;padding:7px 12px;font-weight:700;font-size:10px;margin-top:10px;}
-  table{width:100%;border-collapse:collapse;}
-  thead th{background:#1A2E45;color:#fff;padding:7px;font-size:9px;font-weight:700;border:1px solid #2C4A6E;}
-  thead th.r{text-align:right;} thead th.c{text-align:center;}
-  .tot{display:flex;justify-content:flex-end;margin-top:8px;}
-  .toti{min-width:250px;}
-  .tr2{display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid #eee;font-size:11px;}
-  .tr2.grand{background:${co.color};color:#fff;}
-  .tr2.grand .tv{color:#E8B84B;font-weight:700;}
-  .sig{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:20px;padding-top:12px;border-top:1px solid #C8D4E0;}
-  .sc{text-align:center;}.sl{border-bottom:1.5px solid #000;height:32px;margin-bottom:4px;}
-  .slbl{font-size:9px;font-weight:700;color:#6B7A8D;text-transform:uppercase;}
-  .stmp{border:1px dashed #C8D4E0;height:60px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#C8D4E0;font-weight:700;}
-  .ftr{margin-top:14px;padding-top:6px;border-top:2px solid #C9952A;display:flex;justify-content:space-between;font-size:8px;color:#666;}
-  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
-</head><body>
-  <div class="page">
-    <div class="hdr"><div><div class="hc">${co.name.split(" ")[0]} <span>${co.name.split(" ").slice(1).join(" ")}</span></div><div class="haddr">${co.addressShort}</div></div><div class="hbadge">PRICE QUOTATION</div></div>
-    <div class="gline"></div>
-    <div class="ibox">
-      <div class="it">📋 Procurement Details</div>
-      <div class="ig">
-        <div><div class="ir"><span class="il">Ref No.</span><span class="iv">${d.refNo||'—'}</span></div>
-          <div class="ir"><span class="il">e-Quotation No.</span><span class="iv">${d.eqNo||'—'}</span></div>
-          <div class="ir"><span class="il">Closing Date</span><span class="iv">${d.closing||'—'}</span></div>
-          <div class="ir"><span class="il">Status</span><span class="iv">${d.status||'draft'}</span></div></div>
-        <div><div class="ir"><span class="il">Vehicle</span><span class="iv">${d.vehicle||'—'}</span></div>
-          <div class="ir"><span class="il">Vehicle No.</span><span class="iv">${d.vNo||'—'}</span></div>
-          <div class="ir"><span class="il">Engine No.</span><span class="iv">${d.eng||'—'}</span></div>
-          <div class="ir"><span class="il">Chassis No.</span><span class="iv">${d.chas||'—'}</span></div></div>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:Arial,sans-serif;font-size:12px;color:#000;background:#fff;}
+    .page{width:210mm;min-height:297mm;padding:0;margin:0 auto;background:#fff;}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+  </style>
+  </head><body><div class="page">
+
+  <!-- TOP RAINBOW BAR -->
+  <div style="height:6px;background:linear-gradient(90deg,#E53935,#F9A825,#FFD700,#2E7D32,#0097A7,#1565C0,#7B1FA2);"></div>
+
+  <!-- HEADER -->
+  <div style="background:linear-gradient(135deg,#0D1B2A 0%,#1A3060 50%,#0D47A1 100%);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;">
+    <!-- HEXAGON LOGO + NAME -->
+    <div style="display:flex;align-items:center;gap:16px;">
+      <svg width="70" height="70" viewBox="0 0 120 120">
+        <polygon points="60,4 104,28 104,76 60,100 16,76 16,28" fill="#FFD700"/>
+        <polygon points="60,10 99,32 99,74 60,96 21,74 21,32" fill="#0D1B2A"/>
+        <polygon points="60,16 94,36 94,72 60,92 26,72 26,36" fill="#1A3060"/>
+        <polygon points="60,24 88,40 88,70 60,86 32,70 32,40" fill="#0D47A1"/>
+        <circle cx="60" cy="55" r="18" fill="#0D1B2A"/>
+        <circle cx="60" cy="55" r="12" fill="#FFD700"/>
+        <circle cx="60" cy="55" r="6" fill="#0D47A1"/>
+        <circle cx="60" cy="55" r="2.5" fill="#FFD700"/>
+        <rect x="58.5" y="35" width="3" height="7" rx="1.5" fill="#0D47A1"/>
+        <rect x="58.5" y="68" width="3" height="7" rx="1.5" fill="#0D47A1"/>
+        <rect x="39" y="53.5" width="7" height="3" rx="1.5" fill="#0D47A1"/>
+        <rect x="74" y="53.5" width="7" height="3" rx="1.5" fill="#0D47A1"/>
+        <text x="60" y="88" text-anchor="middle" font-size="8" font-weight="500" fill="rgba(255,255,255,0.6)" font-family="sans-serif" letter-spacing="2">MOTORS</text>
+      </svg>
+      <div>
+        <div style="color:#FFD700;font-size:24px;font-weight:700;letter-spacing:4px;">N.G.R.D.</div>
+        <div style="color:#fff;font-size:13px;letter-spacing:4px;margin-top:2px;">MOTORS</div>
+        <div style="margin-top:5px;display:flex;gap:6px;align-items:center;">
+          <div style="height:1.5px;width:20px;background:linear-gradient(90deg,#FF6B35,#FFD700);"></div>
+          <span style="color:rgba(255,255,255,0.45);font-size:8.5px;letter-spacing:1.5px;">AUTHORIZED SPARE PARTS SUPPLIER</span>
+          <div style="height:1.5px;width:20px;background:linear-gradient(90deg,#FFD700,#1A936F);"></div>
+        </div>
       </div>
-      <div class="ir" style="border-top:1px solid #eef2f7;"><span class="il">Entity</span><span class="iv">${d.entity||'—'}</span></div>
-      <div class="ir"><span class="il">Title</span><span class="iv">${d.title||'—'}</span></div>
-      <div class="ir"><span class="il">Delivery</span><span class="iv">${d.delivery||'—'} | Destination: ${d.dest||'—'}</span></div>
     </div>
-    <div class="tt">🔩 Spare Parts — Price Schedule</div>
-    <table><thead><tr>
-      <th class="c" style="width:32px">No</th><th>Description</th><th class="c" style="width:28px">Qty</th>
-      <th class="c" style="width:38px">Unit</th><th style="width:85px">Part No.</th><th style="width:58px">Country</th>
-      <th class="r" style="width:82px">Unit Price</th><th class="r" style="width:82px">Total</th><th style="width:75px">Brand</th>
-    </tr></thead><tbody>${rows}</tbody></table>
-    <div class="tot"><div class="toti">
-      <div class="tr2"><span>Sub Total</span><span class="tv">${lkr(grand)}</span></div>
-      <div class="tr2 grand"><span>GRAND TOTAL (LKR)</span><span class="tv">${lkr(grand)}</span></div>
-    </div></div>
-    <div class="sig">
-      <div class="sc"><div class="sl"></div><div class="slbl">Prepared by: ${d.preparedBy}</div><div style="font-size:8px;color:#999;margin-top:2px;">Date: ${d.date}</div></div>
-      <div class="sc"><div class="stmp">OFFICIAL STAMP</div><div class="slbl" style="margin-top:5px;">${co.authorized}</div></div>
+    <!-- CONTACT RIGHT -->
+    <div style="text-align:right;">
+      <div style="color:#FFD700;font-size:9.5px;font-weight:700;letter-spacing:1px;margin-bottom:4px;">CONTACT</div>
+      <div style="color:rgba(255,255,255,0.85);font-size:9.5px;line-height:1.9;">
+        <div>202/17B, Mohideen Masjid Road</div>
+        <div>Panchikawatta, Colombo 10</div>
+        <div style="color:#7DD3C0;">Tel: 011 244 9385 | Hotline: 076 688 6526</div>
+        <div style="color:#FFD700;">ngrdmotors@gmail.com</div>
+      </div>
     </div>
-    <div class="ftr"><span>${co.footer}</span><span>${d.eqNo||d.refNo} | ${d.date}</span></div>
   </div>
-</body></html>`;
+
+  <!-- RAINBOW STRIPE -->
+  <div style="height:4px;background:linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#F9A825,#E53935);"></div>
+
+  <!-- LETTER BODY -->
+  <div style="padding:20px 30px;background:#fff;">
+
+    <!-- DATE + TO -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div>
+        <div style="font-size:11px;color:#555;margin-bottom:6px;">To,</div>
+        <div style="font-size:12px;font-weight:600;color:#111;line-height:1.9;">${d.entity||'—'}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="background:linear-gradient(135deg,#0D47A1,#1A936F);color:#fff;font-size:10px;padding:4px 12px;border-radius:20px;font-weight:600;">Ref: ${d.eqNo||d.refNo||'—'}</div>
+        <div style="font-size:10px;color:#555;margin-top:4px;">Date: ${d.date}</div>
+      </div>
+    </div>
+
+    <!-- REF + SUBJECT -->
+    <div style="background:linear-gradient(135deg,rgba(13,71,161,0.05),rgba(26,147,111,0.05));border-left:4px solid #FFD700;padding:9px 12px;margin-bottom:14px;">
+      <div style="font-size:11px;color:#333;margin-bottom:3px;">
+        <span style="font-weight:700;color:#0D47A1;">Ref:</span> File Number: <span style="font-weight:600;color:#111;">${d.refNo||'—'}</span>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:#111;">Subject: Supply of Motor Spare Parts</div>
+    </div>
+
+    <div style="font-size:11.5px;color:#111;margin-bottom:3px;font-weight:600;">Dear Sir,</div>
+    <div style="font-size:11px;color:#555;margin-bottom:14px;line-height:1.7;">Further to the above reference, please find the details as follows:</div>
+
+    <!-- VEHICLE INFO -->
+    <div style="background:#f0f4f8;border-radius:6px;padding:10px 14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+      <div style="font-size:10px;color:#555;">Vehicle: <span style="font-weight:600;color:#111;">${d.vehicle||'—'}</span></div>
+      <div style="font-size:10px;color:#555;">Vehicle No: <span style="font-weight:600;color:#111;">${d.vNo||'—'}</span></div>
+      <div style="font-size:10px;color:#555;">Engine No: <span style="font-weight:600;color:#111;">${d.eng||'—'}</span></div>
+      <div style="font-size:10px;color:#555;">Chassis No: <span style="font-weight:600;color:#111;">${d.chas||'—'}</span></div>
+    </div>
+
+    <!-- PARTS TABLE -->
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px;">
+      <thead>
+        <tr>
+          <th style="background:linear-gradient(135deg,#0D47A1,#1565C0);color:#FFD700;padding:8px;text-align:center;font-size:10px;border-radius:6px 0 0 0;width:32px;">No</th>
+          <th style="background:linear-gradient(135deg,#1565C0,#1976D2);color:#FFD700;padding:8px;text-align:left;font-size:10px;">Description</th>
+          <th style="background:linear-gradient(135deg,#1976D2,#0097A7);color:#fff;padding:8px;text-align:center;font-size:10px;width:36px;">Qty</th>
+          <th style="background:linear-gradient(135deg,#0097A7,#2E7D32);color:#fff;padding:8px;text-align:left;font-size:10px;width:70px;">Brand</th>
+          <th style="background:linear-gradient(135deg,#2E7D32,#F9A825);color:#fff;padding:8px;text-align:left;font-size:10px;width:60px;">Country</th>
+          <th style="background:linear-gradient(135deg,#F9A825,#E53935);color:#fff;padding:8px;text-align:right;font-size:10px;width:88px;">Unit Price</th>
+          <th style="background:linear-gradient(135deg,#E53935,#7B1FA2);color:#fff;padding:8px;text-align:right;font-size:10px;border-radius:0 6px 0 0;width:88px;">Total</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5" style="padding:8px;border-top:0.5px solid #ddd;"></td>
+          <td style="padding:8px;text-align:right;font-size:10.5px;color:#0D47A1;font-weight:700;border-top:0.5px solid #ddd;">GRAND TOTAL</td>
+          <td style="padding:8px;text-align:right;border-top:0.5px solid #ddd;">
+            <span style="background:linear-gradient(135deg,#FF6B35,#FFD700);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">${lkr(grand)}</span>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- OTHER DETAILS -->
+    <div style="background:linear-gradient(135deg,rgba(13,71,161,0.04),rgba(26,147,111,0.04));border:0.5px solid #ddd;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+      <div style="font-size:10.5px;font-weight:700;color:#0D47A1;letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+        <div style="width:3px;height:11px;background:linear-gradient(180deg,#FF6B35,#FFD700);border-radius:2px;"></div>
+        OTHER DETAILS
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
+          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">DELIVERY PERIOD</div>
+          <div style="font-size:10.5px;font-weight:600;color:#111;">${d.delivery||'02-04 Weeks'}</div>
+        </div>
+        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
+          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">MAKE & MODEL</div>
+          <div style="font-size:9.5px;font-weight:600;color:#1565C0;">BAPI, HOLTS, HULK, SIMCO, MINDA</div>
+        </div>
+        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
+          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">COUNTRY OF ORIGIN</div>
+          <div style="font-size:10.5px;font-weight:600;color:#111;">India</div>
+        </div>
+        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
+          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">VALIDITY PERIOD</div>
+          <div style="font-size:10.5px;font-weight:600;color:#111;">${d.validity||'60 Days'}</div>
+        </div>
+        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
+          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">WARRANTY PERIOD</div>
+          <div style="font-size:10.5px;font-weight:600;color:#111;">06 Months</div>
+        </div>
+        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
+          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">PAYMENT TERMS</div>
+          <div style="font-size:10.5px;font-weight:600;color:#111;">45 Days</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIGNATURE + STAMP -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
+      <div style="text-align:left;">
+        <div style="font-size:11px;color:#555;margin-bottom:6px;">Yours faithfully,</div>
+        <img src="https://i.ibb.co/6R4Xj0h2/Whats-App-Image-2026-04-30-at-13-02-55.jpg" alt="Signature" style="width:150px;height:55px;object-fit:contain;display:block;"/>
+        <div style="border-top:1px solid #333;width:150px;margin-bottom:6px;"></div>
+        <div style="font-size:11px;color:#111;line-height:1.9;">
+          <div style="font-weight:700;color:#0D47A1;">N.G.R.D. MOTORS</div>
+          <div style="font-size:10px;color:#555;">No: 202/17B, Mohideen Masjid Road,</div>
+          <div style="font-size:10px;color:#555;">Panchikawatta, Colombo 10.</div>
+          <div style="font-size:10px;color:#0D47A1;">011 244 9385 / 076 688 6526</div>
+          <div style="font-size:10px;font-weight:600;color:#111;">NGRD Motors (Manager)</div>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <img src="https://i.ibb.co/c022By1/Whats-App-Image-2026-04-30-at-12-39-41.jpg" alt="Official Stamp" style="width:130px;height:130px;object-fit:contain;display:block;margin:0 auto;opacity:0.9;"/>
+        <div style="font-size:9px;color:#888;margin-top:2px;">Official Stamp</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RAINBOW BOTTOM -->
+  <div style="height:4px;background:linear-gradient(90deg,#E53935,#F9A825,#FFD700,#2E7D32,#0097A7,#1565C0,#7B1FA2);"></div>
+
+  <!-- FOOTER -->
+  <div style="background:linear-gradient(135deg,#0D1B2A,#1A3060);padding:8px 28px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="color:rgba(255,255,255,0.4);font-size:8px;letter-spacing:1px;">202/17B MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>
+    <div style="display:flex;gap:4px;">
+      <div style="width:5px;height:5px;border-radius:50%;background:#E53935;"></div>
+      <div style="width:5px;height:5px;border-radius:50%;background:#FFD700;"></div>
+      <div style="width:5px;height:5px;border-radius:50%;background:#2E7D32;"></div>
+      <div style="width:5px;height:5px;border-radius:50%;background:#1565C0;"></div>
+    </div>
+    <div style="color:rgba(255,255,255,0.4);font-size:8px;letter-spacing:1px;">ngrdmotors@gmail.com</div>
+  </div>
+
+</div></body></html>`;
 }
 
 function downloadPDF(){if(!curItems.length){showToast('No items','t-e');return;}const d=buildQData();_printWithIframe(generatePDFHtml(d));addLog('PDF exported: '+(d.eqNo||d.refNo));}
