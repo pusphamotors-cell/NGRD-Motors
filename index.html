@@ -812,7 +812,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div style="font-size:36px;font-weight:700;" id="db-3day-n">0</div>
             <div style="font-size:12px;color:rgba(255,255,255,.9);margin-top:4px;">🟡 Closing in 3 Days</div>
           </div>
-          <div onclick="goToHistory('','today')" style="background:#1A3A6B;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+          <div onclick="goToHistory('','uploaded_today')" style="background:#1A3A6B;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:36px;font-weight:700;" id="db-today-activity">0</div>
             <div style="font-size:12px;color:rgba(255,255,255,.9);margin-top:4px;">⚡ Today's Uploads</div>
           </div>
@@ -3484,7 +3484,15 @@ function renderHistory(){
 
   // Closing date filter
   var clf=document.getElementById('hist-closing-filter')?.value||'';
-  if(clf){
+  if(clf==='uploaded_today'){
+    // Special: filter by upload date (e.id = timestamp)
+    var _todayStr=new Date().toLocaleDateString('en-LK');
+    h=h.filter(function(e){
+      if(!e.id) return false;
+      var d=new Date(e.id);
+      return !isNaN(d)&&d.toLocaleDateString('en-LK')===_todayStr;
+    });
+  } else if(clf){
     var _now=new Date();_now.setHours(0,0,0,0);
     var _tom=new Date(_now);_tom.setDate(_tom.getDate()+1);
     var _weekEnd=new Date(_now);_weekEnd.setDate(_weekEnd.getDate()+7);
