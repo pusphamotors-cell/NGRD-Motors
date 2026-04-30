@@ -5733,7 +5733,7 @@ function generatePDFHtml(d){
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:Arial,sans-serif;font-size:12px;color:#000;background:#fff;}
-    .page{width:210mm;min-height:297mm;padding:0;margin:0 auto;background:#fff;}
+    .page{width:210mm;min-height:297mm;padding:0;margin:0 auto;background:#fff;display:flex;flex-direction:column;}
     @media print{
       body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
       thead{display:table-header-group;}
@@ -5744,7 +5744,7 @@ function generatePDFHtml(d){
     }
     @page{
       size:A4;
-      margin:0 0 44px 0;
+      margin:0;
     }
   </style>
   </head><body><div class="page">
@@ -5801,7 +5801,7 @@ function generatePDFHtml(d){
     <tbody>
       <tr><td style="padding:0;">
   <!-- LETTER BODY -->
-  <div style="padding:20px 30px;background:#fff;">
+  <div style="padding:20px 30px;background:#fff;flex:1;">
 
     <!-- DATE + TO -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
@@ -5920,12 +5920,13 @@ function generatePDFHtml(d){
 
   </div>
 
+  <!-- RAINBOW BOTTOM -->
       </td></tr>
     </tbody>
   </table>
 
-  <!-- FOOTER — position:fixed → A4 bottom-ல் எப்போதும் ✅ -->
-  <div style="position:fixed;bottom:0;left:0;right:0;width:100%;">
+  <!-- FOOTER — margin-top:auto pushes to A4 sheet bottom ✅ -->
+  <div style="margin-top:auto;">
     <div style="height:4px;background:linear-gradient(90deg,#E53935,#F9A825,#FFD700,#2E7D32,#0097A7,#1565C0,#7B1FA2);"></div>
     <div style="background:linear-gradient(135deg,#0D1B2A,#1A3060);padding:8px 28px;display:flex;justify-content:space-between;align-items:center;">
       <div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">202/17B MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>
