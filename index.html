@@ -776,23 +776,27 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       <div id="page-dashboard" style="display:none;">
         <!-- ADMIN ONLY STATS -->
         <div id="db-admin-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;">
-          <div style="background:#0D1B2A;color:#fff;border-radius:6px;padding:16px;text-align:center;">
+          <div onclick="goToHistory('','')" style="background:#0D1B2A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:28px;font-weight:700;color:#E8B84B;" id="db-total-n">0</div>
             <div style="font-size:11px;color:#aaa;margin-top:4px;">📋 Total Quotations</div>
           </div>
-          <div style="background:#1A4A2A;color:#fff;border-radius:6px;padding:16px;text-align:center;">
+          <div onclick="goToHistory('approved','')" style="background:#1A4A2A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:28px;font-weight:700;color:#6fcf6f;" id="db-approved-n">0</div>
             <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:4px;">✅ Approved</div>
           </div>
-          <div style="background:#1A2E45;color:#fff;border-radius:6px;padding:16px;text-align:center;">
+          <div onclick="goToHistory('draft','')" style="background:#3A3A1A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            <div style="font-size:28px;font-weight:700;color:#E8E860;" id="db-draft-n">0</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:4px;">📝 Draft</div>
+          </div>
+          <div onclick="goToHistory('pending','')" style="background:#1A2E45;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:28px;font-weight:700;" id="db-pending-n">0</div>
             <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:4px;">⏳ Pending Approval</div>
           </div>
-          <div style="background:#2A1A3A;color:#fff;border-radius:6px;padding:16px;text-align:center;">
+          <div onclick="goToHistory('submitted','')" style="background:#2A1A3A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:16px;font-weight:700;color:#E8B84B;" id="db-value-n">0</div>
             <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:4px;">💰 Total Sales</div>
           </div>
-          <div style="background:#1A3A1A;color:#fff;border-radius:6px;padding:16px;text-align:center;">
+          <div onclick="goToHistory('submitted','')" style="background:#1A3A1A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:16px;font-weight:700;color:#6fcf6f;" id="db-profit-n">0</div>
             <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:4px;">📈 Net Profit</div>
           </div>
@@ -800,15 +804,15 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
         <!-- CLOSING ALERTS — All users see this -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
-          <div style="background:#B22222;color:#fff;border-radius:6px;padding:16px;text-align:center;">
+          <div onclick="goToHistory('','today')" style="background:#B22222;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:36px;font-weight:700;" id="db-today-n">0</div>
             <div style="font-size:12px;color:rgba(255,255,255,.9);margin-top:4px;">🔴 Closing TODAY</div>
           </div>
-          <div style="background:#8B4513;color:#fff;border-radius:6px;padding:16px;text-align:center;">
+          <div onclick="goToHistory('','week')" style="background:#8B4513;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:36px;font-weight:700;" id="db-3day-n">0</div>
             <div style="font-size:12px;color:rgba(255,255,255,.9);margin-top:4px;">🟡 Closing in 3 Days</div>
           </div>
-          <div style="background:#1A3A6B;color:#fff;border-radius:6px;padding:16px;text-align:center;">
+          <div onclick="goToHistory('','today')" style="background:#1A3A6B;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:36px;font-weight:700;" id="db-today-activity">0</div>
             <div style="font-size:12px;color:rgba(255,255,255,.9);margin-top:4px;">⚡ Today's Uploads</div>
           </div>
@@ -1517,6 +1521,30 @@ function closeSidebarMobile(){if(isMobile())closeSidebar();}
 
 // ── NAVIGATION ──
 const PAGES=['dashboard','new','history','prices','search','analytics','users','vehicles','log','backup'];
+
+function goToHistory(statusFilter, dateFilter) {
+  // Set filters
+  var sf = document.getElementById('hist-status-filter');
+  var df = document.getElementById('hist-closing-filter');
+  if (sf && statusFilter) sf.value = statusFilter;
+  if (df && dateFilter) df.value = dateFilter;
+  // Clear other filters
+  var vf = document.getElementById('hist-vehicle-filter');
+  var ef = document.getElementById('hist-entity-filter');
+  var cf = document.getElementById('hist-company-filter');
+  var uf = document.getElementById('hist-user-filter');
+  var hs = document.getElementById('hist-search');
+  if (!statusFilter && sf) sf.value = '';
+  if (!dateFilter && df) df.value = '';
+  if (vf) vf.value = '';
+  if (ef) ef.value = '';
+  if (uf) uf.value = '';
+  if (hs) hs.value = '';
+  // Navigate to history
+  showPage('history');
+  renderHistory();
+}
+
 function showPage(pg){
   if(['analytics','users','log','backup'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
   PAGES.forEach(p=>{
