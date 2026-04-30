@@ -5712,62 +5712,234 @@ function _downloadBlob(content,type,filename){
 function generatePDFHtml(d){
   var co=d&&d.company&&COMPANIES[d.company]?COMPANIES[d.company]:getCompany();
   const grand=d.items.reduce((s,i)=>s+((i.unitPrice||0)*i.qty),0);
+  // Dynamic brands & countries from items
+  var uniqueBrands=[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.brand||i.brand||'';}).filter(Boolean))].join(', ')||'—';
+  var uniqueCountries=[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.country||i.country||'';}).filter(Boolean))].join(', ')||'—';
+  // Rows — NGRD style (blue) or PUSPHA style (red/yellow)
+  var isPuspha=co.id==='puspha';
   const rows=d.items.map((item,idx)=>{
     var br=(item.brandRows&&item.brandRows[0])||{};
     var brand=br.brand||item.brand||'';
     var country=br.country||item.country||'';
     var price=parseFloat(br.price)||item.unitPrice||0;
     var total=price*item.qty;
-    var bg=idx%2===0?'#fff':'#f7f9fc';
+    var bg=isPuspha?(idx%2===0?'#fff':'#FFF8E1'):(idx%2===0?'#fff':'#f7f9fc');
+    var brandColor=isPuspha?'#B71C1C':'#1565C0';
     return `<tr style="background:${bg}">
       <td style="text-align:center;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#888;">${item.itemNo}</td>
       <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;color:#111;">${item.description}</td>
       <td style="text-align:center;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;">${item.qty}</td>
-      <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#1565C0;font-weight:600;">${brand}</td>
+      <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:${brandColor};font-weight:600;">${brand}</td>
       <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#555;">${country}</td>
       <td style="text-align:right;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;">${price>0?lkr(price):'—'}</td>
       <td style="text-align:right;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;font-weight:700;">${total>0?lkr(total):'—'}</td>
     </tr>`;
   }).join('');
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation ${d.eqNo}</title>
+
+  if(isPuspha){
+    // ═══════════════════ PUSPHA MOTORS LETTERHEAD ═══════════════════
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation ${d.eqNo}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:Arial,sans-serif;font-size:12px;color:#000;background:#fff;}
-    .page{width:210mm;margin:0 auto;background:#fff;}
-    .pdf-footer{
-      display:block;
-      width:210mm;
-      margin-top:20px;
-    }
+    .page{width:210mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;}
+    .pdf-footer{display:block;width:210mm;margin-top:20px;}
     .pdf-spacer{height:0;}
     @media print{
       body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
       thead{display:table-header-group;}
       tfoot{display:table-footer-group;}
       .no-break{page-break-inside:avoid;}
-      .pdf-footer{
-        position:fixed;
-        bottom:0;
-        left:0;
-        right:0;
-        width:100%;
-        margin-top:0;
-      }
+      .pdf-footer{position:fixed;bottom:0;left:0;right:0;width:100%;margin-top:0;}
       .pdf-spacer{height:48px;}
     }
-    @page{
-      size:A4;
-      margin:0 0 48px 0;
+    @page{size:A4;margin:0 0 48px 0;}
+  </style>
+  </head><body><div class="page">
+
+  <!-- TOP BAR -->
+  <div style="height:6px;background:linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2);"></div>
+
+  <!-- PUSPHA HEADER -->
+  <div style="background:#fff;padding:18px 28px;border-bottom:3px solid #B71C1C;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="min-width:170px;">
+        <div style="font-size:9px;color:#B71C1C;font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">CONTACT</div>
+        <div style="font-size:9.5px;color:#333;line-height:2;">
+          <div>No: 202/19A, Mohideen Masjid Road</div>
+          <div>Panchikawatta, Colombo 10</div>
+          <div style="color:#B71C1C;font-weight:600;">+94 779 338 696 / +94 759 515 507</div>
+          <div style="color:#B71C1C;">pusphamotors@gmail.com</div>
+        </div>
+      </div>
+      <div style="text-align:center;flex-shrink:0;">
+        <svg width="80" height="80" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/>
+          <circle cx="60" cy="60" r="51" fill="none" stroke="#FFC107" stroke-width="1"/>
+          <circle cx="60" cy="60" r="48" fill="#B71C1C"/>
+          <circle cx="60" cy="60" r="43" fill="#C62828"/>
+          <circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/>
+          <polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/>
+          <circle cx="47" cy="40" r="3.5" fill="#fff"/>
+          <circle cx="60" cy="26" r="4" fill="#fff"/>
+          <circle cx="73" cy="40" r="3.5" fill="#fff"/>
+          <rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/>
+          <text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text>
+          <path id="arc1" d="M 22,60 A 38,38 0 0,0 98,60" fill="none"/>
+          <text font-size="7" fill="rgba(255,255,255,0.65)" font-family="sans-serif" letter-spacing="1.5">
+            <textPath href="#arc1" startOffset="6%">AUTHORIZED SPARE PARTS SUPPLIER</textPath>
+          </text>
+        </svg>
+        <div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div>
+        <div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>
+      </div>
+      <div style="text-align:right;min-width:170px;">
+        <div style="font-size:9px;color:#B71C1C;font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">AUTHORIZED</div>
+        <div style="font-size:9.5px;color:#333;line-height:2;">
+          <div>Spare Parts Supplier</div>
+          <div>Government Institutions</div>
+          <div style="margin-top:5px;"><span style="background:#FFC107;color:#B71C1C;font-size:8px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;">PRICE QUOTATION</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="height:4px;background:linear-gradient(90deg,#FFC107,#FF9800,#F44336,#B71C1C,#F44336,#FF9800,#FFC107);"></div>
+
+  <!-- REPEATING HEADER TABLE -->
+  <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+    <thead><tr><td style="padding:0;">
+      <!-- repeated header content removed for brevity -->
+    </td></tr></thead>
+    <tbody><tr><td style="padding:0;">
+
+  <!-- BODY -->
+  <div style="padding:18px 28px;background:#fff;flex:1;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+      <div>
+        <div style="font-size:11px;color:#555;margin-bottom:4px;">To,</div>
+        <div style="font-size:12px;font-weight:600;color:#111;line-height:1.9;">${d.entity||'—'}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="background:#B71C1C;color:#fff;font-size:10px;padding:4px 12px;border-radius:20px;font-weight:600;">e-Q: ${d.eqNo||'—'}</div>
+        <div style="font-size:10px;color:#555;margin-top:3px;">Date: ${d.date}</div>
+      </div>
+    </div>
+    <div style="background:#FFF8E1;border-left:4px solid #FFC107;border-radius:0 6px 6px 0;padding:9px 12px;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:3px;">
+        <div style="font-size:11px;"><span style="font-weight:700;color:#B71C1C;">Our Ref:</span> <span style="font-weight:600;color:#111;">${d.refNo||'—'}</span></div>
+        <div style="font-size:11px;"><span style="font-weight:700;color:#B71C1C;">e-Q No:</span> <span style="font-weight:600;color:#111;">${d.eqNo||'—'}</span></div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:#111;">Subject: Supply of Motor Spare Parts</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:8px;">Dear Sir,</div>
+    <div style="font-size:11px;color:#444;line-height:1.9;margin-bottom:14px;">We <strong style="color:#B71C1C;">PUSPHA MOTORS</strong>, with reference to the above, are pleased to submit our price quotation for the supply of motor spare parts as per your esteemed requirement.</div>
+    <!-- Vehicle info -->
+    <div style="background:#FFF8E1;border-radius:6px;padding:9px 12px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+      <div style="font-size:10px;color:#555;">Vehicle: <span style="font-weight:600;color:#111;">${d.vehicle||'—'}</span></div>
+      <div style="font-size:10px;color:#555;">Vehicle No: <span style="font-weight:600;color:#111;">${d.vNo||'—'}</span></div>
+      <div style="font-size:10px;color:#555;">Engine No: <span style="font-weight:600;color:#111;">${d.eng||'—'}</span></div>
+      <div style="font-size:10px;color:#555;">Chassis No: <span style="font-weight:600;color:#111;">${d.chas||'—'}</span></div>
+    </div>
+    <!-- Table -->
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;">
+      <thead>
+        <tr>
+          <th style="background:#B71C1C;color:#FFC107;padding:8px;text-align:center;font-size:10px;border-radius:5px 0 0 0;width:28px;">No</th>
+          <th style="background:#C62828;color:#fff;padding:8px;text-align:left;font-size:10px;">Description</th>
+          <th style="background:#D32F2F;color:#fff;padding:8px;text-align:center;font-size:10px;width:32px;">Qty</th>
+          <th style="background:#E53935;color:#fff;padding:8px;text-align:left;font-size:10px;width:65px;">Brand</th>
+          <th style="background:#F44336;color:#fff;padding:8px;text-align:left;font-size:10px;width:58px;">Country</th>
+          <th style="background:#FF7043;color:#fff;padding:8px;text-align:right;font-size:10px;width:82px;">Unit Price</th>
+          <th style="background:#FFC107;color:#B71C1C;padding:8px;text-align:right;font-size:10px;font-weight:700;border-radius:0 5px 0 0;width:82px;">Total</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5" style="padding:8px;border-top:0.5px solid #ddd;"></td>
+          <td style="padding:8px;text-align:right;font-size:10px;color:#B71C1C;font-weight:700;border-top:0.5px solid #ddd;">GRAND TOTAL</td>
+          <td style="padding:8px;text-align:right;border-top:0.5px solid #ddd;"><span style="background:linear-gradient(135deg,#B71C1C,#FF9800);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:15px;">${lkr(grand)}</span></td>
+        </tr>
+      </tfoot>
+    </table>
+    <!-- Other details -->
+    <div style="background:#FFF8E1;border:0.5px solid #FFECB3;border-radius:8px;padding:11px 14px;margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:700;color:#B71C1C;letter-spacing:1px;margin-bottom:7px;display:flex;align-items:center;gap:6px;">
+        <div style="width:3px;height:10px;background:linear-gradient(180deg,#FFC107,#B71C1C);border-radius:2px;"></div>OTHER DETAILS
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
+        <div style="background:#fff;border-radius:4px;padding:6px 8px;border:0.5px solid #FFECB3;"><div style="font-size:7.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">DELIVERY PERIOD</div><div style="font-size:10.5px;font-weight:600;color:#111;">${d.delivery||'02-04 Weeks'}</div></div>
+        <div style="background:#fff;border-radius:4px;padding:6px 8px;border:0.5px solid #FFECB3;"><div style="font-size:7.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">MAKE & MODEL</div><div style="font-size:9.5px;font-weight:600;color:#B71C1C;">${uniqueBrands}</div></div>
+        <div style="background:#fff;border-radius:4px;padding:6px 8px;border:0.5px solid #FFECB3;"><div style="font-size:7.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">COUNTRY OF ORIGIN</div><div style="font-size:10.5px;font-weight:600;color:#111;">${uniqueCountries}</div></div>
+        <div style="background:#fff;border-radius:4px;padding:6px 8px;border:0.5px solid #FFECB3;"><div style="font-size:7.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">VALIDITY PERIOD</div><div style="font-size:10.5px;font-weight:600;color:#111;">${d.validity||'60 Days'}</div></div>
+        <div style="background:#fff;border-radius:4px;padding:6px 8px;border:0.5px solid #FFECB3;"><div style="font-size:7.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">WARRANTY PERIOD</div><div style="font-size:10.5px;font-weight:600;color:#111;">06 Months</div></div>
+        <div style="background:#fff;border-radius:4px;padding:6px 8px;border:0.5px solid #FFECB3;"><div style="font-size:7.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">PAYMENT TERMS</div><div style="font-size:10.5px;font-weight:600;color:#111;">45 Days</div></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#444;line-height:1.9;margin-bottom:18px;">We trust our quotation meets your requirements and look forward to your favorable response.</div>
+    <!-- Signature + Stamp -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <div style="font-size:11px;color:#555;margin-bottom:10px;">Yours faithfully,</div>
+        <img src="https://i.ibb.co/S79WPf4B/Whats-App-PPPPPPPPPPPP.jpg" alt="Signature" style="width:150px;height:55px;object-fit:contain;display:block;"/>
+        <div style="border-top:1px solid #333;width:150px;margin-bottom:6px;"></div>
+        <div style="font-size:12px;font-weight:700;color:#B71C1C;">PUSPHA MOTORS</div>
+      </div>
+      <div style="text-align:center;">
+        <img src="https://i.ibb.co/7D4ytc4/Whats-App-Image-2026-04-30-at-15-11-24.jpg" alt="Official Stamp" style="width:200px;height:200px;object-fit:contain;display:block;margin:0 auto;opacity:0.9;"/>
+        <div style="font-size:9px;color:#888;margin-top:2px;">Official Stamp</div>
+      </div>
+    </div>
+  </div>
+
+    </td></tr></tbody>
+  </table>
+
+  <!-- SPACER -->
+  <div class="pdf-spacer"></div>
+
+  <!-- FOOTER -->
+  <div class="pdf-footer">
+    <div style="height:4px;background:linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2);"></div>
+    <div style="background:#B71C1C;padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">202/19A MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>
+      <div style="display:flex;gap:4px;">
+        <div style="width:5px;height:5px;border-radius:50%;background:#FFC107;"></div>
+        <div style="width:5px;height:5px;border-radius:50%;background:#fff;"></div>
+        <div style="width:5px;height:5px;border-radius:50%;background:#FFC107;"></div>
+      </div>
+      <div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">pusphamotors@gmail.com</div>
+    </div>
+  </div>
+
+</div></body></html>`;
+  }
+
+  // ═══════════════════ NGRD MOTORS LETTERHEAD (default) ═══════════════════
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation ${d.eqNo}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:Arial,sans-serif;font-size:12px;color:#000;background:#fff;}
+    .page{width:210mm;margin:0 auto;background:#fff;}
+    .pdf-footer{display:block;width:210mm;margin-top:20px;}
+    .pdf-spacer{height:0;}
+    @media print{
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      thead{display:table-header-group;}
+      tfoot{display:table-footer-group;}
+      .no-break{page-break-inside:avoid;}
+      .pdf-footer{position:fixed;bottom:0;left:0;right:0;width:100%;margin-top:0;}
+      .pdf-spacer{height:48px;}
     }
+    @page{size:A4;margin:0 0 48px 0;}
   </style>
   </head><body><div class="page">
 
   <!-- TOP RAINBOW BAR -->
   <div style="height:6px;background:linear-gradient(90deg,#E53935,#F9A825,#FFD700,#2E7D32,#0097A7,#1565C0,#7B1FA2);"></div>
 
-  <!-- HEADER -->
+  <!-- NGRD HEADER -->
   <div style="background:linear-gradient(135deg,#0D1B2A 0%,#1A3060 50%,#0D47A1 100%);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;">
-    <!-- HEXAGON LOGO + NAME -->
     <div style="display:flex;align-items:center;gap:16px;">
       <svg width="70" height="70" viewBox="0 0 120 120">
         <polygon points="60,4 104,28 104,76 60,100 16,76 16,28" fill="#FFD700"/>
@@ -5794,7 +5966,6 @@ function generatePDFHtml(d){
         </div>
       </div>
     </div>
-    <!-- CONTACT RIGHT -->
     <div style="text-align:right;">
       <div style="color:#FFD700;font-size:9.5px;font-weight:700;letter-spacing:1px;margin-bottom:4px;">CONTACT</div>
       <div style="color:rgba(255,255,255,0.85);font-size:9.5px;line-height:1.9;">
@@ -5805,18 +5976,15 @@ function generatePDFHtml(d){
       </div>
     </div>
   </div>
-
-  <!-- RAINBOW STRIPE -->
   <div style="height:4px;background:linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#F9A825,#E53935);"></div>
 
-      </td></tr>
-    </thead>
-    <tbody>
-      <tr><td style="padding:0;">
+  <!-- REPEATING HEADER TABLE -->
+  <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+    <thead><tr><td style="padding:0;"></td></tr></thead>
+    <tbody><tr><td style="padding:0;">
+
   <!-- LETTER BODY -->
   <div style="padding:20px 30px;background:#fff;flex:1;">
-
-    <!-- DATE + TO -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
       <div>
         <div style="font-size:11px;color:#555;margin-bottom:6px;">To,</div>
@@ -5827,33 +5995,22 @@ function generatePDFHtml(d){
         <div style="font-size:10px;color:#555;margin-top:4px;">Date: ${d.date}</div>
       </div>
     </div>
-
-    <!-- REF + SUBJECT -->
     <div style="background:linear-gradient(135deg,rgba(13,71,161,0.05),rgba(26,147,111,0.05));border-left:4px solid #FFD700;padding:9px 12px;margin-bottom:14px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:5px;">
-        <div style="font-size:11px;color:#333;">
-          <span style="font-weight:700;color:#0D47A1;">Our Ref:</span> <span style="font-weight:600;color:#111;">${d.refNo||'—'}</span>
-        </div>
-        <div style="font-size:11px;color:#333;">
-          <span style="font-weight:700;color:#0D47A1;">e-Q No:</span> <span style="font-weight:600;color:#111;">${d.eqNo||'—'}</span>
-        </div>
+        <div style="font-size:11px;color:#333;"><span style="font-weight:700;color:#0D47A1;">Our Ref:</span> <span style="font-weight:600;color:#111;">${d.refNo||'—'}</span></div>
+        <div style="font-size:11px;color:#333;"><span style="font-weight:700;color:#0D47A1;">e-Q No:</span> <span style="font-weight:600;color:#111;">${d.eqNo||'—'}</span></div>
       </div>
       <div style="font-size:12px;font-weight:600;color:#111;">Subject: Supply of Motor Spare Parts</div>
     </div>
-
     <div style="font-size:11.5px;color:#111;margin-bottom:3px;font-weight:600;">Dear Sir,</div>
     <div style="font-size:11px;color:#555;margin-bottom:6px;line-height:1.7;">Further to the above reference, please find the details as follows:</div>
     <div style="font-size:11px;color:#555;margin-bottom:14px;line-height:1.7;">With reference to the above, we <strong>N.G.R.D. MOTORS</strong> hereby submit our price quotation for the supply of spare parts as per your requirement.</div>
-
-    <!-- VEHICLE INFO -->
     <div style="background:#f0f4f8;border-radius:6px;padding:10px 14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:4px;">
       <div style="font-size:10px;color:#555;">Vehicle: <span style="font-weight:600;color:#111;">${d.vehicle||'—'}</span></div>
       <div style="font-size:10px;color:#555;">Vehicle No: <span style="font-weight:600;color:#111;">${d.vNo||'—'}</span></div>
       <div style="font-size:10px;color:#555;">Engine No: <span style="font-weight:600;color:#111;">${d.eng||'—'}</span></div>
       <div style="font-size:10px;color:#555;">Chassis No: <span style="font-weight:600;color:#111;">${d.chas||'—'}</span></div>
     </div>
-
-    <!-- PARTS TABLE -->
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px;">
       <thead>
         <tr>
@@ -5871,90 +6028,52 @@ function generatePDFHtml(d){
         <tr>
           <td colspan="5" style="padding:8px;border-top:0.5px solid #ddd;"></td>
           <td style="padding:8px;text-align:right;font-size:10.5px;color:#0D47A1;font-weight:700;border-top:0.5px solid #ddd;">GRAND TOTAL</td>
-          <td style="padding:8px;text-align:right;border-top:0.5px solid #ddd;">
-            <span style="background:linear-gradient(135deg,#FF6B35,#FFD700);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">${lkr(grand)}</span>
-          </td>
+          <td style="padding:8px;text-align:right;border-top:0.5px solid #ddd;"><span style="background:linear-gradient(135deg,#FF6B35,#FFD700);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;">${lkr(grand)}</span></td>
         </tr>
       </tfoot>
     </table>
-
-    <!-- OTHER DETAILS -->
-    <div style="background:linear-gradient(135deg,rgba(13,71,161,0.04),rgba(26,147,111,0.04));border:0.5px solid #ddd;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
-      <div style="font-size:10.5px;font-weight:700;color:#0D47A1;letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-        <div style="width:3px;height:11px;background:linear-gradient(180deg,#FF6B35,#FFD700);border-radius:2px;"></div>
-        OTHER DETAILS
+    <div style="background:linear-gradient(135deg,rgba(13,71,161,0.04),rgba(26,147,111,0.04));border:0.5px solid #ddd;border-radius:8px;padding:14px 18px;margin-bottom:22px;">
+      <div style="font-size:11px;font-weight:700;color:#0D47A1;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+        <div style="width:3px;height:12px;background:linear-gradient(180deg,#FF6B35,#FFD700);border-radius:2px;"></div>OTHER DETAILS
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
-        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
-          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">DELIVERY PERIOD</div>
-          <div style="font-size:10.5px;font-weight:600;color:#111;">${d.delivery||'02-04 Weeks'}</div>
-        </div>
-        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
-          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">MAKE & MODEL</div>
-          <div style="font-size:9.5px;font-weight:600;color:#1565C0;">${[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.brand||i.brand||"";}).filter(Boolean))].join(", ")||"—"}</div>
-        </div>
-        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
-          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">COUNTRY OF ORIGIN</div>
-          <div style="font-size:10.5px;font-weight:600;color:#111;">${[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.country||i.country||"";}).filter(Boolean))].join(", ")||"—"}</div>
-        </div>
-        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
-          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">VALIDITY PERIOD</div>
-          <div style="font-size:10.5px;font-weight:600;color:#111;">${d.validity||'60 Days'}</div>
-        </div>
-        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
-          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">WARRANTY PERIOD</div>
-          <div style="font-size:10.5px;font-weight:600;color:#111;">06 Months</div>
-        </div>
-        <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
-          <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">PAYMENT TERMS</div>
-          <div style="font-size:10.5px;font-weight:600;color:#111;">45 Days</div>
-        </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div style="background:#fff;border-radius:6px;padding:8px 10px;border:0.5px solid #eee;"><div style="font-size:8.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">DELIVERY PERIOD</div><div style="font-size:11px;font-weight:600;color:#111;">${d.delivery||'02-04 Weeks'}</div></div>
+        <div style="background:#fff;border-radius:6px;padding:8px 10px;border:0.5px solid #eee;"><div style="font-size:8.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">MAKE & MODEL</div><div style="font-size:9.5px;font-weight:600;color:#1565C0;">${uniqueBrands}</div></div>
+        <div style="background:#fff;border-radius:6px;padding:8px 10px;border:0.5px solid #eee;"><div style="font-size:8.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">COUNTRY OF ORIGIN</div><div style="font-size:11px;font-weight:600;color:#111;">${uniqueCountries}</div></div>
+        <div style="background:#fff;border-radius:6px;padding:8px 10px;border:0.5px solid #eee;"><div style="font-size:8.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">VALIDITY PERIOD</div><div style="font-size:11px;font-weight:600;color:#111;">${d.validity||'60 Days'}</div></div>
+        <div style="background:#fff;border-radius:6px;padding:8px 10px;border:0.5px solid #eee;"><div style="font-size:8.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">WARRANTY PERIOD</div><div style="font-size:11px;font-weight:600;color:#111;">06 Months</div></div>
+        <div style="background:#fff;border-radius:6px;padding:8px 10px;border:0.5px solid #eee;"><div style="font-size:8.5px;color:#888;letter-spacing:1px;margin-bottom:2px;">PAYMENT TERMS</div><div style="font-size:11px;font-weight:600;color:#111;">45 Days</div></div>
       </div>
     </div>
-
-    <!-- SIGNATURE + STAMP -->
+    <div style="font-size:11px;color:#555;margin-bottom:18px;line-height:1.7;">We trust our quotation meets your requirements and look forward to your favorable response.</div>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
       <div style="text-align:left;">
-        <div style="font-size:11px;color:#555;margin-bottom:12px;line-height:1.7;">We trust our quotation meets your requirements and look forward to your favorable response.</div>
-        <div style="font-size:11px;color:#555;margin-bottom:6px;">Yours faithfully,</div>
+        <div style="font-size:11px;color:#555;margin-bottom:8px;">Yours faithfully,</div>
         <img src="https://i.ibb.co/6R4Xj0h2/Whats-App-Image-2026-04-30-at-13-02-55.jpg" alt="Signature" style="width:150px;height:55px;object-fit:contain;display:block;"/>
-        <div style="border-top:1px solid #333;width:150px;margin-bottom:6px;"></div>
-        <div style="font-size:11px;color:#111;line-height:1.9;">
-          <div style="font-weight:700;color:#0D47A1;">N.G.R.D. MOTORS</div>
-          <div style="font-size:10px;color:#555;">No: 202/17B, Mohideen Masjid Road,</div>
-          <div style="font-size:10px;color:#555;">Panchikawatta, Colombo 10.</div>
-          <div style="font-size:10px;color:#0D47A1;">011 244 9385 / 076 688 6526</div>
-          <div style="font-size:10px;font-weight:600;color:#111;">NGRD Motors (Manager)</div>
-        </div>
+        <div style="border-top:1px solid #333;width:150px;margin-bottom:8px;"></div>
+        <div style="font-size:11.5px;font-weight:700;color:#0D47A1;">N.G.R.D. MOTORS</div>
       </div>
       <div style="text-align:center;">
-        <img src="https://i.ibb.co/c022By1/Whats-App-Image-2026-04-30-at-12-39-41.jpg" alt="Official Stamp" style="width:400px;height:400px;object-fit:contain;display:block;margin:0 auto;opacity:0.9;"/>
-        <div style="font-size:9px;color:#888;margin-top:2px;">Official Stamp</div>
+        <img src="https://i.ibb.co/c022By1/Whats-App-Image-2026-04-30-at-12-39-41.jpg" alt="Official Stamp" style="width:200px;height:200px;object-fit:contain;display:block;margin:0 auto;opacity:0.9;"/>
+        <div style="font-size:9.5px;color:#888;margin-top:3px;">Official Stamp</div>
       </div>
     </div>
-
   </div>
 
-  <!-- RAINBOW BOTTOM -->
-      </td></tr>
-    </tbody>
+    </td></tr></tbody>
   </table>
-
-  <!-- SPACER — gives space so content doesnt hide behind footer -->
   <div class="pdf-spacer"></div>
-
-  <!-- FOOTER — position:fixed, @page margin:bottom → always A4 last line ✅ -->
   <div class="pdf-footer">
     <div style="height:4px;background:linear-gradient(90deg,#E53935,#F9A825,#FFD700,#2E7D32,#0097A7,#1565C0,#7B1FA2);"></div>
     <div style="background:linear-gradient(135deg,#0D1B2A,#1A3060);padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">
-      <div style="color:rgba(255,255,255,0.8);font-size:8px;letter-spacing:1px;">202/17B MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>
+      <div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">202/17B MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>
       <div style="display:flex;gap:4px;">
         <div style="width:5px;height:5px;border-radius:50%;background:#E53935;"></div>
         <div style="width:5px;height:5px;border-radius:50%;background:#FFD700;"></div>
         <div style="width:5px;height:5px;border-radius:50%;background:#2E7D32;"></div>
         <div style="width:5px;height:5px;border-radius:50%;background:#1565C0;"></div>
       </div>
-      <div style="color:rgba(255,255,255,0.8);font-size:8px;letter-spacing:1px;">ngrdmotors@gmail.com</div>
+      <div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">ngrdmotors@gmail.com</div>
     </div>
   </div>
 
