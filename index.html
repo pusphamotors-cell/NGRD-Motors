@@ -1523,35 +1523,34 @@ function closeSidebarMobile(){if(isMobile())closeSidebar();}
 const PAGES=['dashboard','new','history','prices','search','analytics','users','vehicles','log','backup'];
 
 function goToHistory(statusFilter, dateFilter) {
-  // Reset ALL filters first
-  var sf = document.getElementById('hist-status-filter');
-  var df = document.getElementById('hist-closing-filter');
-  var vf = document.getElementById('hist-vehicle-filter');
-  var ef = document.getElementById('hist-entity-filter');
-  var cf = document.getElementById('hist-company-filter');
-  var uf = document.getElementById('hist-user-filter');
-  var hs = document.getElementById('hist-search');
-  if (sf) sf.value = '';
-  if (df) df.value = '';
-  if (vf) vf.value = '';
-  if (ef) ef.value = '';
-  if (cf) cf.value = '';
-  if (uf) uf.value = '';
-  if (hs) hs.value = '';
-  // Set only the requested filter
-  if (sf && statusFilter) sf.value = statusFilter;
-  if (df && dateFilter) df.value = dateFilter;
-  // Navigate to history page
+  // Navigate to history page first
   showPage('history');
-  // Force re-render after page switch — works even if already on history page
+  // Wait for page to render, then set filters and re-render
   setTimeout(function(){
+    // Reset ALL filters
+    var sf = document.getElementById('hist-status-filter');
+    var df = document.getElementById('hist-closing-filter');
+    var vf = document.getElementById('hist-vehicle-filter');
+    var ef = document.getElementById('hist-entity-filter');
+    var cf = document.getElementById('hist-company-filter');
+    var uf = document.getElementById('hist-user-filter');
+    var hs = document.getElementById('hist-search');
+    if (sf) sf.value = '';
+    if (df) df.value = '';
+    if (vf) vf.value = '';
+    if (ef) ef.value = '';
+    if (cf) cf.value = '';
+    if (uf) uf.value = '';
+    if (hs) hs.value = '';
+    // Set only the requested filter
+    if (sf && statusFilter) sf.value = statusFilter;
+    if (df && dateFilter) df.value = dateFilter;
+    // Now render with correct filter
     renderHistory();
-    // Scroll to top of history list
-    var histList = document.getElementById('hist-list');
-    if (histList) histList.scrollTop = 0;
+    // Scroll to top
     var pg = document.getElementById('page-history');
     if (pg) pg.scrollTop = 0;
-  }, 150);
+  }, 200);
 }
 
 function showPage(pg){
