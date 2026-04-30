@@ -5734,7 +5734,18 @@ function generatePDFHtml(d){
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:Arial,sans-serif;font-size:12px;color:#000;background:#fff;}
     .page{width:210mm;min-height:297mm;padding:0;margin:0 auto;background:#fff;}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+    @media print{
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      thead{display:table-header-group;}
+      tfoot{display:table-footer-group;}
+      .page-header{display:table-header-group;}
+      .no-break{page-break-inside:avoid;}
+      .letter-body{page-break-inside:auto;}
+    }
+    @page{
+      size:A4;
+      margin:0;
+    }
   </style>
   </head><body><div class="page">
 
@@ -5785,6 +5796,10 @@ function generatePDFHtml(d){
   <!-- RAINBOW STRIPE -->
   <div style="height:4px;background:linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#F9A825,#E53935);"></div>
 
+      </td></tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:0;">
   <!-- LETTER BODY -->
   <div style="padding:20px 30px;background:#fff;">
 
@@ -5893,7 +5908,7 @@ function generatePDFHtml(d){
         </div>
       </div>
       <div style="text-align:center;">
-        <img src="https://i.ibb.co/c022By1/Whats-App-Image-2026-04-30-at-12-39-41.jpg" alt="Official Stamp" style="width:280px;height:280px;object-fit:contain;display:block;margin:0 auto;opacity:0.9;"/>
+        <img src="https://i.ibb.co/c022By1/Whats-App-Image-2026-04-30-at-12-39-41.jpg" alt="Official Stamp" style="width:400px;height:400px;object-fit:contain;display:block;margin:0 auto;opacity:0.9;"/>
         <div style="font-size:9px;color:#888;margin-top:2px;">Official Stamp</div>
       </div>
     </div>
@@ -5915,6 +5930,9 @@ function generatePDFHtml(d){
     <div style="color:rgba(255,255,255,0.4);font-size:8px;letter-spacing:1px;">ngrdmotors@gmail.com</div>
   </div>
 
+      </td></tr>
+    </tbody>
+  </table>
 </div></body></html>`;
 }
 
@@ -5975,6 +5993,10 @@ function generateArmyLetterHtml(d){
   @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
 </head><body>
   <div class="page">
+  <!-- REPEATING HEADER TABLE WRAPPER -->
+  <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+    <thead>
+      <tr><td style="padding:0;">
     <div class="lhb">
       <div class="seal">${co.seal}</div>
       <div class="lht"><div class="lhn">${co.name}</div><div class="lhs">${co.tagline}</div><div class="lha">${co.addressShort}</div></div>
