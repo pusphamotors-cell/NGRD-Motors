@@ -5744,7 +5744,7 @@ function generatePDFHtml(d){
     }
     @page{
       size:A4;
-      margin:0;
+      margin:0 0 44px 0;
     }
   </style>
   </head><body><div class="page">
@@ -5877,11 +5877,11 @@ function generatePDFHtml(d){
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">MAKE & MODEL</div>
-          <div style="font-size:9.5px;font-weight:600;color:#1565C0;">${[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.brand||i.brand||'';}).filter(Boolean))].join(', ')||'—'}</div>
+          <div style="font-size:9.5px;font-weight:600;color:#1565C0;">BAPI, HOLTS, HULK, SIMCO, MINDA</div>
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">COUNTRY OF ORIGIN</div>
-          <div style="font-size:10.5px;font-weight:600;color:#111;">${[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.country||i.country||'';}).filter(Boolean))].join(', ')||'—'}</div>
+          <div style="font-size:10.5px;font-weight:600;color:#111;">India</div>
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">VALIDITY PERIOD</div>
@@ -5920,24 +5920,25 @@ function generatePDFHtml(d){
 
   </div>
 
-  <!-- RAINBOW BOTTOM -->
-  <div style="height:4px;background:linear-gradient(90deg,#E53935,#F9A825,#FFD700,#2E7D32,#0097A7,#1565C0,#7B1FA2);"></div>
-
-  <!-- FOOTER -->
-  <div style="background:linear-gradient(135deg,#0D1B2A,#1A3060);padding:8px 28px;display:flex;justify-content:space-between;align-items:center;">
-    <div style="color:rgba(255,255,255,0.4);font-size:8px;letter-spacing:1px;">202/17B MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>
-    <div style="display:flex;gap:4px;">
-      <div style="width:5px;height:5px;border-radius:50%;background:#E53935;"></div>
-      <div style="width:5px;height:5px;border-radius:50%;background:#FFD700;"></div>
-      <div style="width:5px;height:5px;border-radius:50%;background:#2E7D32;"></div>
-      <div style="width:5px;height:5px;border-radius:50%;background:#1565C0;"></div>
-    </div>
-    <div style="color:rgba(255,255,255,0.4);font-size:8px;letter-spacing:1px;">ngrdmotors@gmail.com</div>
-  </div>
-
       </td></tr>
     </tbody>
   </table>
+
+  <!-- FOOTER — position:fixed → A4 bottom-ல் எப்போதும் ✅ -->
+  <div style="position:fixed;bottom:0;left:0;right:0;width:100%;">
+    <div style="height:4px;background:linear-gradient(90deg,#E53935,#F9A825,#FFD700,#2E7D32,#0097A7,#1565C0,#7B1FA2);"></div>
+    <div style="background:linear-gradient(135deg,#0D1B2A,#1A3060);padding:8px 28px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">202/17B MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>
+      <div style="display:flex;gap:4px;">
+        <div style="width:5px;height:5px;border-radius:50%;background:#E53935;"></div>
+        <div style="width:5px;height:5px;border-radius:50%;background:#FFD700;"></div>
+        <div style="width:5px;height:5px;border-radius:50%;background:#2E7D32;"></div>
+        <div style="width:5px;height:5px;border-radius:50%;background:#1565C0;"></div>
+      </div>
+      <div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">ngrdmotors@gmail.com</div>
+    </div>
+  </div>
+
 </div></body></html>`;
 }
 
