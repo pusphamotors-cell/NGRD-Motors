@@ -1523,26 +1523,27 @@ function closeSidebarMobile(){if(isMobile())closeSidebar();}
 const PAGES=['dashboard','new','history','prices','search','analytics','users','vehicles','log','backup'];
 
 function goToHistory(statusFilter, dateFilter) {
-  // Set filters
+  // Reset ALL filters first
   var sf = document.getElementById('hist-status-filter');
   var df = document.getElementById('hist-closing-filter');
-  if (sf && statusFilter) sf.value = statusFilter;
-  if (df && dateFilter) df.value = dateFilter;
-  // Clear other filters
   var vf = document.getElementById('hist-vehicle-filter');
   var ef = document.getElementById('hist-entity-filter');
   var cf = document.getElementById('hist-company-filter');
   var uf = document.getElementById('hist-user-filter');
   var hs = document.getElementById('hist-search');
-  if (!statusFilter && sf) sf.value = '';
-  if (!dateFilter && df) df.value = '';
+  if (sf) sf.value = '';
+  if (df) df.value = '';
   if (vf) vf.value = '';
   if (ef) ef.value = '';
+  if (cf) cf.value = '';
   if (uf) uf.value = '';
   if (hs) hs.value = '';
+  // Now set only the requested filter
+  if (sf && statusFilter) sf.value = statusFilter;
+  if (df && dateFilter) df.value = dateFilter;
   // Navigate to history
   showPage('history');
-  renderHistory();
+  setTimeout(function(){ renderHistory(); }, 100);
 }
 
 function showPage(pg){
