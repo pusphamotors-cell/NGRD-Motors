@@ -1538,12 +1538,20 @@ function goToHistory(statusFilter, dateFilter) {
   if (cf) cf.value = '';
   if (uf) uf.value = '';
   if (hs) hs.value = '';
-  // Now set only the requested filter
+  // Set only the requested filter
   if (sf && statusFilter) sf.value = statusFilter;
   if (df && dateFilter) df.value = dateFilter;
-  // Navigate to history
+  // Navigate to history page
   showPage('history');
-  setTimeout(function(){ renderHistory(); }, 100);
+  // Force re-render after page switch — works even if already on history page
+  setTimeout(function(){
+    renderHistory();
+    // Scroll to top of history list
+    var histList = document.getElementById('hist-list');
+    if (histList) histList.scrollTop = 0;
+    var pg = document.getElementById('page-history');
+    if (pg) pg.scrollTop = 0;
+  }, 150);
 }
 
 function showPage(pg){
