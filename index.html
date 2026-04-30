@@ -5810,15 +5810,20 @@ function generatePDFHtml(d){
         <div style="font-size:12px;font-weight:600;color:#111;line-height:1.9;">${d.entity||'—'}</div>
       </div>
       <div style="text-align:right;">
-        <div style="background:linear-gradient(135deg,#0D47A1,#1A936F);color:#fff;font-size:10px;padding:4px 12px;border-radius:20px;font-weight:600;">Ref: ${d.eqNo||d.refNo||'—'}</div>
+        <div style="background:linear-gradient(135deg,#0D47A1,#1A936F);color:#fff;font-size:10px;padding:4px 12px;border-radius:20px;font-weight:600;">e-Q: ${d.eqNo||'—'}</div>
         <div style="font-size:10px;color:#555;margin-top:4px;">Date: ${d.date}</div>
       </div>
     </div>
 
     <!-- REF + SUBJECT -->
     <div style="background:linear-gradient(135deg,rgba(13,71,161,0.05),rgba(26,147,111,0.05));border-left:4px solid #FFD700;padding:9px 12px;margin-bottom:14px;">
-      <div style="font-size:11px;color:#333;margin-bottom:3px;">
-        <span style="font-weight:700;color:#0D47A1;">Ref:</span> File Number: <span style="font-weight:600;color:#111;">${d.refNo||'—'}</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:5px;">
+        <div style="font-size:11px;color:#333;">
+          <span style="font-weight:700;color:#0D47A1;">Our Ref:</span> <span style="font-weight:600;color:#111;">${d.refNo||'—'}</span>
+        </div>
+        <div style="font-size:11px;color:#333;">
+          <span style="font-weight:700;color:#0D47A1;">e-Q No:</span> <span style="font-weight:600;color:#111;">${d.eqNo||'—'}</span>
+        </div>
       </div>
       <div style="font-size:12px;font-weight:600;color:#111;">Subject: Supply of Motor Spare Parts</div>
     </div>
@@ -5872,11 +5877,11 @@ function generatePDFHtml(d){
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">MAKE & MODEL</div>
-          <div style="font-size:9.5px;font-weight:600;color:#1565C0;">BAPI, HOLTS, HULK, SIMCO, MINDA</div>
+          <div style="font-size:9.5px;font-weight:600;color:#1565C0;">${[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.brand||i.brand||'';}).filter(Boolean))].join(', ')||'—'}</div>
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">COUNTRY OF ORIGIN</div>
-          <div style="font-size:10.5px;font-weight:600;color:#111;">India</div>
+          <div style="font-size:10.5px;font-weight:600;color:#111;">${[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.country||i.country||'';}).filter(Boolean))].join(', ')||'—'}</div>
         </div>
         <div style="background:#fff;border-radius:5px;padding:6px 9px;border:0.5px solid #eee;">
           <div style="font-size:8px;color:#888;letter-spacing:1px;margin-bottom:2px;">VALIDITY PERIOD</div>
