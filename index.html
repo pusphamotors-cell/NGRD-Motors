@@ -581,6 +581,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <button class="btn btn-gold" onclick="downloadExcel()">📥 Excel</button>
                 <button class="btn btn-green" onclick="downloadPDFDirect()">💾 Download PDF</button>
                 <button class="btn btn-navy" onclick="downloadPDF()">🖨️ Print</button>
+                <button class="btn" onclick="downloadSimplePDF()" style="background:#7B1FA2;color:#fff;border:none;">📋 Simple PDF</button>
               </div>
               <div class="action-div"></div>
               <div class="format-group">
@@ -6082,6 +6083,7 @@ function generatePDFHtml(d){
 }
 
 function downloadPDF(){if(!curItems.length){showToast('No items','t-e');return;}const d=buildQData();_printWithIframe(generatePDFHtml(d));addLog('PDF exported: '+(d.eqNo||d.refNo));}
+function downloadSimplePDF(){if(!curItems.length){showToast('No items','t-e');return;}const d=buildQData();_printWithIframe(generateSimplePDFHtml(d));addLog('Simple PDF exported: '+(d.eqNo||d.refNo));}
 
 function downloadPDFDirect(){
   if(!curItems.length){showToast('No items','t-e');return;}
