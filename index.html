@@ -6143,7 +6143,7 @@ function generateArmyLetterHtml(d){
   .sc{text-align:center;}.sl{border-bottom:1px solid #000;height:36px;margin-bottom:5px;}
   .stmp{border:1px dashed #aaa;height:60px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;font-weight:700;}
   .ftr{margin-top:14px;padding-top:6px;border-top:2px solid ${co.colorAccent};display:flex;justify-content:space-between;font-size:8px;color:#666;}
-  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
+  @page{size:A4;margin:0;}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
 </head><body>
   <div class="page">
   <!-- REPEATING HEADER TABLE WRAPPER -->
@@ -6298,7 +6298,7 @@ function downloadPurchaseEnquiryPDF(){
   '.sig-row{display:flex;justify-content:space-between;margin-top:30px;padding-top:10px;}'+
   '.sig-box{text-align:center;min-width:160px;}'+
   '.sig-line{border-top:1px solid #000;margin-top:40px;padding-top:4px;font-size:10px;color:#555;}'+
-  '@media print{body{margin:0;}}</style></head><body>'+
+  '@page{size:A4;margin:0;}@media print{body{margin:0;}}</style></head><body>'+
   '<div class="page">'+
   '<div class="header-box">'+
   '<div><div class="co-name">'+co.name.toUpperCase()+'</div>'+
