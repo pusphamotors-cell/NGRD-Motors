@@ -786,6 +786,17 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
       <!-- ═ DASHBOARD ═ -->
       <div id="page-dashboard" style="display:none;">
+        <!-- VALIDITY EXTENSION QUICK ACTION (permission-gated) -->
+        <div id="db-extension-card" onclick="openExtensionModal()" style="display:none;background:linear-gradient(90deg,#1A6B3C,#15803d);color:#fff;border-radius:8px;padding:16px 20px;margin-bottom:18px;cursor:pointer;align-items:center;justify-content:space-between;transition:opacity .2s;box-shadow:0 2px 8px rgba(26,107,60,.25);" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="font-size:30px;">📜</div>
+            <div>
+              <div style="font-size:15px;font-weight:700;">Validity Extension Letter</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">Navy quotation validity extend / decline letter — NGRD &amp; Puspha</div>
+            </div>
+          </div>
+          <div style="background:rgba(255,255,255,.2);padding:8px 16px;border-radius:6px;font-weight:700;font-size:13px;white-space:nowrap;">Create →</div>
+        </div>
         <!-- ADMIN ONLY STATS -->
         <div id="db-admin-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;">
           <div onclick="goToHistory('','')" style="background:#0D1B2A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
@@ -1460,7 +1471,7 @@ function initApp(){
   vt.textContent='🚗 '+vehicleLabel(CU);
   vt.style.display='inline-block';
   document.getElementById('admin-nav').style.display=CU.role==='admin'?'block':'none';
-  (function(){var _canExt=(CU.role==='admin'||(CU.permissions&&CU.permissions.includes('extension')));var _e1=document.getElementById('fmt-extension'),_e2=document.getElementById('fmt-extension-div'),_e3=document.getElementById('nav-extension');if(_e1)_e1.style.display=_canExt?'':'none';if(_e2)_e2.style.display=_canExt?'':'none';if(_e3)_e3.style.display=_canExt?'':'none';})();
+  (function(){var _canExt=(CU.role==='admin'||(CU.permissions&&CU.permissions.includes('extension')));var _e1=document.getElementById('fmt-extension'),_e2=document.getElementById('fmt-extension-div'),_e3=document.getElementById('nav-extension'),_e4=document.getElementById('db-extension-card');if(_e1)_e1.style.display=_canExt?'':'none';if(_e2)_e2.style.display=_canExt?'':'none';if(_e3)_e3.style.display=_canExt?'':'none';if(_e4)_e4.style.display=_canExt?'flex':'none';})();
   startSessionTimer();
   showPage('dashboard');
   setTimeout(checkDeadlineAlarms,500);
