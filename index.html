@@ -599,6 +599,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <button class="btn btn-navy" onclick="downloadPurchaseEnquiryPDF()">📋 PDF</button>
               </div>
               <div class="action-div"></div>
+              <div class="format-group" id="fmt-extension" style="display:none;">
+                <div class="format-lbl">Format 4 — Validity Extension</div>
+                <button class="btn" onclick="openExtensionModal()" style="background:#1A6B3C;color:#fff;border:none;">📄 Extension Letter</button>
+              </div>
+              <div class="action-div" id="fmt-extension-div" style="display:none;"></div>
               <!-- Workflow Progress Bar -->
               <div id="workflow-bar" style="width:100%;margin-bottom:10px;display:none;">
                 <div style="display:flex;align-items:center;gap:0;background:#f0f4f8;border-radius:8px;overflow:hidden;border:1px solid #dde4ee;">
@@ -927,6 +932,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
   <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="r-export"> 📥 Export</label>
   <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="r-approve"> ✅ Approve</label>
   <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="r-admin"> 🔑 Admin (All)</label>
+  <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="r-extension"> 📄 Extension Letter</label>
 </div></div>
                 <div class="form-field full"><label>Assigned Vehicles</label>
                   <div id="nu-vehicle-checks" style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:8px;border:1px solid var(--border);border-radius:3px;background:var(--light);margin-top:4px;"></div>
@@ -1453,6 +1459,7 @@ function initApp(){
   vt.textContent='🚗 '+vehicleLabel(CU);
   vt.style.display='inline-block';
   document.getElementById('admin-nav').style.display=CU.role==='admin'?'block':'none';
+  (function(){var _canExt=(CU.role==='admin'||(CU.permissions&&CU.permissions.includes('extension')));var _e1=document.getElementById('fmt-extension'),_e2=document.getElementById('fmt-extension-div');if(_e1)_e1.style.display=_canExt?'':'none';if(_e2)_e2.style.display=_canExt?'':'none';})();
   startSessionTimer();
   showPage('dashboard');
   setTimeout(checkDeadlineAlarms,500);
@@ -3278,6 +3285,7 @@ function openEditPerms(uid){
     inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-export"> Export</label>';
     inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-approve"> Approve</label>';
     inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-admin"> Admin</label>';
+    inner+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="ep-extension"> 📄 Extension Letter</label>';
     inner+='</div></div>';
     inner+='<div style="margin-bottom:12px;padding:10px;background:#f8f9fa;border-radius:6px;">';
     inner+='<div style="font-size:12px;font-weight:700;color:#333;margin-bottom:8px;">🏢 COMPANY ACCESS:</div>';
@@ -3310,7 +3318,7 @@ function openEditPerms(uid){
   var epWa=document.getElementById('ep-wa');if(epWa) epWa.value=u.whatsapp||'';
   document.getElementById('epu-id').value=u.id;
   var perms=u.permissions||[];
-  ['upload','price','submit','export','approve','admin'].forEach(function(p){
+  ['upload','price','submit','export','approve','admin','extension'].forEach(function(p){
     var el=document.getElementById('ep-'+p);
     if(el) el.checked=perms.includes(p);
   });
@@ -3331,7 +3339,7 @@ function saveEditPerms(){
   var users=getUsers();
   var idx=users.findIndex(function(x){return x.id===uid;});
   if(idx<0) return;
-  var perms=['upload','price','submit','export','approve','admin'].filter(function(p){
+  var perms=['upload','price','submit','export','approve','admin','extension'].filter(function(p){
     var el=document.getElementById('ep-'+p); return el&&el.checked;
   });
   var vehs=getCheckedVehicles('ep-vehicle-checks');
@@ -4252,7 +4260,7 @@ function addUser(){
   const expiry=(document.getElementById('nu-expiry')||{value:''}).value||'';
   const vehs=getCheckedVehicles('nu-vehicle-checks');
   // Get permissions from checkboxes
-  const perms=['upload','price','submit','export','approve','admin'].filter(function(p){
+  const perms=['upload','price','submit','export','approve','admin','extension'].filter(function(p){
     var el=document.getElementById('r-'+p);return el&&el.checked;
   });
   const rl=perms.includes('admin')?'admin':perms.length>0?perms[0]:'staff';
@@ -6563,6 +6571,168 @@ function reExportArmyPDF(id){const e=getHist().find(x=>x.id===id);if(!e)return;i
 // ══════════════════════════════════════════════════
 // COMPANY SUBMITTER SETTINGS
 // ══════════════════════════════════════════════════
+/* ═══════════════════ VALIDITY EXTENSION LETTER (added feature) ═══════════════════ */
+var EXT_CAMPS = {
+  'KKS': {label:'KKS — Kankasanthurai (North)', addr:['The Commodore Superintendent,','Logistics Department (North),','Northern Naval Area,','Sri Lanka Navy,','Kankasanthurai.']},
+  'WELISARA': {label:'Welisara', addr:['The Commanding Officer,','Logistics Department,','Sri Lanka Navy,','Welisara.']},
+  'TRINCO': {label:'Trincomalee', addr:['The Commanding Officer,','Logistics Department,','Eastern Naval Area,','Sri Lanka Navy,','Trincomalee.']},
+  'PUTTALAM': {label:'Puttalam', addr:['The Commanding Officer,','Logistics Department,','Sri Lanka Navy,','Puttalam.']},
+  'PANAMA': {label:'Panama', addr:['The Commanding Officer,','Logistics Department,','Sri Lanka Navy,','Panama.']},
+  'BOOSSA': {label:'Boossa', addr:['The Commanding Officer,','Logistics Department,','Sri Lanka Navy,','Boossa.']},
+  'NCC': {label:'NCC', addr:['The Commanding Officer,','Logistics Department,','Sri Lanka Navy,','NCC.']},
+  'ARMY': {label:'Sri Lanka Army', addr:['The Director,','Directorate of EME,','Sri Lanka Army,','Colombo 02.']},
+  'STF': {label:'STF', addr:['The Commandant,','Special Task Force,','Sri Lanka Police,','Colombo.']},
+  'CUSTOM': {label:'Custom (type below)', addr:['']}
+};
+function extGetCamps(){ try{var s=localStorage.getItem('ngrd_ext_camps'); if(s){var o=JSON.parse(s); return Object.assign({}, EXT_CAMPS, o);} }catch(e){} return EXT_CAMPS; }
+function extSaveCampAddr(key, lines){ if(!key||key==='CUSTOM') return; try{var s=localStorage.getItem('ngrd_ext_camps'); var o=s?JSON.parse(s):{}; o[key]={label:(extGetCamps()[key]||{}).label||key, addr:lines}; localStorage.setItem('ngrd_ext_camps', JSON.stringify(o)); }catch(e){} }
+function extSig(co){ return co==='puspha' ? 'https://i.ibb.co/S79WPf4B/Whats-App-PPPPPPPPPPPP.jpg' : 'https://i.ibb.co/6R4Xj0h2/Whats-App-Image-2026-04-30-at-13-02-55.jpg'; }
+function extStamp(co){ return co==='puspha' ? 'https://i.ibb.co/7D4ytc4/Whats-App-Image-2026-04-30-at-15-11-24.jpg' : 'https://i.ibb.co/c022By1/Whats-App-Image-2026-04-30-at-12-39-41.jpg'; }
+
+var extMode = 'accept';
+function extSetMode(m){
+  extMode = m;
+  var a=document.getElementById('ext-btn-accept'), d=document.getElementById('ext-btn-decline');
+  if(a&&d){
+    a.style.cssText = m==='accept' ? 'flex:1;padding:11px;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;background:#1A6B3C;color:#fff;' : 'flex:1;padding:11px;border:1px solid #ccc;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;background:#f0f0f0;color:#666;';
+    d.style.cssText = m==='decline' ? 'flex:1;padding:11px;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;background:#B22222;color:#fff;' : 'flex:1;padding:11px;border:1px solid #ccc;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;background:#f0f0f0;color:#666;';
+  }
+  var accF=document.getElementById('ext-accept-fields'), decF=document.getElementById('ext-decline-fields');
+  if(accF) accF.style.display = m==='accept' ? 'block':'none';
+  if(decF) decF.style.display = m==='decline' ? 'block':'none';
+}
+function extPickCamp(){
+  var sel=document.getElementById('ext-camp'); if(!sel) return;
+  var camps=extGetCamps(); var c=camps[sel.value];
+  var ta=document.getElementById('ext-toaddr');
+  if(ta&&c) ta.value=(c.addr||[]).join('\n');
+}
+function openExtensionModal(){
+  var co=getCompany();
+  var d=buildQData();
+  var existing=document.getElementById('ext-modal'); if(existing) existing.remove();
+  var camps=extGetCamps();
+  var opts=Object.keys(camps).map(function(k){return '<option value="'+k+'">'+(camps[k].label||k)+'</option>';}).join('');
+  var refDefault=d.refNo||d.eqNo||'';
+  var quoDate=d.closing||'';
+  var m=document.createElement('div');
+  m.id='ext-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  m.innerHTML=
+   '<div style="background:#fff;border-radius:10px;width:100%;max-width:480px;padding:0;font-family:var(--fb);box-shadow:0 10px 40px rgba(0,0,0,.4);">'
+   +'<div style="background:'+(co.id==='puspha'?'#B71C1C':'#0D1B2A')+';color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">'
+     +'<div style="font-weight:700;font-size:15px;">📄 Validity Extension Letter</div>'
+     +'<button onclick="document.getElementById(\'ext-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:15px;">✕</button>'
+   +'</div>'
+   +'<div style="padding:18px;">'
+     +'<div style="font-size:11px;color:#888;margin-bottom:4px;">COMPANY: <b style="color:'+(co.id==='puspha'?'#B71C1C':'#0D47A1')+';">'+co.name+'</b> (letterhead auto)</div>'
+     +'<div style="display:flex;gap:8px;margin:12px 0 14px;">'
+       +'<button id="ext-btn-accept" onclick="extSetMode(\'accept\')">✅ CAN EXTEND</button>'
+       +'<button id="ext-btn-decline" onclick="extSetMode(\'decline\')">❌ CANNOT EXTEND</button>'
+     +'</div>'
+     +'<label style="font-size:11px;font-weight:700;color:#555;">Camp / Department</label>'
+     +'<select id="ext-camp" onchange="extPickCamp()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'+opts+'</select>'
+     +'<label style="font-size:11px;font-weight:700;color:#555;">To Address (edit பண்ணலாம் ✏️)</label>'
+     +'<textarea id="ext-toaddr" rows="5" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;font-family:var(--fb);resize:vertical;"></textarea>'
+     +'<label style="font-size:11px;font-weight:700;color:#555;">Subject</label>'
+     +'<input id="ext-subject" value="PURCHASE OF MOTOR SPARES" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
+     +'<label style="font-size:11px;font-weight:700;color:#555;">Your Letter / Quotation No. (auto + edit)</label>'
+     +'<input id="ext-refno" value="'+refDefault+'" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
+     +'<div style="display:flex;gap:10px;">'
+       +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#555;">Navy Letter Date</label><input id="ext-navydate" placeholder="03rd June 2026" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;"></div>'
+       +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#555;">Our Quotation Date</label><input id="ext-quodate" value="'+quoDate+'" placeholder="18th Nov 2025" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;"></div>'
+     +'</div>'
+     +'<div id="ext-accept-fields"><label style="font-size:11px;font-weight:700;color:#555;">Extend Validity Up To</label>'
+       +'<input id="ext-upto" placeholder="30th June 2026" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;"></div>'
+     +'<div id="ext-decline-fields" style="display:none;"><label style="font-size:11px;font-weight:700;color:#555;">Reason (decline)</label>'
+       +'<input id="ext-reason" value="Due to the prevailing fluctuation in market prices of the quoted items, we are not in a position to hold the quoted prices beyond the original validity period." style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;"></div>'
+     +'<button onclick="genExtensionPDF()" style="width:100%;padding:12px;background:'+(co.id==='puspha'?'#B71C1C':'#0D1B2A')+';color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:6px;">🖨️ Generate PDF</button>'
+   +'</div></div>';
+  document.body.appendChild(m);
+  extSetMode('accept');
+  extPickCamp();
+}
+function genExtensionPDF(){
+  var co=getCompany();
+  var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var campSel=document.getElementById('ext-camp');
+  var campKey=campSel?campSel.value:'';
+  var toLines=(g('ext-toaddr')||'').split('\n').filter(function(x){return x.trim()!=='';});
+  extSaveCampAddr(campKey, toLines);
+  var data={
+    co:co.id, coName:co.name, mode:extMode,
+    toLines:toLines, subject:g('ext-subject')||'PURCHASE OF MOTOR SPARES',
+    refNo:g('ext-refno'), navyDate:g('ext-navydate'), quoDate:g('ext-quodate'),
+    upto:g('ext-upto'), reason:g('ext-reason'),
+    date:new Date().toLocaleDateString('en-LK')
+  };
+  var html=extLetterHtml(data);
+  var modal=document.getElementById('ext-modal'); if(modal) modal.remove();
+  _printWithIframe(html);
+  if(typeof addLog==='function') addLog('Validity Extension ('+extMode+'): '+data.refNo);
+  if(typeof showToast==='function') showToast('✅ Extension Letter ready!','t-s');
+}
+function extLetterHtml(d){
+  var isP = d.co==='puspha';
+  var sig=extSig(d.co), stamp=extStamp(d.co);
+  var barGrad = isP
+    ? 'linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2)'
+    : 'linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#E53935)';
+  var accent = isP ? '#B71C1C' : '#0D47A1';
+  var footBg = isP ? '#B71C1C' : '#0D1B2A';
+  var contactLeft = isP
+    ? '<div>No: 202/19A, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#B71C1C;font-weight:600;">+94 779 338 696 / +94 759 515 507</div><div style="color:#B71C1C;">pusphamotors@gmail.com</div>'
+    : '<div>No: 202/17B, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#0D47A1;font-weight:600;">011 244 9385 / 076 688 6526</div><div style="color:#0D47A1;">ngrdmotors@gmail.com</div>';
+  var logo = isP
+    ? '<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#B71C1C"/><circle cx="60" cy="60" r="43" fill="#C62828"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/><text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text></svg><div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>'
+    : '<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#0D47A1" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#0D1B2A"/><circle cx="60" cy="60" r="43" fill="#15294a"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFD700" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFD700"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFD700"/><text x="60" y="90" text-anchor="middle" font-size="30" font-weight="700" fill="#FFD700" font-family="serif">N</text></svg><div style="font-size:18px;font-weight:700;color:#0D47A1;letter-spacing:3px;margin-top:3px;line-height:1;">N.G.R.D.</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>';
+  var toBlock=(d.toLines||[]).map(function(l,i){return i===0?('<div><b>'+l+'</b></div>'):('<div>'+l+'</div>');}).join('');
+  var body;
+  if(d.mode==='accept'){
+    body=''
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">1.</div><div>With reference to the above, we hereby confirm our willingness to extend the validity period of our quotation No. <b>'+d.refNo+'</b> dated '+(d.quoDate||'—')+' up to <b>'+(d.upto||'—')+'</b>.</div></div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>All other terms, conditions and prices quoted by us remain <b>unchanged</b> and valid during the extended period.</div></div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We thank you for the opportunity and look forward to your favourable response.</div></div>';
+  } else {
+    body=''
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">1.</div><div>With reference to the above, we regret to inform you that we are <b>unable to extend</b> the validity period of our quotation No. <b>'+d.refNo+'</b> dated '+(d.quoDate||'—')+'.</div></div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>'+(d.reason||'')+'</div></div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We apologize for any inconvenience caused and thank you for your kind understanding. Should you require a fresh quotation, we shall be pleased to submit the same.</div></div>';
+  }
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Validity Extension '+d.refNo+'</title>'
+   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
+   +'.page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;}'
+   +'.pdf-footer{margin-top:auto;}.body-pad{padding:0 28px;flex:1;}'
+   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.pdf-footer{position:fixed;bottom:0;left:0;right:0;}}'
+   +'@page{size:A4;margin:0 0 48px 0;}</style></head><body><div class="page">'
+   +'<div style="height:6px;background:'+barGrad+';"></div>'
+   +'<div style="background:#fff;padding:18px 28px;border-bottom:3px solid '+accent+';"><div style="display:flex;align-items:center;justify-content:space-between;">'
+     +'<div style="min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">CONTACT</div><div style="font-size:9.5px;color:#333;line-height:2;">'+contactLeft+'</div></div>'
+     +'<div style="text-align:center;flex-shrink:0;">'+logo+'</div>'
+     +'<div style="text-align:right;min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">AUTHORIZED</div><div style="font-size:9.5px;color:#333;line-height:2;"><div>Spare Parts Supplier</div><div>Government Institutions</div><div style="margin-top:5px;"><span style="background:'+(isP?'#FFC107':'#FFD700')+';color:'+accent+';font-size:8px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;">VALIDITY EXTENSION</span></div></div></div>'
+   +'</div></div>'
+   +'<div class="body-pad">'
+     +'<div style="display:flex;justify-content:space-between;margin:22px 0 18px;font-size:12px;"><div>Our Ref: <b>'+(isP?'PM':'NGRD')+'/EXT/'+(new Date().getFullYear())+'</b></div><div>Date: <b>'+d.date+'</b></div></div>'
+     +'<div style="font-size:12px;line-height:1.8;margin-bottom:18px;">'+toBlock+'</div>'
+     +'<div style="font-size:12px;margin-bottom:16px;">Dear Sir,</div>'
+     +'<div style="text-align:center;margin:16px 0;"><span style="font-size:13px;font-weight:700;text-decoration:underline;letter-spacing:0.5px;">'+(d.subject||'PURCHASE OF MOTOR SPARES')+'</span></div>'
+     +'<div style="font-size:12px;margin-bottom:16px;"><b>Reference:</b>&nbsp;&nbsp; Your letter No. <b>'+d.refNo+'</b> dated '+(d.navyDate||'—')+'.</div>'
+     +'<div style="font-size:12px;line-height:1.9;text-align:justify;">'+body+'</div>'
+     +'<div style="margin-top:42px;font-size:12px;"><div>Yours faithfully,</div><div style="font-weight:700;margin-top:3px;">For '+d.coName+',</div>'
+       +'<div style="display:flex;align-items:flex-end;gap:20px;margin-top:8px;">'
+         +'<div style="width:175px;"><img src="'+sig+'" alt="Signature" style="width:150px;height:55px;object-fit:contain;display:block;margin-bottom:2px;"/><div style="border-top:1px solid #000;padding-top:5px;"><b style="font-size:12px;">Authorized Signatory</b><br><span style="color:#555;font-size:10px;">Name &amp; Designation</span></div></div>'
+         +'<img src="'+stamp+'" alt="Stamp" style="width:115px;height:115px;object-fit:contain;display:block;opacity:0.9;margin-bottom:4px;"/>'
+       +'</div></div>'
+   +'</div>'
+   +'<div class="pdf-footer"><div style="height:4px;background:'+barGrad+';"></div>'
+     +'<div style="background:'+footBg+';padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">'
+       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'202/19A':'202/17B')+' MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>'
+       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'pusphamotors@gmail.com':'ngrdmotors@gmail.com')+'</div>'
+     +'</div></div>'
+   +'</div></body></html>';
+}
+/* ═══════════════════ END VALIDITY EXTENSION ═══════════════════ */
+
 function loadSubmitterSettings(){
   var panel=document.getElementById('company-submitter-panel');
   if(!panel) return;
