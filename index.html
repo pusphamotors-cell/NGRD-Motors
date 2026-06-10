@@ -6594,6 +6594,19 @@ function extSig(co){ return co==='puspha' ? 'https://i.ibb.co/S79WPf4B/Whats-App
 function extStamp(co){ return co==='puspha' ? EXT_SEAL_PUSPHA : EXT_SEAL_NGRD; }
 
 var extMode = 'accept';
+var extCompany = 'ngrd';
+function extSetCompany(cid){
+  extCompany = cid;
+  var ngrdB=document.getElementById('ext-co-ngrd'), pusB=document.getElementById('ext-co-puspha');
+  var onCss='flex:1;padding:9px;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;color:#fff;';
+  var offCss='flex:1;padding:9px;border:1px solid #ccc;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;background:#f0f0f0;color:#666;';
+  if(ngrdB&&pusB){
+    ngrdB.style.cssText = cid==='ngrd' ? onCss+'background:#0D1B2A;' : offCss;
+    pusB.style.cssText = cid==='puspha' ? onCss+'background:#B71C1C;' : offCss;
+  }
+  var hdr=document.getElementById('ext-modal-header'); if(hdr) hdr.style.background = cid==='puspha'?'#B71C1C':'#0D1B2A';
+  var gen=document.getElementById('ext-gen-btn'); if(gen) gen.style.background = cid==='puspha'?'#B71C1C':'#0D1B2A';
+}
 function extSetMode(m){
   extMode = m;
   var a=document.getElementById('ext-btn-accept'), d=document.getElementById('ext-btn-decline');
@@ -6624,12 +6637,16 @@ function openExtensionModal(){
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
   m.innerHTML=
    '<div style="background:#fff;border-radius:10px;width:100%;max-width:480px;padding:0;font-family:var(--fb);box-shadow:0 10px 40px rgba(0,0,0,.4);">'
-   +'<div style="background:'+(co.id==='puspha'?'#B71C1C':'#0D1B2A')+';color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">'
+   +'<div id="ext-modal-header" style="background:'+(co.id==='puspha'?'#B71C1C':'#0D1B2A')+';color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">'
      +'<div style="font-weight:700;font-size:15px;">📄 Validity Extension Letter</div>'
      +'<button onclick="document.getElementById(\'ext-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:15px;">✕</button>'
    +'</div>'
    +'<div style="padding:18px;">'
-     +'<div style="font-size:11px;color:#888;margin-bottom:4px;">COMPANY: <b style="color:'+(co.id==='puspha'?'#B71C1C':'#0D47A1')+';">'+co.name+'</b> (letterhead auto)</div>'
+     +'<label style="font-size:11px;font-weight:700;color:#555;">Company (letterhead + seal auto)</label>'
+     +'<div style="display:flex;gap:8px;margin:4px 0 12px;">'
+       +'<button id="ext-co-ngrd" onclick="extSetCompany(\'ngrd\')">🏢 NGRD Motors</button>'
+       +'<button id="ext-co-puspha" onclick="extSetCompany(\'puspha\')">🏢 Puspha Motors</button>'
+     +'</div>'
      +'<div style="display:flex;gap:8px;margin:12px 0 14px;">'
        +'<button id="ext-btn-accept" onclick="extSetMode(\'accept\')">✅ CAN EXTEND</button>'
        +'<button id="ext-btn-decline" onclick="extSetMode(\'decline\')">❌ CANNOT EXTEND</button>'
@@ -6650,21 +6667,23 @@ function openExtensionModal(){
        +'<input id="ext-upto" placeholder="30th June 2026" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;"></div>'
      +'<div id="ext-decline-fields" style="display:none;"><label style="font-size:11px;font-weight:700;color:#555;">Reason (decline)</label>'
        +'<input id="ext-reason" value="Due to the prevailing fluctuation in market prices of the quoted items, we are not in a position to hold the quoted prices beyond the original validity period." style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;"></div>'
-     +'<button onclick="genExtensionPDF()" style="width:100%;padding:12px;background:'+(co.id==='puspha'?'#B71C1C':'#0D1B2A')+';color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:6px;">🖨️ Generate PDF</button>'
+     +'<button id="ext-gen-btn" onclick="genExtensionPDF()" style="width:100%;padding:12px;background:'+(co.id==='puspha'?'#B71C1C':'#0D1B2A')+';color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:6px;">🖨️ Generate PDF</button>'
    +'</div></div>';
   document.body.appendChild(m);
   extSetMode('accept');
+  extSetCompany(co.id);
   extPickCamp();
 }
 function genExtensionPDF(){
-  var co=getCompany();
+  var coId=extCompany||getCompany().id;
+  var coName=coId==='puspha'?'PUSPHA MOTORS':'N.G.R.D. MOTORS';
   var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
   var campSel=document.getElementById('ext-camp');
   var campKey=campSel?campSel.value:'';
   var toLines=(g('ext-toaddr')||'').split('\n').filter(function(x){return x.trim()!=='';});
   extSaveCampAddr(campKey, toLines);
   var data={
-    co:co.id, coName:co.name, mode:extMode,
+    co:coId, coName:coName, mode:extMode,
     toLines:toLines, subject:g('ext-subject')||'PURCHASE OF MOTOR SPARES',
     refNo:g('ext-refno'), navyDate:g('ext-navydate'), quoDate:g('ext-quodate'),
     upto:g('ext-upto'), reason:g('ext-reason'),
