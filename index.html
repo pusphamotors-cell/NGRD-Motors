@@ -1471,7 +1471,7 @@ function initApp(){
   vt.textContent='🚗 '+vehicleLabel(CU);
   vt.style.display='inline-block';
   document.getElementById('admin-nav').style.display=CU.role==='admin'?'block':'none';
-  (function(){var _canExt=(CU.role==='admin'||(CU.permissions&&CU.permissions.includes('extension')));var _e1=document.getElementById('fmt-extension'),_e2=document.getElementById('fmt-extension-div'),_e3=document.getElementById('nav-extension'),_e4=document.getElementById('db-extension-card');if(_e1)_e1.style.display=_canExt?'':'none';if(_e2)_e2.style.display=_canExt?'':'none';if(_e3)_e3.style.display=_canExt?'':'none';if(_e4)_e4.style.display=_canExt?'flex':'none';})();
+  applyExtVisibility();
   startSessionTimer();
   showPage('dashboard');
   setTimeout(checkDeadlineAlarms,500);
@@ -1584,6 +1584,7 @@ function showPage(pg){
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
   });
+  if(typeof applyExtVisibility==='function') applyExtVisibility();
   if(pg==='history'){
     // Reset all filters to show everything
     var vfEl=document.getElementById('hist-vehicle-filter');
@@ -6606,6 +6607,17 @@ function extStamp(co){ return co==='puspha' ? EXT_SEAL_PUSPHA : EXT_SEAL_NGRD; }
 
 var extMode = 'accept';
 var extCompany = 'ngrd';
+function applyExtVisibility(){
+  if(typeof CU==='undefined'||!CU) return;
+  var perms=CU.permissions;
+  if(perms && !Array.isArray(perms)) perms=Object.values(perms); // Firebase may store array as object
+  var canExt=(CU.role==='admin'||(perms && perms.indexOf('extension')!==-1));
+  var e1=document.getElementById('fmt-extension'),e2=document.getElementById('fmt-extension-div'),e3=document.getElementById('nav-extension'),e4=document.getElementById('db-extension-card');
+  if(e1)e1.style.display=canExt?'':'none';
+  if(e2)e2.style.display=canExt?'':'none';
+  if(e3)e3.style.display=canExt?'':'none';
+  if(e4)e4.style.display=canExt?'flex':'none';
+}
 function extSetCompany(cid){
   extCompany = cid;
   var ngrdB=document.getElementById('ext-co-ngrd'), pusB=document.getElementById('ext-co-puspha');
