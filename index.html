@@ -6610,8 +6610,17 @@ var extCompany = 'ngrd';
 function applyExtVisibility(){
   if(typeof CU==='undefined'||!CU) return;
   var perms=CU.permissions;
+  var isAdmin=(CU.role==='admin');
+  // Use freshest synced user record (CU session may be stale after a permission grant)
+  try{
+    var fresh=getUsers().find(function(x){return x.id===CU.id;});
+    if(fresh){
+      if(fresh.permissions) perms=fresh.permissions;
+      if(fresh.role==='admin') isAdmin=true;
+    }
+  }catch(e){}
   if(perms && !Array.isArray(perms)) perms=Object.values(perms); // Firebase may store array as object
-  var canExt=(CU.role==='admin'||(perms && perms.indexOf('extension')!==-1));
+  var canExt=(isAdmin||(perms && perms.indexOf('extension')!==-1));
   var e1=document.getElementById('fmt-extension'),e2=document.getElementById('fmt-extension-div'),e3=document.getElementById('nav-extension'),e4=document.getElementById('db-extension-card');
   if(e1)e1.style.display=canExt?'':'none';
   if(e2)e2.style.display=canExt?'':'none';
