@@ -2580,9 +2580,9 @@ function syncRow(idx,bi){
   if(brandVal!==undefined) br.brand=brandVal;
   if(partNoVal!==undefined) br.partNo=partNoVal;
   if(countryVal) br.country=countryVal;
-  if(priceVal!=='') br.price=parseFloat(priceVal)||br.price||0;
-  if(purchaseVal!=='') br.purchasePrice=parseFloat(purchaseVal)||br.purchasePrice||0;
-  if(marginVal!=='') br.marginPct=parseFloat(marginVal)||br.marginPct||0;
+  if(priceVal!==''){var _vp=parseFloat(priceVal);br.price=isNaN(_vp)?(br.price||0):_vp;}
+  if(purchaseVal!==''){var _vpu=parseFloat(purchaseVal);br.purchasePrice=isNaN(_vpu)?(br.purchasePrice||0):_vpu;}
+  if(marginVal!==''){var _vm=parseFloat(marginVal);br.marginPct=isNaN(_vm)?(br.marginPct||0):_vm;}
 }
 
 function autoMargin(idx,bi){
