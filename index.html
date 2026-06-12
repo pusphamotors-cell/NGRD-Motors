@@ -3231,8 +3231,12 @@ function autoFixStatus(hist){
     if(!e.status) e.status='draft';
     // Preserve final statuses — never downgrade
     if(FINAL.indexOf(e.status)>=0) return;
-    // AUTO REJECT: closing date past 3 days → auto reject
-    if(e.closingDate&&!e.autoRejected){
+    // Check actual item prices FIRST (works for old AND new entries)
+    var hasPrice=e.items&&e.items.some(function(item){
+      return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
+    });
+    // AUTO REJECT: only PRICELESS abandoned drafts past closing+3days. Priced quotations are PRESERVED.
+    if(e.closingDate&&!e.autoRejected&&!hasPrice){
       var cd=typeof parseClosingDate==='function'?parseClosingDate(e.closingDate):null;
       if(cd){
         var daysPast=Math.floor((_today-cd)/86400000);
@@ -3245,10 +3249,6 @@ function autoFixStatus(hist){
         }
       }
     }
-    // Check actual item prices (works for old AND new entries)
-    var hasPrice=e.items&&e.items.some(function(item){
-      return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
-    });
     // If approved step exists → approved
     if(e.steps&&e.steps.approved){
       e.status='approved';changed=true;return;
