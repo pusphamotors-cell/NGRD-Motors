@@ -410,6 +410,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-dashboard" onclick="showPage('dashboard');closeSidebarMobile()"><span class="nav-icon">📊</span>Dashboard</button>
         <button class="nav-item active" id="nav-new" onclick="showPage('new');closeSidebarMobile()"><span class="nav-icon">📄</span>New Quotation</button>
         <button class="nav-item" id="nav-history" onclick="showPage('history');closeSidebarMobile()"><span class="nav-icon">🗂️</span>History<span class="nav-badge" id="pending-badge" style="display:none;">!</span></button>
+        <button class="nav-item" id="nav-calendar" onclick="showPage('calendar');closeSidebarMobile()"><span class="nav-icon">📅</span>Calendar</button>
         <button class="nav-item" id="nav-extension" onclick="openExtensionModal();closeSidebarMobile()" style="display:none;"><span class="nav-icon">📜</span>Validity Extension</button>
         <button class="nav-item" id="nav-prices" onclick="showPage('prices');closeSidebarMobile()"><span class="nav-icon">💰</span>Parts Price List</button>
         <button class="nav-item" id="nav-search" onclick="showPage('search');closeSidebarMobile()"><span class="nav-icon">🔍</span>Quick Search</button>
@@ -782,6 +783,26 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- ═ CALENDAR ═ -->
+      <div id="page-calendar" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;color:var(--navy);font-size:22px;">📅 Tender Calendar</h2>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="calMove(-1)" style="padding:8px 14px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">‹ Prev</button>
+            <div id="cal-month-label" style="font-size:16px;font-weight:700;color:var(--navy);min-width:160px;text-align:center;">—</div>
+            <button onclick="calMove(1)" style="padding:8px 14px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Next ›</button>
+            <button onclick="calToday()" style="padding:8px 14px;background:#1A6B3C;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Today</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;">
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;background:#B22222;border-radius:3px;display:inline-block;"></span> Today / Overdue</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;background:#E8800B;border-radius:3px;display:inline-block;"></span> Within 3 days</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;background:#1A6B3C;border-radius:3px;display:inline-block;"></span> Upcoming</span>
+        </div>
+        <div id="cal-grid" style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow-x:auto;"></div>
+        <div id="cal-day-detail" style="margin-top:16px;"></div>
       </div>
 
       <!-- ═ DASHBOARD ═ -->
@@ -1563,7 +1584,7 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 function closeSidebarMobile(){if(isMobile())closeSidebar();}
 
 // ── NAVIGATION ──
-const PAGES=['dashboard','new','history','prices','search','analytics','users','vehicles','log','backup'];
+const PAGES=['dashboard','new','history','calendar','prices','search','analytics','users','vehicles','log','backup'];
 
 function goToHistory(statusFilter, dateFilter) {
   // Navigate to history page first
@@ -1603,6 +1624,7 @@ function showPage(pg){
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
   });
   if(typeof applyExtVisibility==='function') applyExtVisibility();
+  if(pg==='calendar'&&typeof renderCalendar==='function') renderCalendar();
   if(pg==='history'){
     // Reset all filters to show everything
     var vfEl=document.getElementById('hist-vehicle-filter');
@@ -2213,6 +2235,82 @@ function showDailySummary(force){
       +'</div>'
     +'</div></div>';
   document.body.appendChild(m);
+}
+var calYear, calMonth;
+function calMove(delta){
+  if(calYear===undefined){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();}
+  calMonth+=delta;
+  if(calMonth<0){calMonth=11;calYear--;}
+  if(calMonth>11){calMonth=0;calYear++;}
+  renderCalendar();
+}
+function calToday(){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();renderCalendar();}
+function calClosingMap(){
+  var h=(typeof getHist==='function')?getHist():[];
+  var ACTIVE=['draft','pending','approved','assigned'];
+  var byDate={};
+  h.forEach(function(e){
+    if(ACTIVE.indexOf(e.status||'draft')<0) return;
+    var cd=(typeof parseClosingDate==='function')?parseClosingDate(e.closingDate):null;
+    if(!cd||isNaN(cd)) return;
+    var key=cd.getFullYear()+'-'+String(cd.getMonth()+1).padStart(2,'0')+'-'+String(cd.getDate()).padStart(2,'0');
+    (byDate[key]=byDate[key]||[]).push(e);
+  });
+  return byDate;
+}
+function renderCalendar(){
+  if(calYear===undefined){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();}
+  var grid=document.getElementById('cal-grid'); if(!grid) return;
+  var label=document.getElementById('cal-month-label');
+  var monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  if(label) label.textContent=monthNames[calMonth]+' '+calYear;
+  var byDate=calClosingMap();
+  var today=new Date(); today.setHours(0,0,0,0);
+  var firstDay=new Date(calYear,calMonth,1).getDay();
+  var daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  var dows=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var html='<table style="width:100%;border-collapse:collapse;min-width:560px;"><thead><tr>';
+  dows.forEach(function(d){html+='<th style="padding:8px;font-size:12px;color:#666;border-bottom:2px solid #eee;">'+d+'</th>';});
+  html+='</tr></thead><tbody><tr>';
+  var cell=0;
+  for(var i=0;i<firstDay;i++){html+='<td style="height:92px;border:1px solid #f0f0f0;background:#fafafa;"></td>';cell++;}
+  for(var d=1;d<=daysInMonth;d++){
+    if(cell%7===0&&cell>0){html+='</tr><tr>';}
+    var key=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var qs=byDate[key]||[];
+    var cellDate=new Date(calYear,calMonth,d); cellDate.setHours(0,0,0,0);
+    var isToday=cellDate.getTime()===today.getTime();
+    var diff=Math.floor((cellDate-today)/86400000);
+    var bg='#fff', mark='';
+    if(qs.length){
+      var col= diff<0?'#9e9e9e' : diff===0?'#B22222' : diff<=3?'#E8800B' : '#1A6B3C';
+      bg=col+'18';
+      mark='<div style="position:absolute;top:4px;right:4px;background:'+col+';color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;">'+qs.length+'</div>';
+    }
+    var border=isToday?'border:2px solid #1A3A6B;':'border:1px solid #f0f0f0;';
+    var items=qs.slice(0,2).map(function(e){return '<div style="font-size:9px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">• '+((e.vehicle||e.eqNo||'?')+'').substring(0,18)+'</div>';}).join('');
+    if(qs.length>2) items+='<div style="font-size:9px;color:#888;">+'+(qs.length-2)+' more</div>';
+    html+='<td onclick="calShowDay(\''+key+'\')" style="height:92px;vertical-align:top;position:relative;cursor:pointer;'+border+'background:'+bg+';padding:4px 5px;">'
+      +'<div style="font-size:13px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#1A3A6B':'#333')+';">'+d+'</div>'+mark+items+'</td>';
+    cell++;
+  }
+  while(cell%7!==0){html+='<td style="height:92px;border:1px solid #f0f0f0;background:#fafafa;"></td>';cell++;}
+  html+='</tr></tbody></table>';
+  grid.innerHTML=html;
+  var det=document.getElementById('cal-day-detail'); if(det) det.innerHTML='';
+}
+function calShowDay(key){
+  var byDate=calClosingMap();
+  var qs=byDate[key]||[];
+  var det=document.getElementById('cal-day-detail'); if(!det) return;
+  if(!qs.length){ det.innerHTML='<div style="padding:14px;background:#fff;border-radius:8px;color:#888;text-align:center;">இந்த நாள் closing ஒண்ணும் இல்ல</div>'; return; }
+  qs.sort(function(a,b){return (a.vehicle||'').localeCompare(b.vehicle||'');});
+  var rows=qs.map(function(e){
+    return '<div onclick="loadHist('+e.id+')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #eee;cursor:pointer;" onmouseover="this.style.background=\'#f7fafd\'" onmouseout="this.style.background=\'#fff\'">'
+      +'<div><div style="font-weight:700;font-size:13px;color:#0D1B2A;">'+(e.vehicle||'—')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+(e.entity?(' · '+e.entity):'')+'</div></div>'
+      +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;white-space:nowrap;">'+(e.status||'draft')+'</div></div>';
+  }).join('');
+  det.innerHTML='<div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);"><div style="font-size:14px;font-weight:700;margin-bottom:10px;color:#0D1B2A;">📋 '+key+' — '+qs.length+' closing (தட்டினா open ஆகும்)</div>'+rows+'</div>';
 }
 function initFirebaseSync(){
   if(!FB_READY)return;
