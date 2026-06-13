@@ -797,16 +797,19 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           </div>
           <div style="background:rgba(255,255,255,.2);padding:8px 16px;border-radius:6px;font-weight:700;font-size:13px;white-space:nowrap;">Create →</div>
         </div>
-        <!-- CLOSING REMINDER → WHATSAPP -->
-        <div onclick="sendClosingReminder()" style="background:linear-gradient(90deg,#B22222,#d63333);color:#fff;border-radius:8px;padding:14px 20px;margin-bottom:18px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:opacity .2s;box-shadow:0 2px 8px rgba(178,34,34,.25);" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+        <!-- CLOSING REMINDER → WHATSAPP + PDF -->
+        <div style="background:linear-gradient(90deg,#B22222,#d63333);color:#fff;border-radius:8px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(178,34,34,.25);flex-wrap:wrap;gap:10px;">
           <div style="display:flex;align-items:center;gap:14px;">
             <div style="font-size:28px;">⏰</div>
             <div>
-              <div style="font-size:15px;font-weight:700;">Closing Reminder → WhatsApp</div>
-              <div style="font-size:11px;color:rgba(255,255,255,.85);margin-top:2px;">3 நாள்ல closing ஆகற quotations-ஐ WhatsApp-ல அனுப்பு</div>
+              <div style="font-size:15px;font-weight:700;">Closing Reminder (3 days)</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.85);margin-top:2px;">Closing ஆகற quotations-ஐ அனுப்பு / PDF எடு</div>
             </div>
           </div>
-          <div style="background:rgba(255,255,255,.2);padding:8px 16px;border-radius:6px;font-weight:700;font-size:13px;white-space:nowrap;">📲 Send</div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="sendClosingReminder()" style="background:rgba(255,255,255,.2);color:#fff;border:none;padding:9px 14px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;">📲 WhatsApp</button>
+            <button onclick="closingReminderPDF()" style="background:#fff;color:#B22222;border:none;padding:9px 14px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;">📄 PDF</button>
+          </div>
         </div>
         <!-- ADMIN ONLY STATS -->
         <div id="db-admin-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;">
@@ -2111,6 +2114,50 @@ function sendClosingReminder(){
   var url='https://wa.me/'+ADMIN_WA+'?text='+encodeURIComponent(text);
   window.open(url,'_blank');
   if(typeof showToast==='function') showToast('📲 WhatsApp-ல '+list.length+' closing reminder ready','t-s');
+}
+function closingReminderPDF(){
+  var h=(typeof getHist==='function')?getHist():[];
+  var ACTIVE=['draft','pending','approved','assigned'];
+  var list=[];
+  h.forEach(function(e){
+    if(ACTIVE.indexOf(e.status||'draft')<0) return;
+    var d=(typeof getDaysUntil==='function')?getDaysUntil(e.closingDate):null;
+    if(d===null||d<0||d>3) return;
+    list.push({e:e,d:d});
+  });
+  if(list.length===0){ if(typeof showToast==='function') showToast('✅ 3 நாள்ல closing ஆகற quotation இல்ல','t-s'); else alert('No quotations closing within 3 days.'); return; }
+  list.sort(function(a,b){return a.d-b.d;});
+  var today=new Date().toLocaleDateString('en-LK');
+  var rows=list.map(function(x,i){
+    var e=x.e, d=x.d;
+    var when=d===0?'TODAY':d===1?'TOMORROW':d+' days';
+    var col=d===0?'#B22222':d===1?'#E8800B':'#C9952A';
+    return '<tr style="background:'+(i%2?'#fff':'#f7fafd')+';">'
+      +'<td style="padding:7px;border:1px solid #ddd;text-align:center;font-weight:700;">'+(i+1)+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;font-weight:600;">'+(e.vehicle||'—')+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;">'+(e.eqNo||e.refNo||'—')+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;">'+(e.entity||'—')+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;text-align:center;">'+(e.closingDate||'—')+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;text-align:center;font-weight:700;color:'+col+';">'+when+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;text-align:center;text-transform:uppercase;font-size:10px;">'+(e.status||'draft')+'</td>'
+      +'</tr>';
+  }).join('');
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pending Quotations</title>'
+   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
+   +'.page{width:210mm;min-height:297mm;margin:0 auto;padding:24px 28px;}'
+   +'@page{size:A4;margin:12mm;}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'
+   +'table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#0D1B2A;color:#fff;padding:8px;text-align:left;font-size:11px;}</style></head><body><div class="page">'
+   +'<div style="text-align:center;border-bottom:3px solid #B22222;padding-bottom:12px;margin-bottom:16px;">'
+     +'<div style="font-size:20px;font-weight:700;color:#B22222;">⏰ PENDING QUOTATIONS</div>'
+     +'<div style="font-size:13px;color:#555;margin-top:3px;">Closing within 3 days — Action Required</div>'
+     +'<div style="font-size:11px;color:#888;margin-top:4px;">Generated: '+today+' &nbsp;|&nbsp; Total: '+list.length+' quotation(s)</div>'
+   +'</div>'
+   +'<table><thead><tr><th style="text-align:center;">#</th><th>Vehicle</th><th>e-Q No</th><th>Department</th><th style="text-align:center;">Closing</th><th style="text-align:center;">Deadline</th><th style="text-align:center;">Status</th></tr></thead><tbody>'+rows+'</tbody></table>'
+   +'<div style="margin-top:18px;padding:10px;background:#fff3f3;border-left:4px solid #B22222;font-size:12px;color:#B22222;font-weight:600;">⚠️ இந்த quotations-ஐ closing date-க்கு முன்னாடி price போட்டு submit பண்ணுங்க!</div>'
+   +'<div style="margin-top:30px;text-align:center;font-size:10px;color:#aaa;">NGRD Motors / Puspha Motors — Quotation System</div>'
+   +'</div></body></html>';
+  if(typeof _printWithIframe==='function') _printWithIframe(html);
+  if(typeof showToast==='function') showToast('📄 Pending PDF ready — Save பண்ணி WhatsApp-ல share பண்ணு','t-s');
 }
 function initFirebaseSync(){
   if(!FB_READY)return;
