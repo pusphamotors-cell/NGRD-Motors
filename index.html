@@ -2086,6 +2086,54 @@ function showPurchaseHistory(itemIdx,brandIdx){
   },200);
 }
 
+function getPartNoMatches(partNo,brand){
+  if(!partNo) return [];
+  var pn=(partNo+'').trim().toLowerCase();
+  if(pn.length<3) return [];
+  var bn=(brand||'').trim().toLowerCase();
+  var results=[], seen={};
+  function add(o){
+    if(!(parseFloat(o.price)>0)) return;
+    var key=(o.vehicle||'').toLowerCase()+'|'+(o.brand||'').toLowerCase()+'|'+(o.price||0);
+    if(seen[key]) return; seen[key]=1;
+    results.push(o);
+  }
+  try{(getPrices()||[]).forEach(function(p){
+    if((p.partNo||'').trim().toLowerCase()===pn && (!bn||(p.brand||'').trim().toLowerCase()===bn))
+      add({vehicle:p.vehicle||'',brand:p.brand||'',partNo:p.partNo||'',country:p.country||'Japan',price:parseFloat(p.price)||0,purchasePrice:parseFloat(p.purchasePrice)||0});
+  });}catch(e){}
+  try{(getHist()||[]).forEach(function(e){
+    if(!e.items)return; var v=e.vehicle||'';
+    e.items.forEach(function(it){(it.brandRows||[]).forEach(function(br){
+      if((br.partNo||'').trim().toLowerCase()===pn && (!bn||(br.brand||'').trim().toLowerCase()===bn))
+        add({vehicle:v,brand:br.brand||'',partNo:br.partNo||'',country:br.country||'Japan',price:parseFloat(br.price)||0,purchasePrice:parseFloat(br.purchasePrice)||0});
+    });});
+  });}catch(e){}
+  return results;
+}
+function showPartCrossRef(idx,bi){
+  var pEl=document.getElementById('br-p-'+idx+'-'+bi); if(!pEl) return;
+  var ex=document.getElementById('partxref-popup'); if(ex) ex.remove();
+  var bEl=document.getElementById('br-b-'+idx+'-'+bi);
+  var matches=getPartNoMatches(pEl.value, bEl?bEl.value:'');
+  if(!matches.length) return;
+  var rows=matches.slice(0,8).map(function(m){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid #eee;">'
+      +'<div style="font-size:11px;"><div style="font-weight:700;color:#0D1B2A;">🚗 '+(m.vehicle||'—')+'</div><div style="color:#666;">'+(m.brand||'')+' · LKR '+((m.price||0).toLocaleString())+'</div></div>'
+      +'<button data-pu="'+(m.purchasePrice||0)+'" data-sp="'+(m.price||0)+'" data-b="'+encodeURIComponent(m.brand||'')+'" data-pn="'+encodeURIComponent(m.partNo||'')+'" data-co="'+encodeURIComponent(m.country||'Japan')+'" onclick="(function(el){applyPriceHistory('+idx+','+bi+',decodeURIComponent(el.dataset.b),el.dataset.pu,decodeURIComponent(el.dataset.pn),decodeURIComponent(el.dataset.co),el.dataset.sp);var p=document.getElementById(\'partxref-popup\');if(p)p.remove();})(this)" style="padding:5px 12px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Use ✅</button>'
+      +'</div>';
+  }).join('');
+  var rect=pEl.getBoundingClientRect();
+  var pop=document.createElement('div'); pop.id='partxref-popup';
+  pop.style.cssText='position:fixed;z-index:10005;background:#fff;border:2px solid #1A6B3C;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.25);width:290px;max-height:320px;overflow-y:auto;';
+  var top=rect.bottom+4, left=rect.left;
+  if(left+290>window.innerWidth) left=window.innerWidth-300;
+  if(top+220>window.innerHeight) top=Math.max(8,rect.top-224);
+  pop.style.top=top+'px'; pop.style.left=Math.max(8,left)+'px';
+  pop.innerHTML='<div style="background:#1A6B3C;color:#fff;padding:8px 10px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;">🔗 Same Part No — '+matches.length+' vehicle(s)<span onclick="var p=document.getElementById(\'partxref-popup\');if(p)p.remove();" style="cursor:pointer;font-size:14px;">✕</span></div>'+rows;
+  document.body.appendChild(pop);
+  setTimeout(function(){document.addEventListener('mousedown',function _h(ev){var p=document.getElementById('partxref-popup');if(p&&!p.contains(ev.target)){p.remove();document.removeEventListener('mousedown',_h);}});},120);
+}
 function applyPriceHistory(idx,bi,brand,purchasePrice,partNo,country,sellingPrice){
   var brandEl=document.getElementById('br-b-'+idx+'-'+bi);
   var partEl=document.getElementById('br-p-'+idx+'-'+bi);
@@ -2948,7 +2996,7 @@ function renderItems(items){
         h+='<td rowspan="'+rc+'" style="vertical-align:middle;padding:4px 5px;background:rgba(26,58,26,.04);border-right:2px solid #ddd;">'+rb+'</td>';
       }
       h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"></td>';
-      h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"></td>';
+      h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" onblur="setTimeout(function(){if(typeof showPartCrossRef===\'function\')showPartCrossRef('+idx+','+bi+')},150)" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"></td>';
       h+='<td style="padding:3px 4px;"><select id="br-c-'+idx+'-'+bi+'" onchange="syncRow('+idx+','+bi+');calcTotals()" style="width:73px;padding:4px 3px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"><option value="">—</option>'+co+'</select></td>';
       if(role.seePurchase){
         var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for history" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;cursor:pointer;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
