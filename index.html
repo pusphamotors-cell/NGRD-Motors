@@ -835,6 +835,20 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div style="margin-bottom:18px;text-align:center;">
           <button onclick="showDailySummary(true)" style="background:#0D1B2A;color:#fff;border:none;padding:9px 18px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📋 Today's Summary</button>
         </div>
+        <!-- VEHICLE-WISE CLOSING -->
+        <div style="background:linear-gradient(90deg,#1A3A6B,#2456a0);color:#fff;border-radius:8px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(26,58,107,.25);flex-wrap:wrap;gap:10px;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="font-size:28px;">🚗</div>
+            <div>
+              <div style="font-size:15px;font-weight:700;">Vehicle-wise Closing</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.85);margin-top:2px;">Vehicle-வாரியா closing list — அனுப்பு / PDF எடு</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="vehicleClosingWhatsApp()" style="background:rgba(255,255,255,.2);color:#fff;border:none;padding:9px 14px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;">📲 WhatsApp</button>
+            <button onclick="vehicleClosingPDF()" style="background:#fff;color:#1A3A6B;border:none;padding:9px 14px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;">📄 PDF</button>
+          </div>
+        </div>
         <!-- ADMIN ONLY STATS -->
         <div id="db-admin-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;">
           <div onclick="goToHistory('','')" style="background:#0D1B2A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
@@ -2232,6 +2246,69 @@ function closingReminderPDF(){
    +'</div></body></html>';
   if(typeof _printWithIframe==='function') _printWithIframe(html);
   if(typeof showToast==='function') showToast('📄 Pending PDF ready — Save பண்ணி WhatsApp-ல share பண்ணு','t-s');
+}
+function getVehicleClosings(){
+  var h=(typeof getHist==='function')?getHist():[];
+  var ACTIVE=['draft','pending','approved','assigned'];
+  var byVeh={};
+  h.forEach(function(e){
+    if(ACTIVE.indexOf(e.status||'draft')<0) return;
+    var d=(typeof getDaysUntil==='function')?getDaysUntil(e.closingDate):null;
+    if(d===null||d<0) return; // only upcoming / today
+    var v=e.vehicle||'(No vehicle)';
+    (byVeh[v]=byVeh[v]||[]).push({e:e,d:d});
+  });
+  return byVeh;
+}
+function vehicleClosingWhatsApp(){
+  var byVeh=getVehicleClosings();
+  var vehs=Object.keys(byVeh).sort();
+  if(!vehs.length){ if(typeof showToast==='function') showToast('✅ Upcoming closing ஒண்ணும் இல்ல','t-s'); return; }
+  var total=0, parts=[];
+  vehs.forEach(function(v){
+    byVeh[v].sort(function(a,b){return a.d-b.d;});
+    total+=byVeh[v].length;
+    var lines=byVeh[v].map(function(x){var when=x.d===0?'🔴TODAY':x.d===1?'🟠TOMORROW':'🟡'+x.d+'d';return '  • '+(x.e.eqNo||x.e.refNo||'')+' ('+when+')';});
+    parts.push('🚗 *'+v+'* — '+byVeh[v].length+'\n'+lines.join('\n'));
+  });
+  var text='📋 *VEHICLE-WISE CLOSING — NGRD / Puspha*\n\n'+parts.join('\n\n')+'\n\n⚠️ Deadline-க்கு முன்னாடி submit பண்ணுங்க!\nTotal: '+total+' quotation(s)';
+  window.open('https://wa.me/'+ADMIN_WA+'?text='+encodeURIComponent(text),'_blank');
+  if(typeof showToast==='function') showToast('📲 Vehicle-wise closing ready','t-s');
+}
+function vehicleClosingPDF(){
+  var byVeh=getVehicleClosings();
+  var vehs=Object.keys(byVeh).sort();
+  if(!vehs.length){ if(typeof showToast==='function') showToast('✅ Upcoming closing ஒண்ணும் இல்ல','t-s'); return; }
+  var today=new Date().toLocaleDateString('en-LK'); var total=0;
+  var sections=vehs.map(function(v){
+    byVeh[v].sort(function(a,b){return a.d-b.d;});
+    total+=byVeh[v].length;
+    var rows=byVeh[v].map(function(x,i){
+      var e=x.e,d=x.d; var when=d===0?'TODAY':d===1?'TOMORROW':d+' days';
+      var col=d===0?'#B22222':d===1?'#E8800B':'#C9952A';
+      return '<tr style="background:'+(i%2?'#fff':'#f7fafd')+';">'
+        +'<td style="padding:6px;border:1px solid #ddd;text-align:center;">'+(i+1)+'</td>'
+        +'<td style="padding:6px;border:1px solid #ddd;">'+(e.eqNo||e.refNo||'—')+'</td>'
+        +'<td style="padding:6px;border:1px solid #ddd;">'+(e.entity||'—')+'</td>'
+        +'<td style="padding:6px;border:1px solid #ddd;text-align:center;">'+(e.closingDate||'—')+'</td>'
+        +'<td style="padding:6px;border:1px solid #ddd;text-align:center;font-weight:700;color:'+col+';">'+when+'</td>'
+        +'<td style="padding:6px;border:1px solid #ddd;text-align:center;text-transform:uppercase;font-size:9px;">'+(e.status||'draft')+'</td></tr>';
+    }).join('');
+    return '<div style="margin-bottom:16px;"><div style="background:#0D1B2A;color:#fff;padding:7px 12px;font-size:13px;font-weight:700;border-radius:4px 4px 0 0;">🚗 '+v+' — '+byVeh[v].length+' closing</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#eef2f6;"><th style="padding:6px;border:1px solid #ddd;">#</th><th style="padding:6px;border:1px solid #ddd;text-align:left;">e-Q No</th><th style="padding:6px;border:1px solid #ddd;text-align:left;">Department</th><th style="padding:6px;border:1px solid #ddd;">Closing</th><th style="padding:6px;border:1px solid #ddd;">Deadline</th><th style="padding:6px;border:1px solid #ddd;">Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }).join('');
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Vehicle-wise Closing</title>'
+   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;color:#000;}'
+   +'.page{width:210mm;margin:0 auto;padding:22px 26px;}@page{size:A4;margin:12mm;}'
+   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body><div class="page">'
+   +'<div style="text-align:center;border-bottom:3px solid #0D1B2A;padding-bottom:10px;margin-bottom:16px;">'
+     +'<div style="font-size:19px;font-weight:700;color:#0D1B2A;">🚗 VEHICLE-WISE CLOSING</div>'
+     +'<div style="font-size:12px;color:#666;margin-top:3px;">Upcoming quotations to submit — by vehicle</div>'
+     +'<div style="font-size:11px;color:#888;margin-top:3px;">Generated: '+today+' &nbsp;|&nbsp; '+vehs.length+' vehicle(s) · '+total+' quotation(s)</div></div>'
+   +sections
+   +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#aaa;">NGRD Motors / Puspha Motors — Quotation System</div></div></body></html>';
+  if(typeof _printWithIframe==='function') _printWithIframe(html);
+  if(typeof showToast==='function') showToast('📄 Vehicle-wise PDF ready — Save & share','t-s');
 }
 function showDailySummary(force){
   try{
