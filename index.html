@@ -3059,6 +3059,15 @@ function findAllPriceMatches(desc,prices,vehicle){
       });
       if(allPInD&&pMainWords.length>=2) score=80; // keyword subset match
     }
+    // GUARD: reject over-matches where either description has EXTRA significant words
+    // e.g. "hydraulic hose" vs "hydraulic hose COUPLING set" = different parts.
+    // (noise words like complete/assy/front are already stripped, so true same-part still matches)
+    if(score>=75 && score<100 && !(dSynGroup&&pSynGroup&&dSynGroup[0]===pSynGroup[0])){
+      var _fz=function(arr,w){return arr.some(function(x){return x===w||(x.length>3&&w.length>3&&(x.includes(w)||w.includes(x)));});};
+      var _exD=dMainWords.filter(function(w){return !_fz(pMainWords,w);});
+      var _exP=pMainWords.filter(function(w){return !_fz(dMainWords,w);});
+      if(_exD.length>0||_exP.length>0) score=0; // one side is more specific → different part
+    }
     if(score<75) return; // Strict match only
 
     // ── Categorize by vehicle match type ──
