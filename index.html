@@ -1950,7 +1950,7 @@ function showPurchaseHistory(itemIdx,brandIdx){
         if(ev!==cv) return; // STRICT: only exact same vehicle → skip all others!
       }
       // STRICT description match: require 70%+ matching AND first word must match
-      var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
+      var NOISE=['complete','assy','assay','assembly','lh','rh','front','rear','left','right',
         'upper','lower','inner','outer','no','for','the','and','with','12v','24v',
         'type','mm','pair','oem','genuine','original','std','a','b','c','no1','no2'];
       function getWords(s){
@@ -2977,7 +2977,7 @@ function findAllPriceMatches(desc,prices,vehicle){
     ['wiper blade','wiper','windscreen wiper'],
   ];
 
-  var NOISE=['complete','assy','assembly','lh','rh','front','rear','left','right',
+  var NOISE=['complete','assy','assay','assembly','lh','rh','front','rear','left','right',
     'upper','lower','inner','outer','no','for','the','and','with',
     'type','mm','pair','oe','oem','genuine','original','japan','india','china',
     'std','oversize','os','us','grade','size','no1','no2','a','b','c'];
@@ -3059,14 +3059,20 @@ function findAllPriceMatches(desc,prices,vehicle){
       });
       if(allPInD&&pMainWords.length>=2) score=80; // keyword subset match
     }
-    // GUARD: reject over-matches where either description has EXTRA significant words
+    // GUARD: reject over-matches where either description has EXTRA significant words.
     // e.g. "hydraulic hose" vs "hydraulic hose COUPLING set" = different parts.
-    // (noise words like complete/assy/front are already stripped, so true same-part still matches)
-    if(score>=75 && score<100 && !(dSynGroup&&pSynGroup&&dSynGroup[0]===pSynGroup[0])){
+    // Also applies to synonym matches: "RADIATOR" vs "RADIATOR COOLING FAN" = different parts.
+    // (noise words like complete/assy/front are stripped; synonym-group words are excluded so
+    //  legitimate synonyms like "shock"/"shock absorber" still match)
+    if(score>=75 && score<100){
+      var _synW=[];
+      if(dSynGroup&&pSynGroup&&dSynGroup[0]===pSynGroup[0]){
+        dSynGroup.forEach(function(t){t.split(' ').forEach(function(w){if(w.length>1)_synW.push(w);});});
+      }
       var _fz=function(arr,w){return arr.some(function(x){return x===w||(x.length>3&&w.length>3&&(x.includes(w)||w.includes(x)));});};
-      var _exD=dMainWords.filter(function(w){return !_fz(pMainWords,w);});
-      var _exP=pMainWords.filter(function(w){return !_fz(dMainWords,w);});
-      if(_exD.length>0||_exP.length>0) score=0; // one side is more specific → different part
+      var _exD=dMainWords.filter(function(w){return !_fz(pMainWords,w)&&_synW.indexOf(w)<0;});
+      var _exP=pMainWords.filter(function(w){return !_fz(dMainWords,w)&&_synW.indexOf(w)<0;});
+      if(_exD.length>0||_exP.length>0) score=0; // extra significant word → different part
     }
     if(score<75) return; // Strict match only
 
@@ -3871,19 +3877,19 @@ function duplicateHist(id){
     });
     window._dupFilled=_filled;
   }catch(_e){window._dupFilled=0;}
-  fillForm({refNo:'',eqNo:'',entity:e.entity,title:e.title,
+  fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,
     vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,
-    closingDate:'',validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});
+    closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});
   renderItems(itemsCopy);
   var qs=document.getElementById('quot-status');if(qs)qs.value='draft';
   curStatus='draft';
   var ip=document.getElementById('info-panel');if(ip)ip.style.display='block';
   var itp=document.getElementById('items-panel');if(itp)itp.style.display='block';
   var ais=document.getElementById('ai-status');if(ais)ais.className='ai-status success';
-  var aist=document.getElementById('ai-st');if(aist)aist.textContent='📋 Duplicated — '+itemsCopy.length+' items (prices kept). புது e-Q No & Closing Date போட்டு Save பண்ணு.';
+  var aist=document.getElementById('ai-st');if(aist)aist.textContent='📋 Duplicated (full copy) — '+itemsCopy.length+' items. புது tender-னா e-Q No & Closing Date மாத்தி Save பண்ணு. அதே tender-ஐ price பண்ணணா அப்படியே Save பண்ணு.';
   if(typeof setStep==='function') setStep(3);
   setTimeout(function(){if(typeof updateWorkflowBar==='function')updateWorkflowBar();},300);
-  if(typeof showToast==='function') showToast('📋 Duplicated! '+(window._dupFilled>0?(window._dupFilled+' item(s) auto-priced from history. '):'')+'புது e-Q No & Closing Date போட்டு Save பண்ணு','t-s');
+  if(typeof showToast==='function') showToast('📋 Full copy! '+(window._dupFilled>0?(window._dupFilled+' item(s) auto-priced. '):'')+'புது tender-னா e-Q No & Closing மாத்து','t-s');
 }
 function delHist(id){
   if(!confirm('Delete this quotation?'))return;
