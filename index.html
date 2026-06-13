@@ -2310,7 +2310,50 @@ function calShowDay(key){
       +'<div><div style="font-weight:700;font-size:13px;color:#0D1B2A;">'+(e.vehicle||'—')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+(e.entity?(' · '+e.entity):'')+'</div></div>'
       +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;white-space:nowrap;">'+(e.status||'draft')+'</div></div>';
   }).join('');
-  det.innerHTML='<div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);"><div style="font-size:14px;font-weight:700;margin-bottom:10px;color:#0D1B2A;">📋 '+key+' — '+qs.length+' closing (தட்டினா open ஆகும்)</div>'+rows+'</div>';
+  det.innerHTML='<div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);"><div style="font-size:14px;font-weight:700;margin-bottom:10px;color:#0D1B2A;">📋 '+key+' — '+qs.length+' closing (தட்டினா open ஆகும்)</div>'+rows
+    +'<div style="display:flex;gap:8px;margin-top:14px;">'
+    +'<button onclick="event.stopPropagation();calSendWhatsApp(\''+key+'\')" style="flex:1;padding:10px;background:#B22222;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📲 WhatsApp</button>'
+    +'<button onclick="event.stopPropagation();calDayPDF(\''+key+'\')" style="flex:1;padding:10px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📄 PDF</button>'
+    +'</div></div>';
+}
+function calSendWhatsApp(key){
+  var qs=(calClosingMap()[key])||[];
+  if(!qs.length){ if(typeof showToast==='function') showToast('அந்த நாள் closing இல்ல','t-i'); return; }
+  qs.sort(function(a,b){return (a.vehicle||'').localeCompare(b.vehicle||'');});
+  var lines=qs.map(function(e){var v=e.vehicle||'';var q=e.eqNo||e.refNo||'';return '• '+(v?v+' — ':'')+q+(e.entity?(' ('+e.entity+')'):'');});
+  var text='⏰ *CLOSING ON '+key+' — NGRD / Puspha Motors*\n\n'+lines.join('\n')+'\n\n⚠️ இந்த தேதிக்கு முன்னாடி submit பண்ணுங்க!\nTotal: '+qs.length+' quotation(s)';
+  window.open('https://wa.me/'+ADMIN_WA+'?text='+encodeURIComponent(text),'_blank');
+  if(typeof showToast==='function') showToast('📲 '+qs.length+' closing reminder ready','t-s');
+}
+function calDayPDF(key){
+  var qs=(calClosingMap()[key])||[];
+  if(!qs.length){ if(typeof showToast==='function') showToast('அந்த நாள் closing இல்ல','t-i'); return; }
+  qs.sort(function(a,b){return (a.vehicle||'').localeCompare(b.vehicle||'');});
+  var rows=qs.map(function(e,i){
+    return '<tr style="background:'+(i%2?'#fff':'#f7fafd')+';">'
+      +'<td style="padding:7px;border:1px solid #ddd;text-align:center;font-weight:700;">'+(i+1)+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;font-weight:600;">'+(e.vehicle||'—')+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;">'+(e.eqNo||e.refNo||'—')+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;">'+(e.entity||'—')+'</td>'
+      +'<td style="padding:7px;border:1px solid #ddd;text-align:center;text-transform:uppercase;font-size:10px;">'+(e.status||'draft')+'</td>'
+      +'</tr>';
+  }).join('');
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Closing '+key+'</title>'
+   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
+   +'.page{width:210mm;min-height:297mm;margin:0 auto;padding:24px 28px;}@page{size:A4;margin:12mm;}'
+   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'
+   +'table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#0D1B2A;color:#fff;padding:8px;text-align:left;font-size:11px;}</style></head><body><div class="page">'
+   +'<div style="text-align:center;border-bottom:3px solid #B22222;padding-bottom:12px;margin-bottom:16px;">'
+     +'<div style="font-size:20px;font-weight:700;color:#B22222;">⏰ CLOSING ON '+key+'</div>'
+     +'<div style="font-size:13px;color:#555;margin-top:3px;">Quotations to submit — Action Required</div>'
+     +'<div style="font-size:11px;color:#888;margin-top:4px;">Total: '+qs.length+' quotation(s)</div>'
+   +'</div>'
+   +'<table><thead><tr><th style="text-align:center;">#</th><th>Vehicle</th><th>e-Q No</th><th>Department</th><th style="text-align:center;">Status</th></tr></thead><tbody>'+rows+'</tbody></table>'
+   +'<div style="margin-top:18px;padding:10px;background:#fff3f3;border-left:4px solid #B22222;font-size:12px;color:#B22222;font-weight:600;">⚠️ இந்த quotations-ஐ '+key+'-க்கு முன்னாடி submit பண்ணுங்க!</div>'
+   +'<div style="margin-top:30px;text-align:center;font-size:10px;color:#aaa;">NGRD Motors / Puspha Motors — Quotation System</div>'
+   +'</div></body></html>';
+  if(typeof _printWithIframe==='function') _printWithIframe(html);
+  if(typeof showToast==='function') showToast('📄 PDF ready — Save பண்ணி share பண்ணு','t-s');
 }
 function initFirebaseSync(){
   if(!FB_READY)return;
