@@ -3837,6 +3837,29 @@ function loadHist(id){
   setTimeout(updateWorkflowBar,300);
 }
 
+function duplicateHist(id){
+  var e=getHist().find(function(x){return String(x.id)===String(id);});
+  if(!e){ if(typeof showToast==='function') showToast('Quotation not found','t-e'); return; }
+  window.curEditId=null;        // create NEW entry on Save
+  window._submitOnlyMode=false;
+  if(typeof closeQV==='function') closeQV();
+  if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company]&&typeof setCompany==='function') setCompany(e.company,true);
+  showPage('new');
+  var itemsCopy=JSON.parse(JSON.stringify(e.items||[]));  // keep parts+brands+prices
+  fillForm({refNo:'',eqNo:'',entity:e.entity,title:e.title,
+    vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,
+    closingDate:'',validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});
+  renderItems(itemsCopy);
+  var qs=document.getElementById('quot-status');if(qs)qs.value='draft';
+  curStatus='draft';
+  var ip=document.getElementById('info-panel');if(ip)ip.style.display='block';
+  var itp=document.getElementById('items-panel');if(itp)itp.style.display='block';
+  var ais=document.getElementById('ai-status');if(ais)ais.className='ai-status success';
+  var aist=document.getElementById('ai-st');if(aist)aist.textContent='📋 Duplicated — '+itemsCopy.length+' items (prices kept). புது e-Q No & Closing Date போட்டு Save பண்ணு.';
+  if(typeof setStep==='function') setStep(3);
+  setTimeout(function(){if(typeof updateWorkflowBar==='function')updateWorkflowBar();},300);
+  if(typeof showToast==='function') showToast('📋 Duplicated! புது e-Q No & Closing Date போட்டு Save பண்ணு','t-s');
+}
 function delHist(id){
   if(!confirm('Delete this quotation?'))return;
   // Save to delete blacklist so sync doesn't bring it back
@@ -3930,6 +3953,7 @@ function openQV(id){
       <div style="display:flex;gap:8px;">
         <button onclick="loadHist(${e.id});closeQV();" style="padding:7px 14px;background:#1A3A6B;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px;">📂 Edit</button>
         <button onclick="(function(){loadHist(${e.id});setTimeout(downloadPDFDirect,600);})()" style="padding:7px 14px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px;">💾 PDF</button>
+        <button onclick="duplicateHist(${e.id});" style="padding:7px 14px;background:#7B3FA0;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px;">📋 Duplicate</button>
       </div>
       <div style="font-size:15px;font-weight:700;color:#0D1B2A;">Grand Total: ${lkr((e.items||[]).reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};return s+(parseFloat(br.price)||item.unitPrice||0)*(item.qty||1);},0)||e.grandTotal||0)}</div>
     </div>`;
