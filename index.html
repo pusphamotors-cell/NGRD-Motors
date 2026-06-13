@@ -708,7 +708,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">💰</span><span class="panel-hdr-title">Parts Price Master List</span>
             <div class="panel-hdr-right" style="display:flex;gap:5px;flex-wrap:wrap;"><button class="btn btn-gold btn-sm" onclick="openAddPrice()">➕ Add</button><button class="btn btn-navy btn-sm" onclick="expCSV()">📥 Export</button><label class="btn btn-navy btn-sm" style="cursor:pointer;margin:0;">📤 Import<input type="file" id="imp-file" accept=".csv" onchange="impCSV(this)" style="display:none;"></label><button class="btn btn-green btn-sm" onclick="loadSX4()">🚗 SX4 (350)</button>
-            <button class="btn btn-sm" onclick="extractPricesFromHistory()" style="background:#1A3A6B;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">📊 History-லிருந்து Extract</button><button onclick="hardReset()" style="padding:5px 11px;background:rgba(178,34,34,.1);color:var(--red);border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear</button></div>
+            <button class="btn btn-sm" onclick="extractPricesFromHistory()" style="background:#1A3A6B;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">📊 History-லிருந்து Extract</button><button class="btn btn-sm" onclick="cleanDuplicatePrices()" style="background:#7B3FA0;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🧹 Clean Duplicates</button><button onclick="hardReset()" style="padding:5px 11px;background:rgba(178,34,34,.1);color:var(--red);border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear</button></div>
           </div>
           <div class="panel-body">
             <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:#7A5800;">💡 <b>CSV Format:</b> A=Description, B=PartNo, C=Brand, D=Country, E=Price (Row 1 header)</div>
@@ -4273,6 +4273,23 @@ function closeQV(){document.getElementById('qv-popup').classList.remove('open');
 // ══════════════════════════════════════════════════
 // PARTS PRICE MASTER LIST
 // ══════════════════════════════════════════════════
+function cleanDuplicatePrices(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  var prices=getPrices();
+  var before=prices.length;
+  var seen={}, out=[];
+  prices.forEach(function(p){
+    var key=(p.description||'').trim().toLowerCase()+'|'+(p.brand||'').trim().toLowerCase()+'|'+(p.vehicle||'').trim().toLowerCase();
+    if(seen[key]) return; // keep first (newest, since new prices are unshifted to front)
+    seen[key]=1; out.push(p);
+  });
+  var removed=before-out.length;
+  if(removed<=0){showToast('✅ Duplicate price ஒண்ணும் இல்ல','t-s');return;}
+  if(!confirm(removed+' duplicate price(s) கண்டுபிடிச்சேன் (same item + brand + model). Clean பண்ணணுமா?')) return;
+  setPrices(out);
+  if(typeof renderPriceList==='function') renderPriceList();
+  showToast('🧹 '+removed+' duplicate price(s) removed!','t-s');
+}
 function autoSavePrices(items){
   var vehicle=document.getElementById('f-vname')?document.getElementById('f-vname').value||'':'';
   var prices=getPrices();
@@ -4290,10 +4307,12 @@ function autoSavePrices(items){
       var country=br.country||'';
       var purchasePrice=parseFloat(br.purchasePrice)||0;
 
-      // Find existing entry: same description + same brand
+      // Find existing entry: same description + same brand + same VEHICLE/MODEL
+      // (same model → update, no duplicate; different model → separate entry, keeps own price)
       var idx=prices.findIndex(function(p){
         return (p.description||'').toLowerCase()===(item.description||'').toLowerCase()
-          && (p.brand||'').toLowerCase()===(brand||'').toLowerCase();
+          && (p.brand||'').toLowerCase()===(brand||'').toLowerCase()
+          && (p.vehicle||'').toLowerCase()===(vehicle||'').toLowerCase();
       });
 
       var entry={
@@ -4352,6 +4371,9 @@ function renderPriceList(){
   const empty=document.getElementById('price-list-empty');
   if(!filtered.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
+  // GROUP by description (+vehicle): description shown once; its brand/part-no variants listed under it
+  filtered.sort(function(a,b){var d=(a.description||'').toLowerCase().localeCompare((b.description||'').toLowerCase());if(d!==0)return d;var v=(a.vehicle||'').toLowerCase().localeCompare((b.vehicle||'').toLowerCase());if(v!==0)return v;return (a.brand||'').toLowerCase().localeCompare((b.brand||'').toLowerCase());});
+  var _prevGroup='';
   if(tbody) tbody.innerHTML=filtered.map(p=>{
     const daysOld=getPriceDaysOld(p.date);
     const stale=daysOld!==null&&daysOld>30;
@@ -4362,8 +4384,10 @@ function renderPriceList(){
     const canSeePu=getRole().seePurchase;
     const canEdit=CU&&(CU.role==='admin'||(CU.permissions&&(CU.permissions.includes('admin')||CU.permissions.includes('price'))));
     const isAdmin=CU&&CU.role==='admin';
-    var row='<tr>';
-    row+='<td style="font-weight:600;font-size:12px;">'+(p.description||'—')+'</td>';
+    var _gk=(p.description||'').toLowerCase()+'|'+(p.vehicle||'').toLowerCase();
+    var _sameGroup=(_gk===_prevGroup); _prevGroup=_gk;
+    var row='<tr'+(_sameGroup?' style="background:#fafbfd;"':'')+'>';
+    row+='<td style="font-weight:600;font-size:12px;">'+(_sameGroup?'<span style="color:#ccc;padding-left:12px;">↳</span>':(p.description||'—'))+'</td>';
     row+='<td style="font-size:10px;color:var(--navy);">'+(p.vehicle||'<span style="color:var(--muted);">All</span>')+'</td>';
     row+='<td style="font-family:monospace;font-size:10px;">'+(p.partNo||'—')+'</td>';
     row+='<td><span class="brand-badge" style="font-size:10px;">'+(p.brand||'—')+'</span></td>';
