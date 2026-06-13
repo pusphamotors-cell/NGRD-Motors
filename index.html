@@ -3285,10 +3285,10 @@ function findAllPriceMatches(desc,prices,vehicle){
     combined.push(itemCopy);
   }
 
-  // Only exact same vehicle matches — strict mode
+  // EXACT same vehicle/model ONLY. Different models (K14/KB40/KB70...) have different
+  // chassis + engine = different parts = different prices. Sharing would give WRONG prices.
   exactMatches.slice(0,3).forEach(addIfNew);
-  // familyMatches removed — strict same vehicle only
-  // universalMatches removed — user wants own vehicle data only
+  // family + universal sharing OFF — own exact-model data only (safe for non-technical staff)
 
   // LH/RH pairing
   var descHasLHRH=/\b(lh|rh|lh\/rh|l\/h|r\/h|left|right)\b/i.test(desc);
@@ -7329,7 +7329,7 @@ function cleanDuplicateVehicles(){
 }
 function addVehicle(){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}var n=prompt('Vehicle name:','');if(!n||!n.trim())return;n=n.trim();var v=getVehicleMaster();var nk=n.toLowerCase().replace(/\s+/g,' ');if(v.some(function(x){return x.toLowerCase().replace(/\s+/g,' ')===nk;})){showToast('⚠️ Already exists!','t-e');return;}v.push(n);saveVehicleMaster(v);renderVehicleSettings();showToast('✅ '+n+' added!','t-s');}
 function deleteVehicle(name){if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}if(!confirm('Delete: '+name+'?'))return;saveVehicleMaster(getVehicleMaster().filter(function(v){return v!==name;}));renderVehicleSettings();showToast('Deleted!','t-i');}
-function renderVehicleSettings(){var el=document.getElementById('vehicle-settings-list');if(!el)return;var v=getVehicleMaster();if(!v.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles!</div>';return;}el.innerHTML=v.map(function(x,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'"><span style="font-size:13px;font-weight:600;">🚗 '+x+'</span><button onclick="deleteVehicle('+JSON.stringify(x)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️</button></div>';}).join('');}
+function renderVehicleSettings(){var ab=document.getElementById('vehicle-admin-btns-v');if(ab)ab.style.display=(CU&&CU.role==='admin')?'flex':'none';var el=document.getElementById('vehicle-settings-list');if(!el)return;var v=getVehicleMaster();if(!v.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No vehicles!</div>';return;}el.innerHTML=v.map(function(x,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);background:'+(i%2===0?'#f7fafd':'#fff')+'"><span style="font-size:13px;font-weight:600;">🚗 '+x+'</span><button onclick="deleteVehicle('+JSON.stringify(x)+')" style="padding:4px 10px;background:rgba(178,34,34,.1);color:#B22222;border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;cursor:pointer;">🗑️</button></div>';}).join('');}
 function syncUploadVehicle(val){var fv=document.getElementById('f-vname');if(fv)fv.value=val;}
 function refreshAllVehicleDropdowns(){var ab=document.getElementById('vehicle-admin-btns');if(ab)ab.style.display='flex';var v=getVehicleMaster();var opts=v.map(function(x){return '<option value="'+x+'">'+x+'</option>';}).join('');var uv=document.getElementById('upload-vehicle-select');if(uv){var cur=uv.value;uv.innerHTML='<option value="">— Vehicle Select பண்ணுங்கள் —</option>'+opts;if(cur)uv.value=cur;}var fv=document.getElementById('f-vname');if(fv&&fv.tagName==='SELECT'){var curF=fv.value;fv.innerHTML='<option value=""></option>'+opts;if(curF)fv.value=curF;}}
 function uploadPageAddVehicle(){var n=prompt('Vehicle:','');if(!n||!n.trim())return;n=n.trim();var v=getVehicleMaster();var nk=n.toLowerCase().replace(/\s+/g,' ');if(v.some(function(x){return x.toLowerCase().replace(/\s+/g,' ')===nk;})){alert('⚠️ Already exists!');return;}v.push(n);saveVehicleMaster(v);var sel=document.getElementById('upload-vehicle-select');if(sel){sel.value=n;syncUploadVehicle(n);}showToast('✅ '+n+' added!','t-s');}
