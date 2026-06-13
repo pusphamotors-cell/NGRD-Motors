@@ -3800,7 +3800,94 @@ function openQV(id){
 
   document.getElementById('qv-popup').classList.add('open');
   document.getElementById('qv-overlay').style.display='block';
+  resetQVPos();
+  makeQVDraggable();
 }
+var _qvOff={x:0,y:0};
+function resetQVPos(){_qvOff.x=0;_qvOff.y=0;var box=document.getElementById('qv-popup');if(box)box.style.transform='translate(-50%,-50%)';}
+function makeQVDraggable(){
+  var box=document.getElementById('qv-popup');
+  var handle=box?box.querySelector('.qv-hdr'):null;
+  if(!box||!handle||box._dragInit) return;
+  box._dragInit=true;
+  handle.style.cursor='move'; handle.style.userSelect='none';
+  var startX=0,startY=0,baseX=0,baseY=0,dragging=false;
+  function apply(){box.style.transform='translate(-50%,-50%) translate('+_qvOff.x+'px,'+_qvOff.y+'px)';}
+  function down(e){
+    if(e.target&&e.target.closest&&e.target.closest('button')) return;
+    dragging=true;
+    var pt=e.touches?e.touches[0]:e;
+    startX=pt.clientX; startY=pt.clientY; baseX=_qvOff.x; baseY=_qvOff.y;
+    document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+    document.addEventListener('touchmove',mv,{passive:false}); document.addEventListener('touchend',up);
+    if(e.cancelable) e.preventDefault();
+  }
+  function mv(e){
+    if(!dragging) return;
+    var pt=e.touches?e.touches[0]:e;
+    _qvOff.x=baseX+(pt.clientX-startX); _qvOff.y=baseY+(pt.clientY-startY);
+    apply();
+    if(e.cancelable) e.preventDefault();
+  }
+  function up(){dragging=false;document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',mv);document.removeEventListener('touchend',up);}
+  handle.addEventListener('mousedown',down);
+  handle.addEventListener('touchstart',down,{passive:false});
+}
+/* ═══ UNIVERSAL POPUP DRAG — all modals movable by their top header zone ═══ */
+(function universalPopupDrag(){
+  var box=null, sx=0, sy=0, baseMatrix='';
+  function findBox(t){
+    var el=t;
+    while(el && el.nodeType===1 && el!==document.body && el!==document.documentElement){
+      var cs=window.getComputedStyle(el);
+      if(cs.position==='fixed'||cs.position==='absolute'){
+        var w=el.offsetWidth, h=el.offsetHeight, z=parseInt(cs.zIndex)||0;
+        // a modal: not near-fullscreen (excludes navbar/sidebar/overlays), reasonable z-index
+        if(w>80 && h>80 && w<window.innerWidth*0.97 && h<window.innerHeight*0.97 && z>=20){
+          if(el.id==='ext-modal-box' || (el.classList&&el.classList.contains('qv-popup'))) return null; // have dedicated handlers
+          return el;
+        }
+      }
+      el=el.parentElement;
+    }
+    return null;
+  }
+  function start(e){
+    var t=e.target;
+    if(!t||!t.closest) return;
+    if(t.closest('input,select,textarea,button,a,label,[contenteditable="true"]')) return; // don't drag from controls
+    var b=findBox(t);
+    if(!b) return;
+    var pt=e.touches?e.touches[0]:e;
+    var r=b.getBoundingClientRect();
+    if(pt.clientY - r.top > 60) return; // only from the top header zone
+    box=b;
+    var cs=window.getComputedStyle(b).transform;
+    baseMatrix=(cs&&cs!=='none')?cs:'';
+    sx=pt.clientX; sy=pt.clientY;
+    b.style.cursor='move';
+    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true);
+    document.addEventListener('touchmove',mv,{passive:false,capture:true}); document.addEventListener('touchend',up,true);
+    if(e.cancelable) e.preventDefault();
+  }
+  function mv(e){
+    if(!box) return;
+    var pt=e.touches?e.touches[0]:e;
+    var dx=pt.clientX-sx, dy=pt.clientY-sy;
+    box.style.transform=(baseMatrix?baseMatrix+' ':'')+'translate('+dx+'px,'+dy+'px)';
+    if(e.cancelable) e.preventDefault();
+  }
+  function up(){
+    if(!box) return;
+    var cs=window.getComputedStyle(box).transform;
+    box.style.transform=(cs&&cs!=='none')?cs:''; // bake position
+    box=null;
+    document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true);
+    document.removeEventListener('touchmove',mv,true); document.removeEventListener('touchend',up,true);
+  }
+  document.addEventListener('mousedown',start,true);
+  document.addEventListener('touchstart',start,{passive:false,capture:true});
+})();
 function closeQV(){document.getElementById('qv-popup').classList.remove('open');document.getElementById('qv-overlay').style.display='none';}
 
 // ══════════════════════════════════════════════════
