@@ -6656,6 +6656,37 @@ function extPickCamp(){
   var ta=document.getElementById('ext-toaddr');
   if(ta&&c) ta.value=(c.addr||[]).join('\n');
 }
+function extMakeDraggable(){
+  var box=document.getElementById('ext-modal-box');
+  var handle=document.getElementById('ext-modal-header');
+  if(!box||!handle) return;
+  var offX=0,offY=0,startX=0,startY=0,baseX=0,baseY=0,dragging=false;
+  handle.style.cursor='move';
+  handle.style.userSelect='none';
+  function down(e){
+    if(e.target&&e.target.closest&&e.target.closest('button')) return; // don't drag when tapping ✕
+    dragging=true;
+    var pt=e.touches?e.touches[0]:e;
+    startX=pt.clientX; startY=pt.clientY; baseX=offX; baseY=offY;
+    document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+    document.addEventListener('touchmove',mv,{passive:false}); document.addEventListener('touchend',up);
+    if(e.cancelable) e.preventDefault();
+  }
+  function mv(e){
+    if(!dragging) return;
+    var pt=e.touches?e.touches[0]:e;
+    offX=baseX+(pt.clientX-startX); offY=baseY+(pt.clientY-startY);
+    box.style.transform='translate('+offX+'px,'+offY+'px)';
+    if(e.cancelable) e.preventDefault();
+  }
+  function up(){
+    dragging=false;
+    document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up);
+    document.removeEventListener('touchmove',mv); document.removeEventListener('touchend',up);
+  }
+  handle.addEventListener('mousedown',down);
+  handle.addEventListener('touchstart',down,{passive:false});
+}
 function openExtensionModal(){
   var co=getCompany();
   var d=buildQData();
@@ -6668,7 +6699,7 @@ function openExtensionModal(){
   m.id='ext-modal';
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
   m.innerHTML=
-   '<div style="background:#fff;border-radius:10px;width:100%;max-width:480px;padding:0;font-family:var(--fb);box-shadow:0 10px 40px rgba(0,0,0,.4);">'
+   '<div id="ext-modal-box" style="background:#fff;border-radius:10px;width:100%;max-width:480px;padding:0;font-family:var(--fb);box-shadow:0 10px 40px rgba(0,0,0,.4);">'
    +'<div id="ext-modal-header" style="background:'+(co.id==='puspha'?'#B71C1C':'#0D1B2A')+';color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">'
      +'<div style="font-weight:700;font-size:15px;">📄 Validity Extension Letter</div>'
      +'<button onclick="document.getElementById(\'ext-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:15px;">✕</button>'
@@ -6702,6 +6733,7 @@ function openExtensionModal(){
      +'<button id="ext-gen-btn" onclick="genExtensionPDF()" style="width:100%;padding:12px;background:'+(co.id==='puspha'?'#B71C1C':'#0D1B2A')+';color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:6px;">🖨️ Generate PDF</button>'
    +'</div></div>';
   document.body.appendChild(m);
+  extMakeDraggable();
   extSetMode('accept');
   extSetCompany(co.id);
   extPickCamp();
