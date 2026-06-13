@@ -3855,6 +3855,22 @@ function duplicateHist(id){
   if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company]&&typeof setCompany==='function') setCompany(e.company,true);
   showPage('new');
   var itemsCopy=JSON.parse(JSON.stringify(e.items||[]));  // keep parts+brands+prices
+  // SMART AUTO-FILL: for items with no price, pull latest known prices from history
+  try{
+    var _prices=(typeof getPrices==='function')?getPrices():[];
+    var _veh=e.vehicle||'';
+    var _filled=0;
+    itemsCopy.forEach(function(item){
+      var hasPriced=(item.brandRows||[]).some(function(br){return parseFloat(br.price)>0;});
+      if(hasPriced) return; // already has price → keep as-is
+      var matches=(typeof findAllPriceMatches==='function')?findAllPriceMatches(item.description,_prices,_veh):[];
+      if(matches&&matches.length){
+        item.brandRows=matches.slice(0,3).map(function(m){return {brand:m.brand||'',partNo:m.partNo||'',country:m.country||'Japan',price:parseFloat(m.price)||0,purchasePrice:parseFloat(m.purchasePrice)||0,marginPct:0};});
+        _filled++;
+      }
+    });
+    window._dupFilled=_filled;
+  }catch(_e){window._dupFilled=0;}
   fillForm({refNo:'',eqNo:'',entity:e.entity,title:e.title,
     vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,
     closingDate:'',validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});
@@ -3867,7 +3883,7 @@ function duplicateHist(id){
   var aist=document.getElementById('ai-st');if(aist)aist.textContent='📋 Duplicated — '+itemsCopy.length+' items (prices kept). புது e-Q No & Closing Date போட்டு Save பண்ணு.';
   if(typeof setStep==='function') setStep(3);
   setTimeout(function(){if(typeof updateWorkflowBar==='function')updateWorkflowBar();},300);
-  if(typeof showToast==='function') showToast('📋 Duplicated! புது e-Q No & Closing Date போட்டு Save பண்ணு','t-s');
+  if(typeof showToast==='function') showToast('📋 Duplicated! '+(window._dupFilled>0?(window._dupFilled+' item(s) auto-priced from history. '):'')+'புது e-Q No & Closing Date போட்டு Save பண்ணு','t-s');
 }
 function delHist(id){
   if(!confirm('Delete this quotation?'))return;
