@@ -2493,10 +2493,29 @@ function initFirebaseSync(){
       }
     }catch(e){}
   });
+  // Sync suppliers across all devices/users (merge, dedupe by name)
+  fbRead('suppliers',function(data){
+    try{
+      var remote=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data):[]);
+      remote=remote.filter(function(x){return x&&x.name;});
+      var local=getSuppliers();
+      if(!remote.length){ if(local.length>0)fbWrite('suppliers',local); return; }
+      var map={};
+      local.forEach(function(s){var k=(s.name||'').trim().toLowerCase();if(k)map[k]=s;});
+      remote.forEach(function(s){var k=(s.name||'').trim().toLowerCase();if(!k)return;
+        if(map[k]){ if(!map[k].phone&&s.phone)map[k].phone=s.phone; if(!map[k].address&&s.address)map[k].address=s.address; }
+        else map[k]=s;
+      });
+      var merged=Object.keys(map).map(function(k){return map[k];});
+      localStorage.setItem('ngrd_suppliers',JSON.stringify(merged));
+      fbWrite('suppliers',merged);
+      if(document.getElementById('penq-supplier-picker')&&typeof renderSupplierPicker==='function')
+        renderSupplierPicker((document.getElementById('penq-supplier')||{}).value||'');
+    }catch(e){}
+  });
   fbRead('history',function(data){
     try{
-      var local=getHist();
-      if(!data||typeof data!=='object'){if(local.length>0)fbWrite('history',local);return;}
+      var local=getHist();      if(!data||typeof data!=='object'){if(local.length>0)fbWrite('history',local);return;}
       var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
       if(!remote.length){if(local.length>0)fbWrite('history',local);return;}
       var statusOrder={draft:0,assigned:1,pending:2,approved:3,submitted:4,awarded:5,rejected:6};
@@ -6854,6 +6873,10 @@ function reExport(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.com
 function getSuppliers(){
   try { return JSON.parse(localStorage.getItem('ngrd_suppliers')||'[]'); } catch(e){ return []; }
 }
+function setSuppliers(list){
+  setSuppliers(list);
+  if(typeof fbWrite==='function') fbWrite('suppliers', list);
+}
 function saveSupplier(name, phone, addr){
   if(!name||!name.trim()) return;
   var list=getSuppliers();
@@ -6867,7 +6890,7 @@ function saveSupplier(name, phone, addr){
   } else {
     list.unshift({name:name.trim(), phone:(phone||'').trim(), address:(addr||'').trim()});
   }
-  localStorage.setItem('ngrd_suppliers', JSON.stringify(list));
+  setSuppliers(list);
 }
 function penqFillSupplier(){
   var el=document.getElementById('penq-supplier'); if(!el) return;
@@ -6915,7 +6938,7 @@ function editSupplier(i){
   // remove old entry, then save edited (auto-dedupes by new name)
   var oldKey=(s.name||'').trim().toLowerCase();
   var list=getSuppliers().filter(function(x){return (x.name||'').trim().toLowerCase()!==oldKey;});
-  localStorage.setItem('ngrd_suppliers', JSON.stringify(list));
+  setSuppliers(list);
   saveSupplier(newName, newPhone, newAddr);
   renderSupplierPicker((document.getElementById('penq-supplier')||{}).value||'');
   if(typeof showToast==='function') showToast('✅ Supplier updated','t-s');
@@ -6925,7 +6948,7 @@ function deleteSupplier(i){
   if(!confirm('"'+s.name+'" supplier-ஐ list-லிருந்து நீக்கணுமா?')) return;
   var key=(s.name||'').trim().toLowerCase();
   var list=getSuppliers().filter(function(x){return (x.name||'').trim().toLowerCase()!==key;});
-  localStorage.setItem('ngrd_suppliers', JSON.stringify(list));
+  setSuppliers(list);
   renderSupplierPicker((document.getElementById('penq-supplier')||{}).value||'');
 }
 function penqOnSupplierInput(){
