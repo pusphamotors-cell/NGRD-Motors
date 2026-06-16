@@ -599,6 +599,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <div class="format-group">
                 <div class="format-lbl">Format 3 — Purchase Enquiry</div>
                 <button class="btn btn-navy" onclick="downloadPurchaseEnquiryPDF()">📋 PDF</button>
+                <button class="btn" onclick="openPurchaseEnquiryModal()" style="background:#1A6B3C;color:#fff;border:none;">🏪 By Supplier</button>
               </div>
               <div class="action-div"></div>
               <div class="format-group" id="fmt-extension" style="display:none;">
@@ -6850,6 +6851,91 @@ function downloadArmyExcel(){
 }
 
 function reExport(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});downloadExcel();curItems=s;}
+function openPurchaseEnquiryModal(){
+  if(!curItems.length){showToast('No items','t-e');return;}
+  var d=buildQData();
+  var ex=document.getElementById('penq-modal'); if(ex) ex.remove();
+  var itemRows=d.items.map(function(item,i){
+    var rb=item.brand||(item.brandRows&&item.brandRows[0]&&item.brandRows[0].brand)||'Any';
+    return '<label style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid #eee;cursor:pointer;">'
+      +'<input type="checkbox" class="penq-item-cb" data-idx="'+i+'" checked style="width:17px;height:17px;cursor:pointer;">'
+      +'<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#0D1B2A;">'+(i+1)+'. '+(item.description||'—')+'</div>'
+      +'<div style="font-size:10px;color:#777;">Qty: '+(item.qty||1)+' '+(item.unit||'Nos')+' · Req: '+rb+'</div></div></label>';
+  }).join('');
+  var m=document.createElement('div');
+  m.id='penq-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10003;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
+  m.innerHTML='<div id="penq-box" style="background:#fff;border-radius:12px;width:100%;max-width:480px;box-shadow:0 12px 48px rgba(0,0,0,.4);margin:auto;">'
+    +'<div id="penq-head" style="background:linear-gradient(135deg,#1A6B3C,#15803d);color:#fff;padding:16px 20px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;cursor:move;">'
+      +'<div style="font-size:16px;font-weight:700;">🏪 Purchase Enquiry — By Supplier</div>'
+      +'<span onclick="document.getElementById(\'penq-modal\').remove()" style="cursor:pointer;font-size:20px;">✕</span></div>'
+    +'<div style="padding:18px 20px;">'
+      +'<div style="font-size:11px;font-weight:700;color:#888;margin-bottom:6px;">SUPPLIER DETAILS</div>'
+      +'<input id="penq-supplier" placeholder="Supplier / Shop name *" style="width:100%;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;margin-bottom:8px;">'
+      +'<div style="display:flex;gap:8px;margin-bottom:14px;"><input id="penq-phone" placeholder="Phone (optional)" style="flex:1;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;"><input id="penq-addr" placeholder="Address (optional)" style="flex:1;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;"></div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:11px;font-weight:700;color:#888;">ITEMS (இந்த supplier-ல இருக்கறதை மட்டும் ✓)</div>'
+        +'<div style="display:flex;gap:6px;"><button onclick="document.querySelectorAll(\'.penq-item-cb\').forEach(function(c){c.checked=true});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">All</button><button onclick="document.querySelectorAll(\'.penq-item-cb\').forEach(function(c){c.checked=false});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">None</button></div></div>'
+      +'<div style="border:1px solid #eee;border-radius:8px;max-height:280px;overflow-y:auto;margin-bottom:14px;">'+itemRows+'</div>'
+      +'<button onclick="generateSupplierEnquiry()" style="width:100%;padding:12px;background:#1A6B3C;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">📄 Generate Enquiry PDF</button>'
+    +'</div></div>';
+  document.body.appendChild(m);
+}
+function generateSupplierEnquiry(){
+  var supplier=(document.getElementById('penq-supplier')||{}).value||'';
+  var phone=(document.getElementById('penq-phone')||{}).value||'';
+  var addr=(document.getElementById('penq-addr')||{}).value||'';
+  if(!supplier.trim()){alert('Supplier name போடுங்க!');return;}
+  var idxs=[];
+  document.querySelectorAll('.penq-item-cb').forEach(function(c){if(c.checked)idxs.push(parseInt(c.getAttribute('data-idx')));});
+  if(!idxs.length){alert('குறைஞ்சது ஒரு item select பண்ணுங்க!');return;}
+  var d=buildQData(); var co=getCompany();
+  var date=new Date().toLocaleDateString('en-LK');
+  var civilRef=d.refNo||'';
+  var sel=idxs.map(function(i){return d.items[i];});
+  var rows=sel.map(function(item,n){
+    var rb=item.brand||(item.brandRows&&item.brandRows[0]&&item.brandRows[0].brand)||'Any';
+    return '<tr style="background:'+(n%2===0?'#f9f9f9':'#fff')+'">'
+      +'<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;">'+(n+1)+'</td>'
+      +'<td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;font-weight:600;">'+(item.description||'')+'</td>'
+      +'<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;">'+(item.qty||1)+'</td>'
+      +'<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;">'+(item.unit||'Nos')+'</td>'
+      +'<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;color:#1A3A6B;font-weight:700;">'+rb+'</td>'
+      +'<td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;min-width:100px;"></td>'
+      +'<td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;min-width:80px;"></td></tr>';
+  }).join('');
+  var esc=function(s){return (s||'').replace(/</g,'&lt;');};
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Purchase Enquiry</title>'
+    +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
+    +'.page{width:210mm;min-height:297mm;padding:14mm 16mm;margin:0 auto;}'
+    +'table{width:100%;border-collapse:collapse;}th{background:#0D1B2A;color:#fff;padding:7px 8px;font-size:11px;border:1px solid #ccc;}'
+    +'.header-box{border:2px solid #0D1B2A;padding:10px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}'
+    +'.co-name{font-size:18px;font-weight:900;color:#0D1B2A;letter-spacing:1px;}.co-sub{font-size:10px;color:#555;margin-top:2px;}'
+    +'.title-row{text-align:center;margin:14px 0 10px;}.title-row h2{font-size:16px;font-weight:900;color:#0D1B2A;text-transform:uppercase;letter-spacing:2px;border-bottom:2px solid #0D1B2A;display:inline-block;padding-bottom:4px;}'
+    +'.supplier-box{border:1.5px solid #1A6B3C;padding:9px 14px;margin-bottom:14px;border-radius:4px;background:#f3faf5;}'
+    +'.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}.info-row{font-size:11px;padding:4px 0;border-bottom:1px dashed #ddd;}.info-label{font-weight:700;color:#0D1B2A;display:inline-block;width:110px;}'
+    +'.sig-row{display:flex;justify-content:space-between;margin-top:34px;}.sig-box{text-align:center;min-width:160px;}.sig-line{border-top:1px solid #000;margin-top:40px;padding-top:4px;font-size:10px;color:#555;}'
+    +'@page{size:A4;margin:0;}@media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body><div class="page">'
+    +'<div class="header-box"><div><div class="co-name">'+co.name.toUpperCase()+'</div><div class="co-sub">Panchikawatta, Colombo 10 | Tel: +94 11 2 449 385</div></div>'
+    +'<div style="text-align:right;font-size:10px;color:#555;">Date: '+date+'<br>Ref: '+civilRef+'</div></div>'
+    +'<div class="title-row"><h2>Purchase Enquiry</h2></div>'
+    +'<div class="supplier-box"><div style="font-size:13px;font-weight:700;color:#1A6B3C;">🏪 '+esc(supplier)+'</div>'
+      +(phone||addr?('<div style="font-size:11px;color:#444;margin-top:3px;">'+(phone?('📞 '+esc(phone)):'')+(phone&&addr?' &nbsp;|&nbsp; ':'')+(addr?('📍 '+esc(addr)):'')+'</div>'):'')+'</div>'
+    +'<div class="info-grid"><div><div class="info-row"><span class="info-label">Vehicle:</span>'+(d.vehicle||'—')+'</div>'
+      +'<div class="info-row"><span class="info-label">Vehicle No:</span>'+(d.vNo||'—')+'</div>'
+      +'<div class="info-row"><span class="info-label">Engine No:</span>'+(d.engineNo||'—')+'</div></div>'
+      +'<div><div class="info-row"><span class="info-label">Civil Ref No:</span>'+civilRef+'</div>'
+      +'<div class="info-row"><span class="info-label">Items:</span>'+sel.length+' Nos</div>'
+      +'<div class="info-row"><span class="info-label">Date Required:</span></div></div></div>'
+    +'<table><thead><tr><th style="width:40px">No</th><th>Description</th><th style="width:50px">Qty</th><th style="width:50px">Unit</th><th style="width:80px">Req. Brand</th><th style="width:120px">Supplied Brand</th><th style="width:90px">Unit Price (LKR)</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="margin-top:12px;font-size:10px;color:#555;font-style:italic;">* Please quote your best price for the above items. Prices should be inclusive of all taxes.</div>'
+    +'<div class="sig-row"><div class="sig-box"><div class="sig-line">Authorized by</div></div><div class="sig-box"><div class="sig-line">Supplier Signature & Stamp</div></div></div>'
+    +'</div></body></html>';
+  if(typeof _printWithIframe==='function') _printWithIframe(html);
+  else { var w=window.open('','_blank'); if(w){w.document.write(html);w.document.close();} }
+  var pm=document.getElementById('penq-modal'); if(pm) pm.remove();
+  if(typeof showToast==='function') showToast('📄 '+supplier+' — '+sel.length+' item enquiry ready','t-s');
+  if(typeof addLog==='function') addLog('Supplier enquiry: '+supplier+' ('+sel.length+' items)');
+}
 function downloadPurchaseEnquiryPDF(){
   if(!curItems.length){showToast('No items','t-e');return;}
   const d=buildQData();
