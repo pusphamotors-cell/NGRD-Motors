@@ -6851,6 +6851,71 @@ function downloadArmyExcel(){
 }
 
 function reExport(id){const e=getHist().find(x=>x.id===id);if(!e)return;if(e.company&&typeof COMPANIES!=='undefined'&&COMPANIES[e.company])setCompany(e.company,true);const s=curItems;curItems=e.items||[];fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});downloadExcel();curItems=s;}
+function getSuppliers(){
+  try { return JSON.parse(localStorage.getItem('ngrd_suppliers')||'[]'); } catch(e){ return []; }
+}
+function saveSupplier(name, phone, addr){
+  if(!name||!name.trim()) return;
+  var list=getSuppliers();
+  var key=name.trim().toLowerCase();
+  var i=list.findIndex(function(s){return (s.name||'').trim().toLowerCase()===key;});
+  if(i>=0){
+    // existing supplier: update phone/address only if new value given (no duplicate created)
+    if((phone||'').trim()) list[i].phone=phone.trim();
+    if((addr||'').trim()) list[i].address=addr.trim();
+    list[i].name=name.trim();
+  } else {
+    list.unshift({name:name.trim(), phone:(phone||'').trim(), address:(addr||'').trim()});
+  }
+  localStorage.setItem('ngrd_suppliers', JSON.stringify(list));
+}
+function penqFillSupplier(){
+  var el=document.getElementById('penq-supplier'); if(!el) return;
+  var name=(el.value||'').trim().toLowerCase();
+  var s=getSuppliers().find(function(x){return (x.name||'').trim().toLowerCase()===name;});
+  if(s){
+    var p=document.getElementById('penq-phone'); var a=document.getElementById('penq-addr');
+    if(p) p.value=s.phone||'';
+    if(a) a.value=s.address||'';
+  }
+}
+var _penqPickerList=[];
+function renderSupplierPicker(filter){
+  var box=document.getElementById('penq-supplier-picker'); if(!box) return;
+  var he=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var all=getSuppliers();
+  var f=(filter||'').trim().toLowerCase();
+  // first-letter / prefix match: type "S" -> all suppliers starting with S
+  _penqPickerList = f ? all.filter(function(s){return (s.name||'').toLowerCase().indexOf(f)===0;}) : all;
+  if(!_penqPickerList.length){
+    box.innerHTML='<div style="padding:9px 10px;font-size:11px;color:#aaa;">'+(f?'"'+f.toUpperCase()+'" -ல ஆரம்பிக்கற supplier இல்ல':'Saved supplier இல்ல — முதல் முறை fill பண்ணி generate பண்ணுங்க')+'</div>';
+    return;
+  }
+  box.innerHTML=_penqPickerList.map(function(s,i){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid #f0f0f0;">'
+      +'<div onclick="penqPickSupplier('+i+')" style="flex:1;cursor:pointer;"><div style="font-size:12px;font-weight:600;color:#0D1B2A;">🏪 '+he(s.name)+'</div>'
+      +((s.phone||s.address)?'<div style="font-size:10px;color:#888;margin-top:1px;">'+he([s.phone,s.address].filter(Boolean).join(' · '))+'</div>':'')+'</div>'
+      +'<span onclick="deleteSupplier('+i+')" style="cursor:pointer;color:#EF4444;font-size:14px;padding:0 6px;">🗑️</span></div>';
+  }).join('');
+}
+function penqPickSupplier(i){
+  var s=_penqPickerList[i]; if(!s) return;
+  var el=document.getElementById('penq-supplier'); if(el) el.value=s.name||'';
+  var p=document.getElementById('penq-phone'); if(p) p.value=s.phone||'';
+  var a=document.getElementById('penq-addr'); if(a) a.value=s.address||'';
+}
+function deleteSupplier(i){
+  var s=_penqPickerList[i]; if(!s) return;
+  if(!confirm('"'+s.name+'" supplier-ஐ list-லிருந்து நீக்கணுமா?')) return;
+  var key=(s.name||'').trim().toLowerCase();
+  var list=getSuppliers().filter(function(x){return (x.name||'').trim().toLowerCase()!==key;});
+  localStorage.setItem('ngrd_suppliers', JSON.stringify(list));
+  renderSupplierPicker((document.getElementById('penq-supplier')||{}).value||'');
+}
+function penqOnSupplierInput(){
+  penqFillSupplier();
+  renderSupplierPicker((document.getElementById('penq-supplier')||{}).value||'');
+}
 function openPurchaseEnquiryModal(){
   if(!curItems.length){showToast('No items','t-e');return;}
   var d=buildQData();
@@ -6871,14 +6936,18 @@ function openPurchaseEnquiryModal(){
       +'<span onclick="document.getElementById(\'penq-modal\').remove()" style="cursor:pointer;font-size:20px;">✕</span></div>'
     +'<div style="padding:18px 20px;">'
       +'<div style="font-size:11px;font-weight:700;color:#888;margin-bottom:6px;">SUPPLIER DETAILS</div>'
-      +'<input id="penq-supplier" placeholder="Supplier / Shop name *" style="width:100%;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;margin-bottom:8px;">'
-      +'<div style="display:flex;gap:8px;margin-bottom:14px;"><input id="penq-phone" placeholder="Phone (optional)" style="flex:1;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;"><input id="penq-addr" placeholder="Address (optional)" style="flex:1;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;"></div>'
+      +'<input id="penq-supplier" list="penq-supplier-list" oninput="penqOnSupplierInput()" placeholder="Supplier / Shop name *" autocomplete="off" style="width:100%;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;margin-bottom:8px;">'
+      +'<datalist id="penq-supplier-list">'+getSuppliers().map(function(s){return '<option value="'+(s.name||'').replace(/"/g,'&quot;')+'">';}).join('')+'</datalist>'
+      +'<div style="display:flex;gap:8px;margin-bottom:10px;"><input id="penq-phone" placeholder="Phone (optional)" style="flex:1;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;"><input id="penq-addr" placeholder="Address (optional)" style="flex:1;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;"></div>'
+      +'<div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px;">📋 Saved Suppliers (type பண்ணி தேடு · tap பண்ணி use)</div>'
+      +'<div id="penq-supplier-picker" style="border:1px solid #eee;border-radius:8px;max-height:130px;overflow-y:auto;margin-bottom:14px;"></div>'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:11px;font-weight:700;color:#888;">ITEMS (இந்த supplier-ல இருக்கறதை மட்டும் ✓)</div>'
         +'<div style="display:flex;gap:6px;"><button onclick="document.querySelectorAll(\'.penq-item-cb\').forEach(function(c){c.checked=true});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">All</button><button onclick="document.querySelectorAll(\'.penq-item-cb\').forEach(function(c){c.checked=false});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">None</button></div></div>'
       +'<div style="border:1px solid #eee;border-radius:8px;max-height:280px;overflow-y:auto;margin-bottom:14px;">'+itemRows+'</div>'
       +'<button onclick="generateSupplierEnquiry()" style="width:100%;padding:12px;background:#1A6B3C;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">📄 Generate Enquiry PDF</button>'
     +'</div></div>';
   document.body.appendChild(m);
+  renderSupplierPicker('');
 }
 function generateSupplierEnquiry(){
   var supplier=(document.getElementById('penq-supplier')||{}).value||'';
@@ -6888,6 +6957,7 @@ function generateSupplierEnquiry(){
   var idxs=[];
   document.querySelectorAll('.penq-item-cb').forEach(function(c){if(c.checked)idxs.push(parseInt(c.getAttribute('data-idx')));});
   if(!idxs.length){alert('குறைஞ்சது ஒரு item select பண்ணுங்க!');return;}
+  saveSupplier(supplier, phone, addr); // remember supplier for next time (no duplicate)
   var d=buildQData(); var co=getCompany();
   var date=new Date().toLocaleDateString('en-LK');
   var civilRef=d.refNo||'';
