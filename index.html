@@ -6928,7 +6928,7 @@ function generateSupplierEnquiry(){
       +'<div class="info-row"><span class="info-label">Date Required:</span></div></div></div>'
     +'<table><thead><tr><th style="width:40px">No</th><th>Description</th><th style="width:50px">Qty</th><th style="width:50px">Unit</th><th style="width:80px">Req. Brand</th><th style="width:120px">Supplied Brand</th><th style="width:90px">Unit Price (LKR)</th></tr></thead><tbody>'+rows+'</tbody></table>'
     +'<div style="margin-top:12px;font-size:10px;color:#555;font-style:italic;">* Please quote your best price for the above items. Prices should be inclusive of all taxes.</div>'
-    +'<div class="sig-row"><div class="sig-box"><div class="sig-line">Authorized by</div></div><div class="sig-box"><div class="sig-line">Supplier Signature & Stamp</div></div></div>'
+    +'<div class="sig-row"><div class="sig-box"><img src="'+extStamp(curCompany)+'" style="width:165px;height:auto;display:block;margin:0 auto 2px;mix-blend-mode:multiply;"><div style="border-top:1px solid #000;padding-top:4px;font-size:10px;color:#555;">Authorized by</div></div><div class="sig-box"><div class="sig-line">Supplier Signature &amp; Stamp</div></div></div>'
     +'</div></body></html>';
   if(typeof _printWithIframe==='function') _printWithIframe(html);
   else { var w=window.open('','_blank'); if(w){w.document.write(html);w.document.close();} }
@@ -7006,7 +7006,7 @@ function downloadPurchaseEnquiryPDF(){
   '</tr></thead><tbody>'+rows+'</tbody></table>'+
   '<div style="margin-top:12px;font-size:10px;color:#555;font-style:italic;">* Please quote your best price for the above items. Prices should be inclusive of all taxes.</div>'+
   '<div class="sig-row">'+
-  '<div class="sig-box"><div class="sig-line">Authorized by</div></div>'+
+  '<div class="sig-box"><img src="'+extStamp(curCompany)+'" style="width:165px;height:auto;display:block;margin:0 auto 2px;mix-blend-mode:multiply;"><div style="border-top:1px solid #000;padding-top:4px;font-size:10px;color:#555;">Authorized by</div></div>'+
   '<div class="sig-box"><div class="sig-line">Supplier Signature & Stamp</div></div>'+
   '</div>'+
   '</div></body></html>';
