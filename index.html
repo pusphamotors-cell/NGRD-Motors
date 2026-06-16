@@ -6895,6 +6895,7 @@ function renderSupplierPicker(filter){
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid #f0f0f0;">'
       +'<div onclick="penqPickSupplier('+i+')" style="flex:1;cursor:pointer;"><div style="font-size:12px;font-weight:600;color:#0D1B2A;">🏪 '+he(s.name)+'</div>'
       +((s.phone||s.address)?'<div style="font-size:10px;color:#888;margin-top:1px;">'+he([s.phone,s.address].filter(Boolean).join(' · '))+'</div>':'')+'</div>'
+      +'<span onclick="editSupplier('+i+')" style="cursor:pointer;font-size:13px;padding:0 5px;">✏️</span>'
       +'<span onclick="deleteSupplier('+i+')" style="cursor:pointer;color:#EF4444;font-size:14px;padding:0 6px;">🗑️</span></div>';
   }).join('');
 }
@@ -6903,6 +6904,21 @@ function penqPickSupplier(i){
   var el=document.getElementById('penq-supplier'); if(el) el.value=s.name||'';
   var p=document.getElementById('penq-phone'); if(p) p.value=s.phone||'';
   var a=document.getElementById('penq-addr'); if(a) a.value=s.address||'';
+}
+function editSupplier(i){
+  var s=_penqPickerList[i]; if(!s) return;
+  var newName=prompt('Supplier name:', s.name||'');
+  if(newName===null) return; // cancelled
+  if(!newName.trim()){alert('Name காலியா இருக்கக்கூடாது!');return;}
+  var newPhone=prompt('Phone:', s.phone||''); if(newPhone===null) newPhone=s.phone||'';
+  var newAddr=prompt('Address:', s.address||''); if(newAddr===null) newAddr=s.address||'';
+  // remove old entry, then save edited (auto-dedupes by new name)
+  var oldKey=(s.name||'').trim().toLowerCase();
+  var list=getSuppliers().filter(function(x){return (x.name||'').trim().toLowerCase()!==oldKey;});
+  localStorage.setItem('ngrd_suppliers', JSON.stringify(list));
+  saveSupplier(newName, newPhone, newAddr);
+  renderSupplierPicker((document.getElementById('penq-supplier')||{}).value||'');
+  if(typeof showToast==='function') showToast('✅ Supplier updated','t-s');
 }
 function deleteSupplier(i){
   var s=_penqPickerList[i]; if(!s) return;
