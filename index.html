@@ -2786,16 +2786,20 @@ function vehicleMatchesUser(vn){
 }
 
 function findDuplicate(refNo,eqNo,company){
-  const h=getHist();if(!refNo&&!eqNo)return null;
+  const h=getHist();
   var co=company||curCompany||'ngrd';
-  // Only find non-submitted/non-awarded duplicates for blocking
-  // Submitted/awarded entries are done — don't block new edits
+  // normalize: trim, lowercase, collapse inner whitespace — catches case/space differences
+  var norm=function(s){return (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');};
+  // CROSS-FIELD: a ref may sit in eqNo on one entry and refNo on another — match either against either
+  var keys=[norm(refNo),norm(eqNo)].filter(Boolean);
+  if(!keys.length) return null;
   return h.find(function(e){
-    var sameRef=(refNo&&e.refNo&&e.refNo.trim()===refNo.trim());
-    var sameEq=(eqNo&&e.eqNo&&e.eqNo.trim()===eqNo.trim());
+    var eKeys=[norm(e.refNo),norm(e.eqNo)].filter(Boolean);
+    var match=keys.some(function(k){return eKeys.indexOf(k)>=0;});
     var sameCo=(e.company||'ngrd')===co;
+    // Only active entries block/update — submitted/awarded are done, don't touch
     var isActive=['draft','pending','approved','assigned'].indexOf(e.status||'draft')>=0;
-    return (sameRef||sameEq)&&sameCo&&isActive;
+    return match&&sameCo&&isActive;
   })||null;
 }
 
