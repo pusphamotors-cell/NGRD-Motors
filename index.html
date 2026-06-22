@@ -3878,6 +3878,16 @@ function _renderUsersInternal(){
 }
 
 
+var HIST_CLIENT_KW={navy:['navy','slns','sln '],army:['army'],stf:['stf','special task'],coast:['coast guard','coastguard','coast'],police:['police'],airforce:['air force','airforce','slaf']};
+function histClientMatch(entity,cf){
+  if(!cf) return true;
+  var en=(entity||'').toLowerCase();
+  if(cf==='other'){
+    var all=[].concat(HIST_CLIENT_KW.navy,HIST_CLIENT_KW.army,HIST_CLIENT_KW.stf,HIST_CLIENT_KW.coast,HIST_CLIENT_KW.police,HIST_CLIENT_KW.airforce);
+    return !all.some(function(k){return en.indexOf(k)>=0;});
+  }
+  return HIST_CLIENT_KW[cf]?HIST_CLIENT_KW[cf].some(function(k){return en.indexOf(k)>=0;}):true;
+}
 function renderHistory(){
   let h=getHist();
   h=autoFixStatus(h);
@@ -3989,23 +3999,22 @@ function renderHistory(){
 
   // Client-wise filter (Navy/Army/STF/etc) — keyword match on entity, works regardless of how typed
   var cf=document.getElementById('hist-client-filter')?.value||'';
-  if(cf){
-    var CKW={navy:['navy','slns','sln '],army:['army'],stf:['stf','special task'],coast:['coast guard','coastguard','coast'],police:['police'],airforce:['air force','airforce','slaf']};
-    if(cf==='other'){
-      var allKw=[].concat(CKW.navy,CKW.army,CKW.stf,CKW.coast,CKW.police,CKW.airforce);
-      h=h.filter(function(e){var en=(e.entity||'').toLowerCase();return !allKw.some(function(k){return en.indexOf(k)>=0;});});
-    } else if(CKW[cf]){
-      h=h.filter(function(e){var en=(e.entity||'').toLowerCase();return CKW[cf].some(function(k){return en.indexOf(k)>=0;});});
-    }
-  }
+  if(cf) h=h.filter(function(e){return histClientMatch(e.entity,cf);});
 
-  // Populate entity dropdown
+  // Populate entity dropdown — filtered by selected client (cascading: Navy → only Navy entities)
   var efSel=document.getElementById('hist-entity-filter');
-  if(efSel&&efSel.options.length<=1){
-    var allEntities=[...new Set(getHist().map(function(e){return e.entity||'';}).filter(Boolean))].sort();
-    allEntities.forEach(function(en){
-      var o=document.createElement('option');o.value=en;o.textContent='🏛️ '+en;efSel.appendChild(o);
-    });
+  if(efSel){
+    var curEf=efSel.value;
+    var cfNow=document.getElementById('hist-client-filter')?.value||'';
+    var allEntities=[...new Set(getHist().map(function(e){return e.entity||'';}).filter(Boolean))];
+    if(cfNow) allEntities=allEntities.filter(function(en){return histClientMatch(en,cfNow);});
+    allEntities.sort();
+    var newHtml='<option value="">🏛️ All Entities</option>'+allEntities.map(function(en){return '<option value="'+en.replace(/"/g,'&quot;')+'">🏛️ '+en+'</option>';}).join('');
+    if(efSel.getAttribute('data-built')!==newHtml){
+      efSel.innerHTML=newHtml;
+      efSel.setAttribute('data-built',newHtml);
+      efSel.value=(curEf&&allEntities.indexOf(curEf)>=0)?curEf:'';
+    }
   }
   const c=document.getElementById('history-list');
   if(!c) return;
