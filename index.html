@@ -352,7 +352,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         </div>
       </div>
       <div class="lc-logo-text">N.G.R.D. Motors</div>
-      <div class="lc-logo-sub">Quotation System v3.0</div>
+      <div class="lc-logo-sub">Quotation System v3.1</div>
     </div>
   <div class="lc">
     <div class="lc-em"></div>
@@ -425,7 +425,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
-      <div class="sidebar-footer">v3.0 · NGRD Motors</div>
+      <div class="sidebar-footer">v3.1 dupfix · 22Jun</div>
     </div>
 
     <div class="main-content">
@@ -2789,15 +2789,19 @@ function findDuplicate(refNo,eqNo,company){
   const h=getHist();
   var co=company||curCompany||'ngrd';
   var norm=function(s){return (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');};
-  var nEq=norm(eqNo);
-  // ONLY the e-Quotation No (eqNo) uniquely identifies a tender.
-  // refNo (civil/internal ref) can repeat across different tenders → using it caused FALSE duplicate blocks.
-  // No reliable eqNo → don't block (let it save), so a real tender is never wrongly flagged.
-  if(nEq.length<3) return null;
+  // A "strong key" = a real e-Quotation No (contains "/" like WNA/APO/FO/MT/2026/2229, or very long).
+  // Short civil refs (e.g. NAHA-3015) are NOT strong → never trigger a match → no false duplicate blocks.
+  var strong=function(v){v=norm(v);return ((v.indexOf('/')>=0||v.length>=12)&&v.length>=6)?v:'';};
+  // CROSS-FIELD: a real e-Q No may sit in eqNo on one entry and refNo on another — check both fields.
+  var keys=[strong(eqNo),strong(refNo)].filter(Boolean);
+  if(!keys.length) return null;
   return h.find(function(e){
     var sameCo=(e.company||'ngrd')===co;
+    if(!sameCo) return false;
     var isActive=['draft','pending','approved','assigned'].indexOf(e.status||'draft')>=0;
-    return sameCo&&isActive&&norm(e.eqNo)===nEq;
+    if(!isActive) return false;
+    var eKeys=[strong(e.eqNo),strong(e.refNo)].filter(Boolean);
+    return keys.some(function(k){return eKeys.indexOf(k)>=0;});
   })||null;
 }
 
