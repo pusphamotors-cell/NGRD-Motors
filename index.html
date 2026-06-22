@@ -607,6 +607,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <button class="btn" onclick="openExtensionModal()" style="background:#1A6B3C;color:#fff;border:none;">📄 Extension Letter</button>
               </div>
               <div class="action-div" id="fmt-extension-div" style="display:none;"></div>
+              <div class="format-group" id="fmt-clarification" style="display:none;">
+                <div class="format-lbl">Format 5 — Clarification Reply</div>
+                <button class="btn" onclick="openClarificationModal()" style="background:#6D28D9;color:#fff;border:none;">📋 Clarification Letter</button>
+              </div>
+              <div class="action-div" id="fmt-clarification-div" style="display:none;"></div>
               <!-- Workflow Progress Bar -->
               <div id="workflow-bar" style="width:100%;margin-bottom:10px;display:none;">
                 <div style="display:flex;align-items:center;gap:0;background:#f0f4f8;border-radius:8px;overflow:hidden;border:1px solid #dde4ee;">
@@ -7464,6 +7469,9 @@ function applyExtVisibility(){
   if(perms && !Array.isArray(perms)) perms=Object.values(perms); // Firebase may store array as object
   var canExt=(isAdmin||(perms && perms.indexOf('extension')!==-1));
   var e1=document.getElementById('fmt-extension'),e2=document.getElementById('fmt-extension-div'),e3=document.getElementById('nav-extension'),e4=document.getElementById('db-extension-card');
+  var ec1=document.getElementById('fmt-clarification'),ec2=document.getElementById('fmt-clarification-div');
+  if(ec1)ec1.style.display=canExt?'':'none';
+  if(ec2)ec2.style.display=canExt?'':'none';
   if(e1)e1.style.display=canExt?'':'none';
   if(e2)e2.style.display=canExt?'':'none';
   if(e3)e3.style.display=canExt?'':'none';
@@ -7659,6 +7667,189 @@ function extLetterHtml(d){
    +'</div></body></html>';
 }
 /* ═══════════════════ END VALIDITY EXTENSION ═══════════════════ */
+
+/* ═══════════════════ CLARIFICATION REPLY (FORMAT 5) ═══════════════════ */
+var clarCompany='ngrd';
+var clarMode='confirm';
+function clarSetCompany(cid){
+  clarCompany=cid;
+  var box=document.getElementById('clar-modal-box');
+  var head=document.getElementById('clar-modal-header');
+  var gen=document.getElementById('clar-gen-btn');
+  var col=cid==='puspha'?'#B71C1C':'#0D1B2A';
+  if(head)head.style.background=col;
+  if(gen)gen.style.background=col;
+  ['ngrd','puspha'].forEach(function(c){
+    var b=document.getElementById('clar-co-'+c);
+    if(b){b.style.background=(c===cid)?col:'#eee';b.style.color=(c===cid)?'#fff':'#333';}
+  });
+}
+function clarSetMode(m){
+  clarMode=m;
+  var map={confirm:'#1A6B3C',unable:'#B45309',correct:'#6D28D9'};
+  ['confirm','unable','correct'].forEach(function(x){
+    var b=document.getElementById('clar-mode-'+x);
+    if(b){b.style.background=(x===m)?map[x]:'#eee';b.style.color=(x===m)?'#fff':'#333';}
+  });
+  var cf=document.getElementById('clar-correct-fields');
+  if(cf)cf.style.display=(m==='correct')?'block':'none';
+}
+function openClarificationModal(){
+  if(!curItems.length){showToast('No items in quotation','t-e');return;}
+  var co=getCompany();
+  var d=buildQData();
+  var ex=document.getElementById('clar-modal');if(ex)ex.remove();
+  var camps=(typeof extGetCamps==='function')?extGetCamps():{};
+  var opts=Object.keys(camps).map(function(k){return '<option value="'+k+'">'+(camps[k].label||k)+'</option>';}).join('');
+  var refDefault=d.refNo||d.eqNo||'';
+  var itemRows=d.items.map(function(item,i){
+    return '<label style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-bottom:1px solid #eee;cursor:pointer;">'
+      +'<input type="checkbox" class="clar-item-cb" data-idx="'+i+'" checked style="width:16px;height:16px;">'
+      +'<span style="font-size:12px;font-weight:600;color:#0D1B2A;">'+(i+1)+'. '+(item.description||'—')+'</span></label>';
+  }).join('');
+  var m=document.createElement('div');
+  m.id='clar-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10002;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  m.innerHTML='<div id="clar-modal-box" style="background:#fff;border-radius:10px;width:100%;max-width:480px;box-shadow:0 10px 40px rgba(0,0,0,.4);">'
+    +'<div id="clar-modal-header" style="background:#0D1B2A;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;cursor:move;">'
+      +'<div style="font-weight:700;font-size:15px;">📋 Clarification Reply Letter</div>'
+      +'<button onclick="document.getElementById(\'clar-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:15px;">✕</button></div>'
+    +'<div style="padding:18px;">'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Company (letterhead + seal auto)</label>'
+      +'<div style="display:flex;gap:8px;margin:4px 0 12px;"><button id="clar-co-ngrd" onclick="clarSetCompany(\'ngrd\')" style="flex:1;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:12px;">🏢 NGRD</button><button id="clar-co-puspha" onclick="clarSetCompany(\'puspha\')" style="flex:1;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:12px;">🏢 Puspha</button></div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Reply Type</label>'
+      +'<div style="display:flex;gap:6px;margin:4px 0 12px;"><button id="clar-mode-confirm" onclick="clarSetMode(\'confirm\')" style="flex:1;padding:8px 4px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:11px;">✅ Confirm</button><button id="clar-mode-unable" onclick="clarSetMode(\'unable\')" style="flex:1;padding:8px 4px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:11px;">⚠️ Unable</button><button id="clar-mode-correct" onclick="clarSetMode(\'correct\')" style="flex:1;padding:8px 4px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:11px;">✏️ Correct</button></div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Camp / Department</label>'
+      +'<select id="clar-camp" onchange="clarPickCamp()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'+opts+'</select>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">To Address (edit ✏️)</label>'
+      +'<textarea id="clar-toaddr" rows="4" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;font-family:var(--fb);resize:vertical;"></textarea>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Subject</label>'
+      +'<input id="clar-subject" value="REQUIRED CLARIFICATION" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
+      +'<div style="display:flex;gap:10px;">'
+        +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#555;">Their Letter No.</label><input id="clar-refno" value="'+refDefault+'" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;"></div>'
+        +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#555;">Their Letter Date</label><input id="clar-theirdate" placeholder="12th April 2026" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;"></div>'
+      +'</div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Our Quotation Date</label><input id="clar-quodate" placeholder="10th February 2026" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><label style="font-size:11px;font-weight:700;color:#555;">Items (clarification கேட்ட item ✓)</label>'
+        +'<div style="display:flex;gap:6px;"><button onclick="document.querySelectorAll(\'.clar-item-cb\').forEach(function(c){c.checked=true});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">All</button><button onclick="document.querySelectorAll(\'.clar-item-cb\').forEach(function(c){c.checked=false});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">None</button></div></div>'
+      +'<div style="border:1px solid #eee;border-radius:8px;max-height:160px;overflow-y:auto;margin-bottom:10px;">'+itemRows+'</div>'
+      +'<div id="clar-correct-fields" style="display:none;"><label style="font-size:11px;font-weight:700;color:#555;">Corrected Price / Details</label>'
+        +'<textarea id="clar-correct-note" rows="3" placeholder="e.g. The correct unit price for CV Joint Complete Assy Front LH/RH is LKR 24,500.00 (instead of the amount stated in error)." style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;font-family:var(--fb);resize:vertical;"></textarea></div>'
+      +'<button id="clar-gen-btn" onclick="genClarificationPDF()" style="width:100%;padding:12px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;">🖨️ Generate PDF</button>'
+    +'</div></div>';
+  document.body.appendChild(m);
+  if(typeof extMakeDraggableEl==='function'){extMakeDraggableEl('clar-modal-box','clar-modal-header');}
+  else { _clarDrag(); }
+  clarSetCompany(co.id);
+  clarSetMode('confirm');
+  clarPickCamp();
+}
+function _clarDrag(){
+  var box=document.getElementById('clar-modal-box'),head=document.getElementById('clar-modal-header');
+  if(!box||!head)return;var ox,oy,dragging=false;
+  head.addEventListener('mousedown',function(e){dragging=true;var r=box.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;box.style.position='fixed';box.style.margin='0';e.preventDefault();});
+  document.addEventListener('mousemove',function(e){if(dragging){box.style.left=(e.clientX-ox)+'px';box.style.top=(e.clientY-oy)+'px';}});
+  document.addEventListener('mouseup',function(){dragging=false;});
+}
+function clarPickCamp(){
+  var sel=document.getElementById('clar-camp');if(!sel)return;
+  var camps=(typeof extGetCamps==='function')?extGetCamps():{};
+  var c=camps[sel.value];
+  var ta=document.getElementById('clar-toaddr');
+  if(ta&&c&&c.addr)ta.value=(Array.isArray(c.addr)?c.addr.join('\n'):c.addr);
+}
+function genClarificationPDF(){
+  var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var idxs=[];document.querySelectorAll('.clar-item-cb').forEach(function(c){if(c.checked)idxs.push(parseInt(c.getAttribute('data-idx')));});
+  if(!idxs.length){alert('குறைஞ்சது ஒரு item select பண்ணுங்க!');return;}
+  if(clarMode==='correct'&&!g('clar-correct-note').trim()){alert('Corrected price / details போடுங்க!');return;}
+  var d=buildQData();
+  var campSel=document.getElementById('clar-camp');var campKey=campSel?campSel.value:'';
+  var toLines=(g('clar-toaddr')||'').split('\n').filter(function(x){return x.trim()!=='';});
+  if(typeof extSaveCampAddr==='function')extSaveCampAddr(campKey,toLines);
+  var sel=idxs.map(function(i){return d.items[i];});
+  var data={
+    co:clarCompany, coName:clarCompany==='puspha'?'PUSPHA MOTORS':'N.G.R.D. MOTORS',
+    mode:clarMode, toLines:toLines, subject:g('clar-subject')||'REQUIRED CLARIFICATION',
+    refNo:g('clar-refno'), theirDate:g('clar-theirdate'), quoDate:g('clar-quodate'),
+    items:sel, correctNote:g('clar-correct-note'),
+    date:new Date().toLocaleDateString('en-LK')
+  };
+  var html=clarLetterHtml(data);
+  var modal=document.getElementById('clar-modal');if(modal)modal.remove();
+  _printWithIframe(html);
+  if(typeof addLog==='function')addLog('Clarification Reply ('+clarMode+'): '+data.refNo);
+  if(typeof showToast==='function')showToast('✅ Clarification Letter ready!','t-s');
+}
+function clarLetterHtml(d){
+  var isP=d.co==='puspha';
+  var stamp=extStamp(d.co);
+  var barGrad=isP?'linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2)':'linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#E53935)';
+  var accent=isP?'#B71C1C':'#0D47A1';
+  var footBg=isP?'#B71C1C':'#0D1B2A';
+  var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var contactLeft=isP
+    ?'<div>No: 202/19A, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#B71C1C;font-weight:600;">+94 779 338 696 / +94 759 515 507</div><div style="color:#B71C1C;">pusphamotors@gmail.com</div>'
+    :'<div>No: 202/17B, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#0D47A1;font-weight:600;">011 244 9385 / 076 688 6526</div><div style="color:#0D47A1;">ngrdmotors@gmail.com</div>';
+  var logo=isP
+    ?'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#B71C1C"/><circle cx="60" cy="60" r="43" fill="#C62828"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/><text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text></svg><div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>'
+    :'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#0D47A1" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#0D1B2A"/><circle cx="60" cy="60" r="43" fill="#15294a"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFD700" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFD700"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFD700"/><text x="60" y="90" text-anchor="middle" font-size="30" font-weight="700" fill="#FFD700" font-family="serif">N</text></svg><div style="font-size:18px;font-weight:700;color:#0D47A1;letter-spacing:3px;margin-top:3px;line-height:1;">N.G.R.D.</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>';
+  var toBlock=(d.toLines||[]).map(function(l,i){return i===0?('<div><b>'+esc(l)+'</b></div>'):('<div>'+esc(l)+'</div>');}).join('');
+  var itemList=(d.items||[]).map(function(it,i){return '<div style="display:flex;margin-bottom:4px;"><div style="width:22px;flex-shrink:0;">'+(i+1)+'.</div><div style="font-weight:600;">'+esc(it.description||'')+'</div></div>';}).join('');
+  var verb=d.items.length>1?'items':'item';
+  var body;
+  if(d.mode==='confirm'){
+    body=''
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">1.</div><div>With reference to the above, we wish to confirm that the quoted '+verb+' listed below can be supplied at the same price as stated in our price quotation dated <b>'+(d.quoDate||'—')+'</b>. There is <b>no change</b> in the quoted price.</div></div>'
+     +'<div style="margin:10px 0 12px 26px;font-size:12px;">'+itemList+'</div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>We confirm our readiness to deliver upon receipt of your purchase order, and assure you of our prompt and reliable service at all times.</div></div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We thank you for the opportunity and your continued confidence.</div></div>';
+  } else if(d.mode==='unable'){
+    body=''
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">1.</div><div>With reference to the above, we regret to inform you that, due to significant fluctuation in market prices since the date of our quotation, we are <b>unable to supply</b> the following '+verb+' at the quoted price:</div></div>'
+     +'<div style="margin:10px 0 12px 26px;font-size:12px;">'+itemList+'</div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>We kindly request that the above '+verb+' be considered as withdrawn from our quotation. We apologize for any inconvenience caused.</div></div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We remain ready to supply all other quoted items at the quoted prices, and thank you for your kind understanding.</div></div>';
+  } else {
+    body=''
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">1.</div><div>With reference to the above, we wish to clarify the quoted '+verb+' listed below:</div></div>'
+     +'<div style="margin:10px 0 12px 26px;font-size:12px;">'+itemList+'</div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>'+esc(d.correctNote||'')+'</div></div>'
+     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We kindly request you to consider the corrected details above, and we thank you for your kind understanding.</div></div>';
+  }
+  var badge=d.mode==='confirm'?'CONFIRMATION':(d.mode==='unable'?'CLARIFICATION':'PRICE CORRECTION');
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Clarification Reply '+esc(d.refNo)+'</title>'
+   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
+   +'.page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;}'
+   +'.pdf-footer{margin-top:auto;}.body-pad{padding:0 28px;flex:1;}'
+   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.pdf-footer{position:fixed;bottom:0;left:0;right:0;}}'
+   +'@page{size:A4;margin:0 0 48px 0;}</style></head><body><div class="page">'
+   +'<div style="height:6px;background:'+barGrad+';"></div>'
+   +'<div style="background:#fff;padding:18px 28px;border-bottom:3px solid '+accent+';"><div style="display:flex;align-items:center;justify-content:space-between;">'
+     +'<div style="min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">CONTACT</div><div style="font-size:9.5px;color:#333;line-height:2;">'+contactLeft+'</div></div>'
+     +'<div style="text-align:center;flex-shrink:0;">'+logo+'</div>'
+     +'<div style="text-align:right;min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">AUTHORIZED</div><div style="font-size:9.5px;color:#333;line-height:2;"><div>Spare Parts Supplier</div><div>Government Institutions</div><div style="margin-top:5px;"><span style="background:'+(isP?'#FFC107':'#FFD700')+';color:'+accent+';font-size:8px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;">'+badge+'</span></div></div></div>'
+   +'</div></div>'
+   +'<div class="body-pad">'
+     +'<div style="display:flex;justify-content:flex-end;margin:22px 0 18px;font-size:12px;"><div>Date: <b>'+d.date+'</b></div></div>'
+     +'<div style="font-size:12px;line-height:1.8;margin-bottom:18px;">'+toBlock+'</div>'
+     +'<div style="font-size:12px;margin-bottom:16px;">Dear Sir,</div>'
+     +'<div style="text-align:center;margin:16px 0;"><span style="font-size:13px;font-weight:700;text-decoration:underline;letter-spacing:0.5px;">'+esc(d.subject||'REQUIRED CLARIFICATION')+'</span></div>'
+     +'<div style="font-size:12px;margin-bottom:8px;"><b>References:</b></div>'
+     +'<div style="font-size:12px;margin-bottom:4px;padding-left:20px;">A.&nbsp;&nbsp; Your letter No. <b>'+esc(d.refNo)+'</b> dated '+(d.theirDate||'—')+'.</div>'
+     +'<div style="font-size:12px;margin-bottom:16px;padding-left:20px;">B.&nbsp;&nbsp; Our price quotation dated '+(d.quoDate||'—')+'.</div>'
+     +'<div style="font-size:12px;line-height:1.9;text-align:justify;">'+body+'</div>'
+     +'<div style="margin-top:36px;font-size:12px;"><div>Thanking you,</div><div>Yours faithfully,</div><div style="font-weight:700;margin-top:3px;">For '+d.coName+',</div>'
+       +'<div style="margin-top:12px;"><img src="'+stamp+'" alt="Seal" style="width:250px;height:auto;max-height:210px;display:block;opacity:0.95;"/></div></div>'
+   +'</div>'
+   +'<div class="pdf-footer"><div style="height:4px;background:'+barGrad+';"></div>'
+     +'<div style="background:'+footBg+';padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">'
+       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'202/19A':'202/17B')+' MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>'
+       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'pusphamotors@gmail.com':'ngrdmotors@gmail.com')+'</div>'
+     +'</div></div>'
+   +'</div></body></html>';
+}
+/* ═══════════════════ END CLARIFICATION REPLY ═══════════════════ */
 
 function loadSubmitterSettings(){
   var panel=document.getElementById('company-submitter-panel');
