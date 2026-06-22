@@ -707,6 +707,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 </select>
                 <button onclick="clearAllHistory()" id="btn-clear-all" style="padding:7px 12px;background:#FEF2F2;border:1.5px solid #FECACA;color:#DC2626;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear All</button>
                 <button id="btn-bulk-reassign" onclick="bulkReassign()" style="padding:7px 12px;background:#FFFBEB;border:1.5px solid #FCD34D;color:#B45309;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Bulk Reassign</button>
+                <button id="btn-clean-dup" onclick="cleanDuplicateQuotations()" style="padding:7px 12px;background:#FEF2F2;border:1.5px solid #FECACA;color:#DC2626;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;">🧹 Clean Duplicates</button>
               </div>
             </div>
           </div>
@@ -5816,6 +5817,47 @@ function reassignQuot(id){
   renderHistory();
 }
 
+function cleanDuplicateQuotations(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  var h=getHist();
+  var norm=function(s){return (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');};
+  var strong=function(v){v=norm(v);return ((v.indexOf('/')>=0||v.length>=12)&&v.length>=6)?v:'';};
+  var keyOf=function(e){var k=strong(e.eqNo)||strong(e.refNo);return k?(k+'|'+(e.company||'ngrd')):'';};
+  var ACTIVE=['draft','pending','approved','assigned'];
+  // higher rank = keep (prefer priced + higher status)
+  var rank=function(e){
+    var sr={draft:1,assigned:2,pending:3,approved:4}[e.status||'draft']||0;
+    var hasPrice=((e.items||[]).some(function(it){return (it.brandRows||[]).some(function(br){return parseFloat(br.price)>0;});}))||(parseFloat(e.grandTotal)>0);
+    return sr*10+(hasPrice?5:0);
+  };
+  var groups={};
+  h.forEach(function(e){
+    if(ACTIVE.indexOf(e.status||'draft')<0) return; // leave submitted/awarded/rejected untouched
+    var k=keyOf(e); if(!k) return;
+    (groups[k]=groups[k]||[]).push(e);
+  });
+  var removeIds=[], detail=[];
+  Object.keys(groups).forEach(function(k){
+    var g=groups[k];
+    if(g.length<2) return;
+    g.sort(function(a,b){var rd=rank(b)-rank(a);if(rd!==0)return rd;return (b.id||0)-(a.id||0);});
+    var keep=g[0];
+    detail.push((keep.eqNo||keep.refNo)+' → keep '+(keep.status)+(parseFloat(keep.grandTotal)>0?' (priced)':'')+', remove '+(g.length-1));
+    g.slice(1).forEach(function(e){removeIds.push(String(e.id));});
+  });
+  if(!removeIds.length){showToast('✅ Duplicate quotation ஒண்ணும் இல்ல','t-s');return;}
+  if(!confirm(removeIds.length+' duplicate quotation(s) கண்டுபிடிச்சேன்.\n\nPrice/status இருக்கறதை வச்சு மீதியை நீக்கணுமா?\n\n'+detail.slice(0,8).join('\n')+(detail.length>8?('\n...+'+(detail.length-8)+' more'):''))) return;
+  // blacklist removed ids so Firebase sync won't bring them back
+  var deleted=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
+  removeIds.forEach(function(id){if(deleted.indexOf(id)<0)deleted.push(id);});
+  localStorage.setItem('ngrd_deleted',JSON.stringify(deleted));
+  if(typeof fbWrite==='function')fbWrite('deleted',deleted);
+  setHist(getHist().filter(function(e){return removeIds.indexOf(String(e.id))<0;}));
+  if(typeof renderHistory==='function')renderHistory();
+  if(typeof updatePendingBadge==='function')updatePendingBadge();
+  if(typeof addLog==='function')addLog('Cleaned '+removeIds.length+' duplicate quotation(s) by '+CU.name);
+  showToast('🧹 '+removeIds.length+' duplicate(s) removed (kept priced/latest)','t-s');
+}
 function bulkReassign(){
   var users=getUsers().filter(function(u){return u.active;});
   if(!users.length){showToast('No users found','t-e');return;}
