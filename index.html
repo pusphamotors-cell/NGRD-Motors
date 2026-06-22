@@ -352,7 +352,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         </div>
       </div>
       <div class="lc-logo-text">N.G.R.D. Motors</div>
-      <div class="lc-logo-sub">Quotation System v3.1</div>
+      <div class="lc-logo-sub">Quotation System v3.2</div>
     </div>
   <div class="lc">
     <div class="lc-em"></div>
@@ -425,7 +425,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
-      <div class="sidebar-footer">v3.1 dupfix · 22Jun</div>
+      <div class="sidebar-footer">v3.2 letters · 22Jun</div>
     </div>
 
     <div class="main-content">
@@ -7471,6 +7471,39 @@ function extGetCamps(){ try{var s=localStorage.getItem('ngrd_ext_camps'); if(s){
 function extSaveCampAddr(key, lines){ if(!key||key==='CUSTOM') return; try{var s=localStorage.getItem('ngrd_ext_camps'); var o=s?JSON.parse(s):{}; o[key]={label:(extGetCamps()[key]||{}).label||key, addr:lines}; localStorage.setItem('ngrd_ext_camps', JSON.stringify(o)); }catch(e){} }
 function extSig(co){ return co==='puspha' ? 'https://i.ibb.co/S79WPf4B/Whats-App-PPPPPPPPPPPP.jpg' : 'https://i.ibb.co/6R4Xj0h2/Whats-App-Image-2026-04-30-at-13-02-55.jpg'; }
 function extStamp(co){ return co==='puspha' ? EXT_SEAL_PUSPHA : EXT_SEAL_NGRD; }
+/* ── SHARED LETTER SHELL (one letterhead for all letters) ── */
+function _letterSeal(co){ return '<div style="margin-top:12px;"><img src="'+extStamp(co)+'" alt="Seal" style="width:250px;height:auto;max-height:210px;display:block;opacity:0.95;"/></div>'; }
+function _letterShell(co, badge, titleText, innerHtml){
+  var isP=co==='puspha';
+  var barGrad=isP?'linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2)':'linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#E53935)';
+  var accent=isP?'#B71C1C':'#0D47A1';
+  var footBg=isP?'#B71C1C':'#0D1B2A';
+  var contactLeft=isP
+    ?'<div>No: 202/19A, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#B71C1C;font-weight:600;">+94 779 338 696 / +94 759 515 507</div><div style="color:#B71C1C;">pusphamotors@gmail.com</div>'
+    :'<div>No: 202/17B, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#0D47A1;font-weight:600;">011 244 9385 / 076 688 6526</div><div style="color:#0D47A1;">ngrdmotors@gmail.com</div>';
+  var logo=isP
+    ?'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#B71C1C"/><circle cx="60" cy="60" r="43" fill="#C62828"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/><text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text></svg><div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>'
+    :'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#0D47A1" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#0D1B2A"/><circle cx="60" cy="60" r="43" fill="#15294a"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFD700" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFD700"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFD700"/><text x="60" y="90" text-anchor="middle" font-size="30" font-weight="700" fill="#FFD700" font-family="serif">N</text></svg><div style="font-size:18px;font-weight:700;color:#0D47A1;letter-spacing:3px;margin-top:3px;line-height:1;">N.G.R.D.</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+titleText+'</title>'
+   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
+   +'.page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;}'
+   +'.pdf-footer{margin-top:auto;}.body-pad{padding:0 28px;flex:1;}'
+   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.pdf-footer{position:fixed;bottom:0;left:0;right:0;}}'
+   +'@page{size:A4;margin:0 0 48px 0;}</style></head><body><div class="page">'
+   +'<div style="height:6px;background:'+barGrad+';"></div>'
+   +'<div style="background:#fff;padding:18px 28px;border-bottom:3px solid '+accent+';"><div style="display:flex;align-items:center;justify-content:space-between;">'
+     +'<div style="min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">CONTACT</div><div style="font-size:9.5px;color:#333;line-height:2;">'+contactLeft+'</div></div>'
+     +'<div style="text-align:center;flex-shrink:0;">'+logo+'</div>'
+     +'<div style="text-align:right;min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">AUTHORIZED</div><div style="font-size:9.5px;color:#333;line-height:2;"><div>Spare Parts Supplier</div><div>Government Institutions</div><div style="margin-top:5px;"><span style="background:'+(isP?'#FFC107':'#FFD700')+';color:'+accent+';font-size:8px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;">'+badge+'</span></div></div></div>'
+   +'</div></div>'
+   +'<div class="body-pad">'+innerHtml+'</div>'
+   +'<div class="pdf-footer"><div style="height:4px;background:'+barGrad+';"></div>'
+     +'<div style="background:'+footBg+';padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">'
+       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'202/19A':'202/17B')+' MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>'
+       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'pusphamotors@gmail.com':'ngrdmotors@gmail.com')+'</div>'
+     +'</div></div>'
+   +'</div></body></html>';
+}
 
 var extMode = 'accept';
 var extCompany = 'ngrd';
@@ -7635,19 +7668,6 @@ function genExtensionPDF(){
   if(typeof showToast==='function') showToast('✅ Extension Letter ready!','t-s');
 }
 function extLetterHtml(d){
-  var isP = d.co==='puspha';
-  var sig=extSig(d.co), stamp=extStamp(d.co);
-  var barGrad = isP
-    ? 'linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2)'
-    : 'linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#E53935)';
-  var accent = isP ? '#B71C1C' : '#0D47A1';
-  var footBg = isP ? '#B71C1C' : '#0D1B2A';
-  var contactLeft = isP
-    ? '<div>No: 202/19A, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#B71C1C;font-weight:600;">+94 779 338 696 / +94 759 515 507</div><div style="color:#B71C1C;">pusphamotors@gmail.com</div>'
-    : '<div>No: 202/17B, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#0D47A1;font-weight:600;">011 244 9385 / 076 688 6526</div><div style="color:#0D47A1;">ngrdmotors@gmail.com</div>';
-  var logo = isP
-    ? '<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#B71C1C"/><circle cx="60" cy="60" r="43" fill="#C62828"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/><text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text></svg><div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>'
-    : '<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#0D47A1" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#0D1B2A"/><circle cx="60" cy="60" r="43" fill="#15294a"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFD700" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFD700"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFD700"/><text x="60" y="90" text-anchor="middle" font-size="30" font-weight="700" fill="#FFD700" font-family="serif">N</text></svg><div style="font-size:18px;font-weight:700;color:#0D47A1;letter-spacing:3px;margin-top:3px;line-height:1;">N.G.R.D.</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>';
   var toBlock=(d.toLines||[]).map(function(l,i){return i===0?('<div><b>'+l+'</b></div>'):('<div>'+l+'</div>');}).join('');
   var body;
   if(d.mode==='accept'){
@@ -7661,19 +7681,7 @@ function extLetterHtml(d){
      +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>'+(d.reason||'')+'</div></div>'
      +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We apologize for any inconvenience caused and thank you for your kind understanding. Should you require a fresh quotation, we shall be pleased to submit the same.</div></div>';
   }
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Validity Extension '+d.refNo+'</title>'
-   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
-   +'.page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;}'
-   +'.pdf-footer{margin-top:auto;}.body-pad{padding:0 28px;flex:1;}'
-   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.pdf-footer{position:fixed;bottom:0;left:0;right:0;}}'
-   +'@page{size:A4;margin:0 0 48px 0;}</style></head><body><div class="page">'
-   +'<div style="height:6px;background:'+barGrad+';"></div>'
-   +'<div style="background:#fff;padding:18px 28px;border-bottom:3px solid '+accent+';"><div style="display:flex;align-items:center;justify-content:space-between;">'
-     +'<div style="min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">CONTACT</div><div style="font-size:9.5px;color:#333;line-height:2;">'+contactLeft+'</div></div>'
-     +'<div style="text-align:center;flex-shrink:0;">'+logo+'</div>'
-     +'<div style="text-align:right;min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">AUTHORIZED</div><div style="font-size:9.5px;color:#333;line-height:2;"><div>Spare Parts Supplier</div><div>Government Institutions</div><div style="margin-top:5px;"><span style="background:'+(isP?'#FFC107':'#FFD700')+';color:'+accent+';font-size:8px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;">VALIDITY EXTENSION</span></div></div></div>'
-   +'</div></div>'
-   +'<div class="body-pad">'
+  var inner=''
      +'<div style="display:flex;justify-content:flex-end;margin:22px 0 18px;font-size:12px;"><div>Date: <b>'+d.date+'</b></div></div>'
      +'<div style="font-size:12px;line-height:1.8;margin-bottom:18px;">'+toBlock+'</div>'
      +'<div style="font-size:12px;margin-bottom:16px;">Dear Sir,</div>'
@@ -7681,15 +7689,9 @@ function extLetterHtml(d){
      +'<div style="font-size:12px;margin-bottom:16px;"><b>Reference:</b>&nbsp;&nbsp; Your letter No. <b>'+d.refNo+'</b> dated '+(d.navyDate||'—')+'.</div>'
      +'<div style="font-size:12px;line-height:1.9;text-align:justify;">'+body+'</div>'
      +'<div style="margin-top:42px;font-size:12px;"><div>Yours faithfully,</div><div style="font-weight:700;margin-top:3px;">For '+d.coName+',</div>'
-       +'<div style="margin-top:12px;"><img src="'+stamp+'" alt="Seal" style="width:250px;height:auto;max-height:210px;display:block;opacity:0.95;"/></div>'
-       +'</div>'
-   +'</div>'
-   +'<div class="pdf-footer"><div style="height:4px;background:'+barGrad+';"></div>'
-     +'<div style="background:'+footBg+';padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">'
-       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'202/19A':'202/17B')+' MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>'
-       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'pusphamotors@gmail.com':'ngrdmotors@gmail.com')+'</div>'
-     +'</div></div>'
-   +'</div></body></html>';
+       +_letterSeal(d.co)
+     +'</div>';
+  return _letterShell(d.co,'VALIDITY EXTENSION','Validity Extension '+d.refNo, inner);
 }
 /* ═══════════════════ END VALIDITY EXTENSION ═══════════════════ */
 
@@ -7824,18 +7826,7 @@ function genClarificationPDF(){
   if(typeof showToast==='function')showToast('✅ Clarification Letter ready!','t-s');
 }
 function clarLetterHtml(d){
-  var isP=d.co==='puspha';
-  var stamp=extStamp(d.co);
-  var barGrad=isP?'linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2)':'linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#E53935)';
-  var accent=isP?'#B71C1C':'#0D47A1';
-  var footBg=isP?'#B71C1C':'#0D1B2A';
   var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
-  var contactLeft=isP
-    ?'<div>No: 202/19A, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#B71C1C;font-weight:600;">+94 779 338 696 / +94 759 515 507</div><div style="color:#B71C1C;">pusphamotors@gmail.com</div>'
-    :'<div>No: 202/17B, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#0D47A1;font-weight:600;">011 244 9385 / 076 688 6526</div><div style="color:#0D47A1;">ngrdmotors@gmail.com</div>';
-  var logo=isP
-    ?'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#B71C1C"/><circle cx="60" cy="60" r="43" fill="#C62828"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/><text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text></svg><div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>'
-    :'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#0D47A1" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#0D1B2A"/><circle cx="60" cy="60" r="43" fill="#15294a"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFD700" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFD700"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFD700"/><text x="60" y="90" text-anchor="middle" font-size="30" font-weight="700" fill="#FFD700" font-family="serif">N</text></svg><div style="font-size:18px;font-weight:700;color:#0D47A1;letter-spacing:3px;margin-top:3px;line-height:1;">N.G.R.D.</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>';
   var toBlock=(d.toLines||[]).map(function(l,i){return i===0?('<div><b>'+esc(l)+'</b></div>'):('<div>'+esc(l)+'</div>');}).join('');
   var itemListInner=(d.items||[]).map(function(it,i){return '<div style="display:flex;margin-bottom:4px;"><div style="width:22px;flex-shrink:0;">'+(i+1)+'.</div><div style="font-weight:600;">'+esc(it.description||'')+'</div></div>';}).join('');
   var itemListHtml='<div style="margin:8px 0 12px 26px;font-size:12px;">'+itemListInner+'</div>';
@@ -7851,19 +7842,7 @@ function clarLetterHtml(d){
     } else if(blk.trim()){ n++; body+=para(n,blk.trim()); }
   });
   var badge=d.mode==='confirm'?'CONFIRMATION':(d.mode==='unable'?'CLARIFICATION':'PRICE CORRECTION');
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Clarification Reply '+esc(d.refNo)+'</title>'
-   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
-   +'.page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;}'
-   +'.pdf-footer{margin-top:auto;}.body-pad{padding:0 28px;flex:1;}'
-   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.pdf-footer{position:fixed;bottom:0;left:0;right:0;}}'
-   +'@page{size:A4;margin:0 0 48px 0;}</style></head><body><div class="page">'
-   +'<div style="height:6px;background:'+barGrad+';"></div>'
-   +'<div style="background:#fff;padding:18px 28px;border-bottom:3px solid '+accent+';"><div style="display:flex;align-items:center;justify-content:space-between;">'
-     +'<div style="min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">CONTACT</div><div style="font-size:9.5px;color:#333;line-height:2;">'+contactLeft+'</div></div>'
-     +'<div style="text-align:center;flex-shrink:0;">'+logo+'</div>'
-     +'<div style="text-align:right;min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">AUTHORIZED</div><div style="font-size:9.5px;color:#333;line-height:2;"><div>Spare Parts Supplier</div><div>Government Institutions</div><div style="margin-top:5px;"><span style="background:'+(isP?'#FFC107':'#FFD700')+';color:'+accent+';font-size:8px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;">'+badge+'</span></div></div></div>'
-   +'</div></div>'
-   +'<div class="body-pad">'
+  var inner=''
      +'<div style="display:flex;justify-content:flex-end;margin:22px 0 18px;font-size:12px;"><div>Date: <b>'+d.date+'</b></div></div>'
      +'<div style="font-size:12px;line-height:1.8;margin-bottom:18px;">'+toBlock+'</div>'
      +'<div style="font-size:12px;margin-bottom:16px;">Dear Sir,</div>'
@@ -7873,14 +7852,8 @@ function clarLetterHtml(d){
      +'<div style="font-size:12px;margin-bottom:16px;padding-left:20px;">B.&nbsp;&nbsp; Our price quotation dated '+(d.quoDate||'—')+'.</div>'
      +'<div style="font-size:12px;line-height:1.9;text-align:justify;">'+body+'</div>'
      +'<div style="margin-top:36px;font-size:12px;"><div>Thanking you,</div><div>Yours faithfully,</div><div style="font-weight:700;margin-top:3px;">For '+d.coName+',</div>'
-       +'<div style="margin-top:12px;"><img src="'+stamp+'" alt="Seal" style="width:250px;height:auto;max-height:210px;display:block;opacity:0.95;"/></div></div>'
-   +'</div>'
-   +'<div class="pdf-footer"><div style="height:4px;background:'+barGrad+';"></div>'
-     +'<div style="background:'+footBg+';padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">'
-       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'202/19A':'202/17B')+' MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>'
-       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'pusphamotors@gmail.com':'ngrdmotors@gmail.com')+'</div>'
-     +'</div></div>'
-   +'</div></body></html>';
+       +_letterSeal(d.co)+'</div>';
+  return _letterShell(d.co, badge, 'Clarification Reply '+esc(d.refNo), inner);
 }
 /* ═══════════════════ END CLARIFICATION REPLY ═══════════════════ */
 
@@ -7988,18 +7961,7 @@ function genCertificatePDF(){
   if(typeof showToast==='function')showToast('✅ Certificate ready!','t-s');
 }
 function certLetterHtml(d){
-  var isP=d.co==='puspha';
-  var stamp=extStamp(d.co);
-  var barGrad=isP?'linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2)':'linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#E53935)';
-  var accent=isP?'#B71C1C':'#0D47A1';
-  var footBg=isP?'#B71C1C':'#0D1B2A';
   var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
-  var contactLeft=isP
-    ?'<div>No: 202/19A, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#B71C1C;font-weight:600;">+94 779 338 696 / +94 759 515 507</div><div style="color:#B71C1C;">pusphamotors@gmail.com</div>'
-    :'<div>No: 202/17B, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#0D47A1;font-weight:600;">011 244 9385 / 076 688 6526</div><div style="color:#0D47A1;">ngrdmotors@gmail.com</div>';
-  var logo=isP
-    ?'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#B71C1C"/><circle cx="60" cy="60" r="43" fill="#C62828"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/><text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text></svg><div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>'
-    :'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#0D47A1" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#0D1B2A"/><circle cx="60" cy="60" r="43" fill="#15294a"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFD700" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFD700"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFD700"/><text x="60" y="90" text-anchor="middle" font-size="30" font-weight="700" fill="#FFD700" font-family="serif">N</text></svg><div style="font-size:18px;font-weight:700;color:#0D47A1;letter-spacing:3px;margin-top:3px;line-height:1;">N.G.R.D.</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>';
   var toBlock=(d.toLines||[]).map(function(l,i){return '<div'+(i===0?' style="font-weight:700;"':'')+'>'+esc(l)+'</div>';}).join('');
   var itemListInner=(d.items||[]).map(function(it,i){return '<div style="display:flex;margin-bottom:4px;"><div style="width:22px;flex-shrink:0;">'+(i+1)+'.</div><div style="font-weight:600;">'+esc(it.description||'')+'</div></div>';}).join('');
   var itemListHtml='<div style="margin:10px 0 12px 26px;font-size:12px;">'+itemListInner+'</div>';
@@ -8015,33 +7977,15 @@ function certLetterHtml(d){
     } else if(blk.trim()){ body+='<div style="margin-bottom:12px;text-align:justify;">'+esc(blk.trim()).replace(/\n/g,'<br>')+'</div>'; }
   });
   var refLine=d.refNo?('<div style="font-size:12px;margin-bottom:16px;"><b>Reference:</b>&nbsp;&nbsp;'+esc(d.refNo)+'</div>'):'';
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+esc(d.title)+'</title>'
-   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
-   +'.page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;}'
-   +'.pdf-footer{margin-top:auto;}.body-pad{padding:0 28px;flex:1;}'
-   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.pdf-footer{position:fixed;bottom:0;left:0;right:0;}}'
-   +'@page{size:A4;margin:0 0 48px 0;}</style></head><body><div class="page">'
-   +'<div style="height:6px;background:'+barGrad+';"></div>'
-   +'<div style="background:#fff;padding:18px 28px;border-bottom:3px solid '+accent+';"><div style="display:flex;align-items:center;justify-content:space-between;">'
-     +'<div style="min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">CONTACT</div><div style="font-size:9.5px;color:#333;line-height:2;">'+contactLeft+'</div></div>'
-     +'<div style="text-align:center;flex-shrink:0;">'+logo+'</div>'
-     +'<div style="text-align:right;min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">AUTHORIZED</div><div style="font-size:9.5px;color:#333;line-height:2;"><div>Spare Parts Supplier</div><div>Government Institutions</div><div style="margin-top:5px;"><span style="background:'+(isP?'#FFC107':'#FFD700')+';color:'+accent+';font-size:8px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;">CERTIFICATE</span></div></div></div>'
-   +'</div></div>'
-   +'<div class="body-pad">'
+  var inner=''
      +'<div style="display:flex;justify-content:flex-end;margin:22px 0 14px;font-size:12px;"><div>Date: <b>'+d.date+'</b></div></div>'
      +'<div style="font-size:12px;line-height:1.8;margin-bottom:18px;">'+toBlock+'</div>'
      +'<div style="text-align:center;margin:20px 0;"><span style="font-size:15px;font-weight:700;text-decoration:underline;letter-spacing:1px;">'+esc(d.title)+'</span></div>'
      +refLine
      +'<div style="font-size:12px;line-height:1.9;">'+body+'</div>'
      +'<div style="margin-top:36px;font-size:12px;"><div style="font-weight:700;">For '+d.coName+',</div>'
-       +'<div style="margin-top:12px;"><img src="'+stamp+'" alt="Seal" style="width:250px;height:auto;max-height:210px;display:block;opacity:0.95;"/></div></div>'
-   +'</div>'
-   +'<div class="pdf-footer"><div style="height:4px;background:'+barGrad+';"></div>'
-     +'<div style="background:'+footBg+';padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">'
-       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'202/19A':'202/17B')+' MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>'
-       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'pusphamotors@gmail.com':'ngrdmotors@gmail.com')+'</div>'
-     +'</div></div>'
-   +'</div></body></html>';
+       +_letterSeal(d.co)+'</div>';
+  return _letterShell(d.co,'CERTIFICATE',esc(d.title), inner);
 }
 /* ═══════════════════ END CERTIFICATE LETTER ═══════════════════ */
 
