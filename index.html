@@ -680,6 +680,16 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="overdue">🔴 Overdue</option>
                 <option value="uploaded_today" style="display:none;">⚡ Uploaded Today</option>
               </select>
+              <select id="hist-client-filter" onchange="renderHistory()" style="padding:7px 12px;background:#EEF2FF;color:#3730A3;border:1.5px solid #C7D2FE;border-radius:20px;font-size:12px;font-weight:700;outline:none;cursor:pointer;">
+                <option value="">🎖️ All Clients</option>
+                <option value="navy">⚓ Navy</option>
+                <option value="army">🪖 Army</option>
+                <option value="stf">🎯 STF</option>
+                <option value="coast">🛟 Coast Guard</option>
+                <option value="police">👮 Police</option>
+                <option value="airforce">✈️ Air Force</option>
+                <option value="other">📋 Other</option>
+              </select>
               <div style="position:relative;display:inline-block;">
                 <select id="hist-entity-filter" onchange="renderHistory();showEntitySummary(this.value)" style="padding:7px 12px;background:#F0FDFA;color:#0F766E;border:1.5px solid #99F6E4;border-radius:20px;font-size:12px;font-weight:600;outline:none;cursor:pointer;max-width:170px;">
                   <option value="">🏛️ All Entities</option>
@@ -3976,6 +3986,18 @@ function renderHistory(){
   // Entity filter
   var ef=document.getElementById('hist-entity-filter')?.value||'';
   if(ef) h=h.filter(function(e){return (e.entity||'').toLowerCase()===ef.toLowerCase();});
+
+  // Client-wise filter (Navy/Army/STF/etc) — keyword match on entity, works regardless of how typed
+  var cf=document.getElementById('hist-client-filter')?.value||'';
+  if(cf){
+    var CKW={navy:['navy','slns','sln '],army:['army'],stf:['stf','special task'],coast:['coast guard','coastguard','coast'],police:['police'],airforce:['air force','airforce','slaf']};
+    if(cf==='other'){
+      var allKw=[].concat(CKW.navy,CKW.army,CKW.stf,CKW.coast,CKW.police,CKW.airforce);
+      h=h.filter(function(e){var en=(e.entity||'').toLowerCase();return !allKw.some(function(k){return en.indexOf(k)>=0;});});
+    } else if(CKW[cf]){
+      h=h.filter(function(e){var en=(e.entity||'').toLowerCase();return CKW[cf].some(function(k){return en.indexOf(k)>=0;});});
+    }
+  }
 
   // Populate entity dropdown
   var efSel=document.getElementById('hist-entity-filter');
