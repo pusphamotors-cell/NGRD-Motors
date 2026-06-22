@@ -612,6 +612,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <button class="btn" onclick="openClarificationModal()" style="background:#6D28D9;color:#fff;border:none;">📋 Clarification Letter</button>
               </div>
               <div class="action-div" id="fmt-clarification-div" style="display:none;"></div>
+              <div class="format-group" id="fmt-certificate" style="display:none;">
+                <div class="format-lbl">Format 6 — Certificate</div>
+                <button class="btn" onclick="openCertificateModal()" style="background:#0D6E4F;color:#fff;border:none;">📜 Certificate Letter</button>
+              </div>
+              <div class="action-div" id="fmt-certificate-div" style="display:none;"></div>
               <!-- Workflow Progress Bar -->
               <div id="workflow-bar" style="width:100%;margin-bottom:10px;display:none;">
                 <div style="display:flex;align-items:center;gap:0;background:#f0f4f8;border-radius:8px;overflow:hidden;border:1px solid #dde4ee;">
@@ -824,17 +829,32 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
       <!-- ═ DASHBOARD ═ -->
       <div id="page-dashboard" style="display:none;">
-        <!-- VALIDITY EXTENSION QUICK ACTION (permission-gated) -->
-        <div id="db-extension-card" onclick="openExtensionModal()" style="display:none;background:linear-gradient(90deg,#1A6B3C,#15803d);color:#fff;border-radius:8px;padding:16px 20px;margin-bottom:18px;cursor:pointer;align-items:center;justify-content:space-between;transition:opacity .2s;box-shadow:0 2px 8px rgba(26,107,60,.25);" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-          <div style="display:flex;align-items:center;gap:14px;">
-            <div style="font-size:30px;">📜</div>
-            <div>
-              <div style="font-size:15px;font-weight:700;">Validity Extension Letter</div>
-              <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">Navy quotation validity extend / decline letter — NGRD &amp; Puspha</div>
+        <!-- LETTERS HUB (permission-gated) -->
+        <div id="db-letters-hub" style="display:none;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;">📑</span>
+            <span style="font-size:15px;font-weight:800;color:#0D1B2A;letter-spacing:0.5px;">LETTERS</span>
+            <span style="font-size:10px;color:#888;">— NGRD &amp; Puspha · letterhead + seal auto</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+            <div onclick="openExtensionModal()" style="background:linear-gradient(135deg,#1A6B3C,#15803d);color:#fff;border-radius:10px;padding:14px 16px;cursor:pointer;box-shadow:0 2px 8px rgba(26,107,60,.22);transition:transform .12s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+              <div style="font-size:24px;margin-bottom:6px;">📄</div>
+              <div style="font-size:14px;font-weight:700;">Validity Extension</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;">Extend / decline quotation validity</div>
+            </div>
+            <div onclick="openClarificationModal()" style="background:linear-gradient(135deg,#6D28D9,#7c3aed);color:#fff;border-radius:10px;padding:14px 16px;cursor:pointer;box-shadow:0 2px 8px rgba(109,40,217,.22);transition:transform .12s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+              <div style="font-size:24px;margin-bottom:6px;">📋</div>
+              <div style="font-size:14px;font-weight:700;">Clarification Reply</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;">Confirm / unable / price correction</div>
+            </div>
+            <div onclick="openCertificateModal()" style="background:linear-gradient(135deg,#0D6E4F,#0f766e);color:#fff;border-radius:10px;padding:14px 16px;cursor:pointer;box-shadow:0 2px 8px rgba(13,110,79,.22);transition:transform .12s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+              <div style="font-size:24px;margin-bottom:6px;">📜</div>
+              <div style="font-size:14px;font-weight:700;">Certificate</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;">Genuine · Warranty · Conformity · Delivery</div>
             </div>
           </div>
-          <div style="background:rgba(255,255,255,.2);padding:8px 16px;border-radius:6px;font-weight:700;font-size:13px;white-space:nowrap;">Create →</div>
         </div>
+        <div id="db-extension-card" onclick="openExtensionModal()" style="display:none;"></div>
         <!-- CLOSING REMINDER → WHATSAPP + PDF -->
         <div style="background:linear-gradient(90deg,#B22222,#d63333);color:#fff;border-radius:8px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(178,34,34,.25);flex-wrap:wrap;gap:10px;">
           <div style="display:flex;align-items:center;gap:14px;">
@@ -7470,6 +7490,11 @@ function applyExtVisibility(){
   var canExt=(isAdmin||(perms && perms.indexOf('extension')!==-1));
   var e1=document.getElementById('fmt-extension'),e2=document.getElementById('fmt-extension-div'),e3=document.getElementById('nav-extension'),e4=document.getElementById('db-extension-card');
   var ec1=document.getElementById('fmt-clarification'),ec2=document.getElementById('fmt-clarification-div');
+  var ef1=document.getElementById('fmt-certificate'),ef2=document.getElementById('fmt-certificate-div');
+  var hub=document.getElementById('db-letters-hub');
+  if(hub)hub.style.display=canExt?'':'none';
+  if(ef1)ef1.style.display=canExt?'':'none';
+  if(ef2)ef2.style.display=canExt?'':'none';
   if(ec1)ec1.style.display=canExt?'':'none';
   if(ec2)ec2.style.display=canExt?'':'none';
   if(e1)e1.style.display=canExt?'':'none';
@@ -7713,9 +7738,8 @@ function clarAddItem(){
   inp.value='';inp.focus();
 }
 function openClarificationModal(){
-  if(!curItems.length){showToast('No items in quotation','t-e');return;}
   var co=getCompany();
-  var d=buildQData();
+  var d=(typeof buildQData==='function')?buildQData():{items:[],refNo:'',eqNo:''};
   var ex=document.getElementById('clar-modal');if(ex)ex.remove();
   var camps=(typeof extGetCamps==='function')?extGetCamps():{};
   var opts=Object.keys(camps).map(function(k){return '<option value="'+k+'">'+(camps[k].label||k)+'</option>';}).join('');
@@ -7750,7 +7774,7 @@ function openClarificationModal(){
       +'<label style="font-size:11px;font-weight:700;color:#555;">Our Quotation Date</label><input id="clar-quodate" placeholder="10th February 2026" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><label style="font-size:11px;font-weight:700;color:#555;">Items (clarification கேட்ட item ✓)</label>'
         +'<div style="display:flex;gap:6px;"><button onclick="document.querySelectorAll(\'.clar-item-cb\').forEach(function(c){c.checked=true});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">All</button><button onclick="document.querySelectorAll(\'.clar-item-cb\').forEach(function(c){c.checked=false});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">None</button></div></div>'
-      +'<div id="clar-item-list" style="border:1px solid #eee;border-radius:8px;max-height:160px;overflow-y:auto;margin-bottom:8px;">'+itemRows+'</div>'
+      +'<div id="clar-item-list" style="border:1px solid #eee;border-radius:8px;max-height:160px;overflow-y:auto;margin-bottom:8px;">'+(itemRows||'<div style="padding:10px;font-size:12px;color:#999;">Quotation இல்ல — கீழ manual-ஆ item சேர்க்கவும்</div>')+'</div>'
       +'<div style="display:flex;gap:6px;margin-bottom:12px;"><input id="clar-newitem" placeholder="Manual item name சேர்க்க..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();clarAddItem();}" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:12px;"><button onclick="clarAddItem()" style="background:#6D28D9;color:#fff;border:none;border-radius:5px;padding:0 14px;font-weight:700;cursor:pointer;">➕ Add</button></div>'
       +'<label style="font-size:11px;font-weight:700;color:#555;">Letter Body (edit ✏️ — <b>{ITEMS}</b> = item list இடம்)</label>'
       +'<textarea id="clar-body" rows="8" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;font-family:var(--fb);resize:vertical;line-height:1.5;"></textarea>'
@@ -7859,6 +7883,167 @@ function clarLetterHtml(d){
    +'</div></body></html>';
 }
 /* ═══════════════════ END CLARIFICATION REPLY ═══════════════════ */
+
+/* ═══════════════════ CERTIFICATE LETTER (FORMAT 6) ═══════════════════ */
+var certCompany='ngrd';
+var certType='genuine';
+var CERT_TITLES={genuine:'CERTIFICATE OF GENUINENESS',warranty:'WARRANTY CERTIFICATE',conformity:'CERTIFICATE OF CONFORMITY',delivery:'DELIVERY / SUPPLY COMPLETION CERTIFICATE'};
+function certDefaultBody(t){
+  if(t==='genuine') return 'This is to certify that all the spare parts listed below, supplied / to be supplied by us, are brand new, genuine, and of first quality, free from any defect in material and workmanship.\n\n{ITEMS}\n\nWe stand fully responsible for the authenticity and quality of the above items.';
+  if(t==='warranty') return 'This is to certify that the spare parts listed below, supplied by us, are guaranteed for a period of {WARRANTY} from the date of delivery against any manufacturing defect.\n\n{ITEMS}\n\nAny item found defective within the warranty period will be repaired or replaced free of charge.';
+  if(t==='conformity') return 'This is to certify that the spare parts listed below, supplied by us, fully conform to the specifications and requirements stipulated in the relevant order / tender.\n\n{ITEMS}\n\nWe confirm that the supplied items meet all the required standards.';
+  return 'This is to certify that we have supplied and delivered the following items in full, in good condition and as per the order.\n\n{ITEMS}\n\nThe supply against the above order is hereby certified as complete.';
+}
+function certSetCompany(cid){
+  certCompany=cid;
+  var head=document.getElementById('cert-modal-header'),gen=document.getElementById('cert-gen-btn');
+  var col=cid==='puspha'?'#B71C1C':'#0D1B2A';
+  if(head)head.style.background=col; if(gen)gen.style.background=col;
+  ['ngrd','puspha'].forEach(function(c){var b=document.getElementById('cert-co-'+c);if(b){b.style.background=(c===cid)?col:'#eee';b.style.color=(c===cid)?'#fff':'#333';}});
+}
+function certSetType(t){
+  certType=t;
+  ['genuine','warranty','conformity','delivery'].forEach(function(x){var b=document.getElementById('cert-type-'+x);if(b){b.style.background=(x===t)?'#0D6E4F':'#eee';b.style.color=(x===t)?'#fff':'#333';}});
+  var bd=document.getElementById('cert-body'); if(bd)bd.value=certDefaultBody(t);
+  var wf=document.getElementById('cert-warranty-field'); if(wf)wf.style.display=(t==='warranty')?'block':'none';
+}
+function certAddItem(){
+  var inp=document.getElementById('cert-newitem'); if(!inp)return;
+  var name=(inp.value||'').trim(); if(!name){inp.focus();return;}
+  var list=document.getElementById('cert-item-list'); if(!list)return;
+  var lbl=document.createElement('label');
+  lbl.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 9px;border-bottom:1px solid #eee;cursor:pointer;background:#ecfdf5;';
+  lbl.innerHTML='<input type="checkbox" class="cert-item-cb" data-name="'+name.replace(/"/g,'&quot;')+'" checked style="width:16px;height:16px;"><span style="font-size:12px;font-weight:600;color:#0D6E4F;flex:1;">➕ '+name.replace(/</g,'&lt;')+'</span><span onclick="this.parentNode.remove()" style="color:#EF4444;cursor:pointer;font-size:13px;padding:0 4px;">🗑️</span>';
+  list.appendChild(lbl); inp.value='';inp.focus();
+}
+function openCertificateModal(){
+  var co=getCompany();
+  var d=(typeof buildQData==='function')?buildQData():{items:[],refNo:'',eqNo:''};
+  var ex=document.getElementById('cert-modal');if(ex)ex.remove();
+  var refDefault=d.refNo||d.eqNo||'';
+  var itemRows=(d.items||[]).map(function(item,i){
+    return '<label style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-bottom:1px solid #eee;cursor:pointer;">'
+      +'<input type="checkbox" class="cert-item-cb" data-name="'+(item.description||'').replace(/"/g,'&quot;')+'" checked style="width:16px;height:16px;">'
+      +'<span style="font-size:12px;font-weight:600;color:#0D1B2A;">'+(i+1)+'. '+(item.description||'—')+'</span></label>';
+  }).join('');
+  var m=document.createElement('div');
+  m.id='cert-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10002;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  m.innerHTML='<div id="cert-modal-box" style="background:#fff;border-radius:10px;width:100%;max-width:480px;box-shadow:0 10px 40px rgba(0,0,0,.4);">'
+    +'<div id="cert-modal-header" style="background:#0D1B2A;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;cursor:move;">'
+      +'<div style="font-weight:700;font-size:15px;">📜 Certificate Letter</div>'
+      +'<button onclick="document.getElementById(\'cert-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:15px;">✕</button></div>'
+    +'<div style="padding:18px;">'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Company (letterhead + seal auto)</label>'
+      +'<div style="display:flex;gap:8px;margin:4px 0 12px;"><button id="cert-co-ngrd" onclick="certSetCompany(\'ngrd\')" style="flex:1;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:12px;">🏢 NGRD</button><button id="cert-co-puspha" onclick="certSetCompany(\'puspha\')" style="flex:1;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:12px;">🏢 Puspha</button></div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Certificate Type</label>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 12px;">'
+        +'<button id="cert-type-genuine" onclick="certSetType(\'genuine\')" style="padding:8px 4px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:11px;">🔧 Genuine / New</button>'
+        +'<button id="cert-type-warranty" onclick="certSetType(\'warranty\')" style="padding:8px 4px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:11px;">🛡️ Warranty</button>'
+        +'<button id="cert-type-conformity" onclick="certSetType(\'conformity\')" style="padding:8px 4px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:11px;">✅ Conformity</button>'
+        +'<button id="cert-type-delivery" onclick="certSetType(\'delivery\')" style="padding:8px 4px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:11px;">📦 Delivery</button>'
+      +'</div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Addressed To (edit ✏️)</label>'
+      +'<textarea id="cert-toaddr" rows="2" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;font-family:var(--fb);resize:vertical;">TO WHOM IT MAY CONCERN</textarea>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Reference (PO / Quotation No.)</label>'
+      +'<input id="cert-refno" value="'+refDefault+'" placeholder="PO / Quotation / Tender No." style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
+      +'<div id="cert-warranty-field" style="display:none;"><label style="font-size:11px;font-weight:700;color:#555;">Warranty Period</label><input id="cert-warranty" value="12 months" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;"></div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><label style="font-size:11px;font-weight:700;color:#555;">Items (auto + manual)</label>'
+        +'<div style="display:flex;gap:6px;"><button onclick="document.querySelectorAll(\'.cert-item-cb\').forEach(function(c){c.checked=true});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">All</button><button onclick="document.querySelectorAll(\'.cert-item-cb\').forEach(function(c){c.checked=false});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">None</button></div></div>'
+      +'<div id="cert-item-list" style="border:1px solid #eee;border-radius:8px;max-height:150px;overflow-y:auto;margin-bottom:8px;">'+(itemRows||'<div style="padding:10px;font-size:12px;color:#999;">Quotation இல்ல — கீழ manual-ஆ item சேர்க்கவும்</div>')+'</div>'
+      +'<div style="display:flex;gap:6px;margin-bottom:12px;"><input id="cert-newitem" placeholder="Manual item name சேர்க்க..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();certAddItem();}" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:12px;"><button onclick="certAddItem()" style="background:#0D6E4F;color:#fff;border:none;border-radius:5px;padding:0 14px;font-weight:700;cursor:pointer;">➕ Add</button></div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Certificate Body (edit ✏️ — <b>{ITEMS}</b> = item list, <b>{WARRANTY}</b> = period)</label>'
+      +'<textarea id="cert-body" rows="7" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;font-family:var(--fb);resize:vertical;line-height:1.5;"></textarea>'
+      +'<button id="cert-gen-btn" onclick="genCertificatePDF()" style="width:100%;padding:12px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;">🖨️ Generate PDF</button>'
+    +'</div></div>';
+  document.body.appendChild(m);
+  _certDrag();
+  certSetCompany(co.id);
+  certSetType('genuine');
+}
+function _certDrag(){
+  var box=document.getElementById('cert-modal-box'),head=document.getElementById('cert-modal-header');
+  if(!box||!head)return;var ox,oy,dragging=false;
+  head.addEventListener('mousedown',function(e){dragging=true;var r=box.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;box.style.position='fixed';box.style.margin='0';e.preventDefault();});
+  document.addEventListener('mousemove',function(e){if(dragging){box.style.left=(e.clientX-ox)+'px';box.style.top=(e.clientY-oy)+'px';}});
+  document.addEventListener('mouseup',function(){dragging=false;});
+}
+function genCertificatePDF(){
+  var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var names=[];document.querySelectorAll('.cert-item-cb').forEach(function(c){if(c.checked){var n=c.getAttribute('data-name')||'';if(n.trim())names.push(n.trim());}});
+  if(!names.length){alert('குறைஞ்சது ஒரு item select / add பண்ணுங்க!');return;}
+  var toLines=(g('cert-toaddr')||'').split('\n').filter(function(x){return x.trim()!=='';});
+  var data={
+    co:certCompany, coName:certCompany==='puspha'?'PUSPHA MOTORS':'N.G.R.D. MOTORS',
+    type:certType, title:CERT_TITLES[certType]||'CERTIFICATE',
+    toLines:toLines, refNo:g('cert-refno'), warranty:g('cert-warranty')||'12 months',
+    items:names.map(function(n){return {description:n};}),
+    bodyText:g('cert-body')||certDefaultBody(certType),
+    date:new Date().toLocaleDateString('en-LK')
+  };
+  var html=certLetterHtml(data);
+  var modal=document.getElementById('cert-modal');if(modal)modal.remove();
+  _printWithIframe(html);
+  if(typeof addLog==='function')addLog('Certificate ('+certType+'): '+data.refNo);
+  if(typeof showToast==='function')showToast('✅ Certificate ready!','t-s');
+}
+function certLetterHtml(d){
+  var isP=d.co==='puspha';
+  var stamp=extStamp(d.co);
+  var barGrad=isP?'linear-gradient(90deg,#7B1FA2,#B71C1C,#E53935,#FF9800,#FFC107,#FF9800,#B71C1C,#7B1FA2)':'linear-gradient(90deg,#7B1FA2,#1565C0,#0097A7,#2E7D32,#FFD700,#E53935)';
+  var accent=isP?'#B71C1C':'#0D47A1';
+  var footBg=isP?'#B71C1C':'#0D1B2A';
+  var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var contactLeft=isP
+    ?'<div>No: 202/19A, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#B71C1C;font-weight:600;">+94 779 338 696 / +94 759 515 507</div><div style="color:#B71C1C;">pusphamotors@gmail.com</div>'
+    :'<div>No: 202/17B, Mohideen Masjid Road</div><div>Panchikawatta, Colombo 10</div><div style="color:#0D47A1;font-weight:600;">011 244 9385 / 076 688 6526</div><div style="color:#0D47A1;">ngrdmotors@gmail.com</div>';
+  var logo=isP
+    ?'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#B71C1C"/><circle cx="60" cy="60" r="43" fill="#C62828"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/><text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text></svg><div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>'
+    :'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#0D47A1" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#0D1B2A"/><circle cx="60" cy="60" r="43" fill="#15294a"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFD700" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFD700"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFD700"/><text x="60" y="90" text-anchor="middle" font-size="30" font-weight="700" fill="#FFD700" font-family="serif">N</text></svg><div style="font-size:18px;font-weight:700;color:#0D47A1;letter-spacing:3px;margin-top:3px;line-height:1;">N.G.R.D.</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>';
+  var toBlock=(d.toLines||[]).map(function(l,i){return '<div'+(i===0?' style="font-weight:700;"':'')+'>'+esc(l)+'</div>';}).join('');
+  var itemListInner=(d.items||[]).map(function(it,i){return '<div style="display:flex;margin-bottom:4px;"><div style="width:22px;flex-shrink:0;">'+(i+1)+'.</div><div style="font-weight:600;">'+esc(it.description||'')+'</div></div>';}).join('');
+  var itemListHtml='<div style="margin:10px 0 12px 26px;font-size:12px;">'+itemListInner+'</div>';
+  var raw=(d.bodyText||certDefaultBody(d.type)).replace(/\{WARRANTY\}/g,esc(d.warranty||''));
+  var blocks=raw.split(/\n\s*\n/);
+  var body='';
+  blocks.forEach(function(blk){
+    if(blk.indexOf('{ITEMS}')>=0){
+      var parts=blk.split('{ITEMS}');
+      if(parts[0].trim())body+='<div style="margin-bottom:12px;text-align:justify;">'+esc(parts[0].trim()).replace(/\n/g,'<br>')+'</div>';
+      body+=itemListHtml;
+      if(parts[1]&&parts[1].trim())body+='<div style="margin-bottom:12px;text-align:justify;">'+esc(parts[1].trim()).replace(/\n/g,'<br>')+'</div>';
+    } else if(blk.trim()){ body+='<div style="margin-bottom:12px;text-align:justify;">'+esc(blk.trim()).replace(/\n/g,'<br>')+'</div>'; }
+  });
+  var refLine=d.refNo?('<div style="font-size:12px;margin-bottom:16px;"><b>Reference:</b>&nbsp;&nbsp;'+esc(d.refNo)+'</div>'):'';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+esc(d.title)+'</title>'
+   +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
+   +'.page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;}'
+   +'.pdf-footer{margin-top:auto;}.body-pad{padding:0 28px;flex:1;}'
+   +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.pdf-footer{position:fixed;bottom:0;left:0;right:0;}}'
+   +'@page{size:A4;margin:0 0 48px 0;}</style></head><body><div class="page">'
+   +'<div style="height:6px;background:'+barGrad+';"></div>'
+   +'<div style="background:#fff;padding:18px 28px;border-bottom:3px solid '+accent+';"><div style="display:flex;align-items:center;justify-content:space-between;">'
+     +'<div style="min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">CONTACT</div><div style="font-size:9.5px;color:#333;line-height:2;">'+contactLeft+'</div></div>'
+     +'<div style="text-align:center;flex-shrink:0;">'+logo+'</div>'
+     +'<div style="text-align:right;min-width:170px;"><div style="font-size:9px;color:'+accent+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">AUTHORIZED</div><div style="font-size:9.5px;color:#333;line-height:2;"><div>Spare Parts Supplier</div><div>Government Institutions</div><div style="margin-top:5px;"><span style="background:'+(isP?'#FFC107':'#FFD700')+';color:'+accent+';font-size:8px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;">CERTIFICATE</span></div></div></div>'
+   +'</div></div>'
+   +'<div class="body-pad">'
+     +'<div style="display:flex;justify-content:flex-end;margin:22px 0 14px;font-size:12px;"><div>Date: <b>'+d.date+'</b></div></div>'
+     +'<div style="font-size:12px;line-height:1.8;margin-bottom:18px;">'+toBlock+'</div>'
+     +'<div style="text-align:center;margin:20px 0;"><span style="font-size:15px;font-weight:700;text-decoration:underline;letter-spacing:1px;">'+esc(d.title)+'</span></div>'
+     +refLine
+     +'<div style="font-size:12px;line-height:1.9;">'+body+'</div>'
+     +'<div style="margin-top:36px;font-size:12px;"><div style="font-weight:700;">For '+d.coName+',</div>'
+       +'<div style="margin-top:12px;"><img src="'+stamp+'" alt="Seal" style="width:250px;height:auto;max-height:210px;display:block;opacity:0.95;"/></div></div>'
+   +'</div>'
+   +'<div class="pdf-footer"><div style="height:4px;background:'+barGrad+';"></div>'
+     +'<div style="background:'+footBg+';padding:7px 28px;display:flex;justify-content:space-between;align-items:center;">'
+       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'202/19A':'202/17B')+' MOHIDEEN MASJID ROAD, PANCHIKAWATTA, COLOMBO 10</div>'
+       +'<div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">'+(isP?'pusphamotors@gmail.com':'ngrdmotors@gmail.com')+'</div>'
+     +'</div></div>'
+   +'</div></body></html>';
+}
+/* ═══════════════════ END CERTIFICATE LETTER ═══════════════════ */
 
 function loadSubmitterSettings(){
   var panel=document.getElementById('company-submitter-panel');
