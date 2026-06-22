@@ -7684,6 +7684,11 @@ function clarSetCompany(cid){
     if(b){b.style.background=(c===cid)?col:'#eee';b.style.color=(c===cid)?'#fff':'#333';}
   });
 }
+function clarDefaultBody(m){
+  if(m==='confirm') return 'With reference to the above, we wish to confirm that the quoted item(s) listed below can be supplied at the same price as stated in our price quotation. There is no change in the quoted price.\n\n{ITEMS}\n\nWe confirm our readiness to deliver upon receipt of your purchase order, and assure you of our prompt and reliable service at all times.\n\nWe thank you for the opportunity and your continued confidence.';
+  if(m==='unable') return 'With reference to the above, we regret to inform you that, due to significant fluctuation in market prices since the date of our quotation, we are unable to supply the following item(s) at the quoted price:\n\n{ITEMS}\n\nWe kindly request that the above item(s) be considered as withdrawn from our quotation. We apologize for any inconvenience caused.\n\nWe remain ready to supply all other quoted items at the quoted prices, and thank you for your kind understanding.';
+  return 'With reference to the above, we wish to clarify the quoted item(s) listed below:\n\n{ITEMS}\n\nThe correct unit price is LKR _______ (instead of the amount stated in error). Kindly amend your records accordingly.\n\nWe kindly request you to consider the corrected details above, and we thank you for your kind understanding.';
+}
 function clarSetMode(m){
   clarMode=m;
   var map={confirm:'#1A6B3C',unable:'#B45309',correct:'#6D28D9'};
@@ -7691,8 +7696,21 @@ function clarSetMode(m){
     var b=document.getElementById('clar-mode-'+x);
     if(b){b.style.background=(x===m)?map[x]:'#eee';b.style.color=(x===m)?'#fff':'#333';}
   });
-  var cf=document.getElementById('clar-correct-fields');
-  if(cf)cf.style.display=(m==='correct')?'block':'none';
+  var bd=document.getElementById('clar-body');
+  if(bd)bd.value=clarDefaultBody(m);
+}
+function clarAddItem(){
+  var inp=document.getElementById('clar-newitem');
+  if(!inp)return;
+  var name=(inp.value||'').trim();
+  if(!name){inp.focus();return;}
+  var list=document.getElementById('clar-item-list');
+  if(!list)return;
+  var lbl=document.createElement('label');
+  lbl.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 9px;border-bottom:1px solid #eee;cursor:pointer;background:#f6f2fc;';
+  lbl.innerHTML='<input type="checkbox" class="clar-item-cb" data-name="'+name.replace(/"/g,'&quot;')+'" checked style="width:16px;height:16px;"><span style="font-size:12px;font-weight:600;color:#6D28D9;flex:1;">➕ '+name.replace(/</g,'&lt;')+'</span><span onclick="this.parentNode.remove()" style="color:#EF4444;cursor:pointer;font-size:13px;padding:0 4px;">🗑️</span>';
+  list.appendChild(lbl);
+  inp.value='';inp.focus();
 }
 function openClarificationModal(){
   if(!curItems.length){showToast('No items in quotation','t-e');return;}
@@ -7704,7 +7722,7 @@ function openClarificationModal(){
   var refDefault=d.refNo||d.eqNo||'';
   var itemRows=d.items.map(function(item,i){
     return '<label style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-bottom:1px solid #eee;cursor:pointer;">'
-      +'<input type="checkbox" class="clar-item-cb" data-idx="'+i+'" checked style="width:16px;height:16px;">'
+      +'<input type="checkbox" class="clar-item-cb" data-name="'+(item.description||'').replace(/"/g,'&quot;')+'" checked style="width:16px;height:16px;">'
       +'<span style="font-size:12px;font-weight:600;color:#0D1B2A;">'+(i+1)+'. '+(item.description||'—')+'</span></label>';
   }).join('');
   var m=document.createElement('div');
@@ -7732,9 +7750,10 @@ function openClarificationModal(){
       +'<label style="font-size:11px;font-weight:700;color:#555;">Our Quotation Date</label><input id="clar-quodate" placeholder="10th February 2026" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><label style="font-size:11px;font-weight:700;color:#555;">Items (clarification கேட்ட item ✓)</label>'
         +'<div style="display:flex;gap:6px;"><button onclick="document.querySelectorAll(\'.clar-item-cb\').forEach(function(c){c.checked=true});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">All</button><button onclick="document.querySelectorAll(\'.clar-item-cb\').forEach(function(c){c.checked=false});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">None</button></div></div>'
-      +'<div style="border:1px solid #eee;border-radius:8px;max-height:160px;overflow-y:auto;margin-bottom:10px;">'+itemRows+'</div>'
-      +'<div id="clar-correct-fields" style="display:none;"><label style="font-size:11px;font-weight:700;color:#555;">Corrected Price / Details</label>'
-        +'<textarea id="clar-correct-note" rows="3" placeholder="e.g. The correct unit price for CV Joint Complete Assy Front LH/RH is LKR 24,500.00 (instead of the amount stated in error)." style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;font-family:var(--fb);resize:vertical;"></textarea></div>'
+      +'<div id="clar-item-list" style="border:1px solid #eee;border-radius:8px;max-height:160px;overflow-y:auto;margin-bottom:8px;">'+itemRows+'</div>'
+      +'<div style="display:flex;gap:6px;margin-bottom:12px;"><input id="clar-newitem" placeholder="Manual item name சேர்க்க..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();clarAddItem();}" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:12px;"><button onclick="clarAddItem()" style="background:#6D28D9;color:#fff;border:none;border-radius:5px;padding:0 14px;font-weight:700;cursor:pointer;">➕ Add</button></div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Letter Body (edit ✏️ — <b>{ITEMS}</b> = item list இடம்)</label>'
+      +'<textarea id="clar-body" rows="8" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;font-family:var(--fb);resize:vertical;line-height:1.5;"></textarea>'
       +'<button id="clar-gen-btn" onclick="genClarificationPDF()" style="width:100%;padding:12px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;">🖨️ Generate PDF</button>'
     +'</div></div>';
   document.body.appendChild(m);
@@ -7760,19 +7779,18 @@ function clarPickCamp(){
 }
 function genClarificationPDF(){
   var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
-  var idxs=[];document.querySelectorAll('.clar-item-cb').forEach(function(c){if(c.checked)idxs.push(parseInt(c.getAttribute('data-idx')));});
-  if(!idxs.length){alert('குறைஞ்சது ஒரு item select பண்ணுங்க!');return;}
-  if(clarMode==='correct'&&!g('clar-correct-note').trim()){alert('Corrected price / details போடுங்க!');return;}
+  var names=[];document.querySelectorAll('.clar-item-cb').forEach(function(c){if(c.checked){var n=c.getAttribute('data-name')||'';if(n.trim())names.push(n.trim());}});
+  if(!names.length){alert('குறைஞ்சது ஒரு item select / add பண்ணுங்க!');return;}
   var d=buildQData();
   var campSel=document.getElementById('clar-camp');var campKey=campSel?campSel.value:'';
   var toLines=(g('clar-toaddr')||'').split('\n').filter(function(x){return x.trim()!=='';});
   if(typeof extSaveCampAddr==='function')extSaveCampAddr(campKey,toLines);
-  var sel=idxs.map(function(i){return d.items[i];});
   var data={
     co:clarCompany, coName:clarCompany==='puspha'?'PUSPHA MOTORS':'N.G.R.D. MOTORS',
     mode:clarMode, toLines:toLines, subject:g('clar-subject')||'REQUIRED CLARIFICATION',
     refNo:g('clar-refno'), theirDate:g('clar-theirdate'), quoDate:g('clar-quodate'),
-    items:sel, correctNote:g('clar-correct-note'),
+    items:names.map(function(n){return {description:n};}),
+    bodyText:g('clar-body')||clarDefaultBody(clarMode),
     date:new Date().toLocaleDateString('en-LK')
   };
   var html=clarLetterHtml(data);
@@ -7795,28 +7813,19 @@ function clarLetterHtml(d){
     ?'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#B71C1C" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#B71C1C"/><circle cx="60" cy="60" r="43" fill="#C62828"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFC107" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFC107"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFC107"/><text x="60" y="90" text-anchor="middle" font-size="38" font-weight="700" fill="#FFC107" font-family="serif">P</text></svg><div style="font-size:20px;font-weight:700;color:#B71C1C;letter-spacing:3px;margin-top:3px;line-height:1;">PUSPHA</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>'
     :'<svg width="78" height="78" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="#0D47A1" stroke-width="2.5"/><circle cx="60" cy="60" r="48" fill="#0D1B2A"/><circle cx="60" cy="60" r="43" fill="#15294a"/><circle cx="60" cy="60" r="37" fill="none" stroke="#FFD700" stroke-width="1.5"/><polygon points="35,48 35,33 47,43 60,20 73,43 85,33 85,48" fill="#FFD700"/><rect x="33" y="46" width="54" height="7" rx="3.5" fill="#FFD700"/><text x="60" y="90" text-anchor="middle" font-size="30" font-weight="700" fill="#FFD700" font-family="serif">N</text></svg><div style="font-size:18px;font-weight:700;color:#0D47A1;letter-spacing:3px;margin-top:3px;line-height:1;">N.G.R.D.</div><div style="font-size:10px;color:#555;letter-spacing:5px;">MOTORS</div>';
   var toBlock=(d.toLines||[]).map(function(l,i){return i===0?('<div><b>'+esc(l)+'</b></div>'):('<div>'+esc(l)+'</div>');}).join('');
-  var itemList=(d.items||[]).map(function(it,i){return '<div style="display:flex;margin-bottom:4px;"><div style="width:22px;flex-shrink:0;">'+(i+1)+'.</div><div style="font-weight:600;">'+esc(it.description||'')+'</div></div>';}).join('');
-  var verb=d.items.length>1?'items':'item';
-  var body;
-  if(d.mode==='confirm'){
-    body=''
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">1.</div><div>With reference to the above, we wish to confirm that the quoted '+verb+' listed below can be supplied at the same price as stated in our price quotation dated <b>'+(d.quoDate||'—')+'</b>. There is <b>no change</b> in the quoted price.</div></div>'
-     +'<div style="margin:10px 0 12px 26px;font-size:12px;">'+itemList+'</div>'
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>We confirm our readiness to deliver upon receipt of your purchase order, and assure you of our prompt and reliable service at all times.</div></div>'
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We thank you for the opportunity and your continued confidence.</div></div>';
-  } else if(d.mode==='unable'){
-    body=''
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">1.</div><div>With reference to the above, we regret to inform you that, due to significant fluctuation in market prices since the date of our quotation, we are <b>unable to supply</b> the following '+verb+' at the quoted price:</div></div>'
-     +'<div style="margin:10px 0 12px 26px;font-size:12px;">'+itemList+'</div>'
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>We kindly request that the above '+verb+' be considered as withdrawn from our quotation. We apologize for any inconvenience caused.</div></div>'
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We remain ready to supply all other quoted items at the quoted prices, and thank you for your kind understanding.</div></div>';
-  } else {
-    body=''
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">1.</div><div>With reference to the above, we wish to clarify the quoted '+verb+' listed below:</div></div>'
-     +'<div style="margin:10px 0 12px 26px;font-size:12px;">'+itemList+'</div>'
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">2.</div><div>'+esc(d.correctNote||'')+'</div></div>'
-     +'<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">3.</div><div>We kindly request you to consider the corrected details above, and we thank you for your kind understanding.</div></div>';
-  }
+  var itemListInner=(d.items||[]).map(function(it,i){return '<div style="display:flex;margin-bottom:4px;"><div style="width:22px;flex-shrink:0;">'+(i+1)+'.</div><div style="font-weight:600;">'+esc(it.description||'')+'</div></div>';}).join('');
+  var itemListHtml='<div style="margin:8px 0 12px 26px;font-size:12px;">'+itemListInner+'</div>';
+  var para=function(num,txt){return '<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">'+num+'.</div><div>'+esc(txt).replace(/\n/g,'<br>')+'</div></div>';};
+  var blocks=(d.bodyText||clarDefaultBody(d.mode)).split(/\n\s*\n/);
+  var n=0, body='';
+  blocks.forEach(function(blk){
+    if(blk.indexOf('{ITEMS}')>=0){
+      var parts=blk.split('{ITEMS}');
+      if(parts[0].trim()){ n++; body+=para(n,parts[0].trim()); }
+      body+=itemListHtml;
+      if(parts[1]&&parts[1].trim()){ n++; body+=para(n,parts[1].trim()); }
+    } else if(blk.trim()){ n++; body+=para(n,blk.trim()); }
+  });
   var badge=d.mode==='confirm'?'CONFIRMATION':(d.mode==='unable'?'CLARIFICATION':'PRICE CORRECTION');
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Clarification Reply '+esc(d.refNo)+'</title>'
    +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;}'
