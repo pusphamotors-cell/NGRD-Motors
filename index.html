@@ -2788,18 +2788,16 @@ function vehicleMatchesUser(vn){
 function findDuplicate(refNo,eqNo,company){
   const h=getHist();
   var co=company||curCompany||'ngrd';
-  // normalize: trim, lowercase, collapse inner whitespace — catches case/space differences
   var norm=function(s){return (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');};
-  // CROSS-FIELD: a ref may sit in eqNo on one entry and refNo on another — match either against either
-  var keys=[norm(refNo),norm(eqNo)].filter(Boolean);
-  if(!keys.length) return null;
+  var nEq=norm(eqNo);
+  // ONLY the e-Quotation No (eqNo) uniquely identifies a tender.
+  // refNo (civil/internal ref) can repeat across different tenders → using it caused FALSE duplicate blocks.
+  // No reliable eqNo → don't block (let it save), so a real tender is never wrongly flagged.
+  if(nEq.length<3) return null;
   return h.find(function(e){
-    var eKeys=[norm(e.refNo),norm(e.eqNo)].filter(Boolean);
-    var match=keys.some(function(k){return eKeys.indexOf(k)>=0;});
     var sameCo=(e.company||'ngrd')===co;
-    // Only active entries block/update — submitted/awarded are done, don't touch
     var isActive=['draft','pending','approved','assigned'].indexOf(e.status||'draft')>=0;
-    return match&&sameCo&&isActive;
+    return sameCo&&isActive&&norm(e.eqNo)===nEq;
   })||null;
 }
 
