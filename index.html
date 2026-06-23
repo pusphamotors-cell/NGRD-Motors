@@ -352,7 +352,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         </div>
       </div>
       <div class="lc-logo-text">N.G.R.D. Motors</div>
-      <div class="lc-logo-sub">Quotation System v3.2</div>
+      <div class="lc-logo-sub">Quotation System v3.3</div>
     </div>
   <div class="lc">
     <div class="lc-em"></div>
@@ -425,7 +425,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
-      <div class="sidebar-footer">v3.2 letters · 22Jun</div>
+      <div class="sidebar-footer">v3.3 sample · 22Jun</div>
     </div>
 
     <div class="main-content">
@@ -617,6 +617,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <button class="btn" onclick="openCertificateModal()" style="background:#0D6E4F;color:#fff;border:none;">📜 Certificate Letter</button>
               </div>
               <div class="action-div" id="fmt-certificate-div" style="display:none;"></div>
+              <div class="format-group" id="fmt-sample" style="display:none;">
+                <div class="format-lbl">Format 7 — Sample Request</div>
+                <button class="btn" onclick="openSampleModal()" style="background:#0D47A1;color:#fff;border:none;">📋 Sample Request Letter</button>
+              </div>
+              <div class="action-div" id="fmt-sample-div" style="display:none;"></div>
               <!-- Workflow Progress Bar -->
               <div id="workflow-bar" style="width:100%;margin-bottom:10px;display:none;">
                 <div style="display:flex;align-items:center;gap:0;background:#f0f4f8;border-radius:8px;overflow:hidden;border:1px solid #dde4ee;">
@@ -851,6 +856,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <div style="font-size:24px;margin-bottom:6px;">📜</div>
               <div style="font-size:14px;font-weight:700;">Certificate</div>
               <div style="font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;">Genuine · Warranty · Conformity · Delivery</div>
+            </div>
+            <div onclick="openSampleModal()" style="background:linear-gradient(135deg,#0D47A1,#1565C0);color:#fff;border-radius:10px;padding:14px 16px;cursor:pointer;box-shadow:0 2px 8px rgba(13,71,161,.22);transition:transform .12s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+              <div style="font-size:24px;margin-bottom:6px;">📋</div>
+              <div style="font-size:14px;font-weight:700;">Sample Request</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;">PO item sample — chassis correct part</div>
             </div>
           </div>
         </div>
@@ -7524,8 +7534,11 @@ function applyExtVisibility(){
   var e1=document.getElementById('fmt-extension'),e2=document.getElementById('fmt-extension-div'),e3=document.getElementById('nav-extension'),e4=document.getElementById('db-extension-card');
   var ec1=document.getElementById('fmt-clarification'),ec2=document.getElementById('fmt-clarification-div');
   var ef1=document.getElementById('fmt-certificate'),ef2=document.getElementById('fmt-certificate-div');
+  var es1=document.getElementById('fmt-sample'),es2=document.getElementById('fmt-sample-div');
   var hub=document.getElementById('db-letters-hub');
   if(hub)hub.style.display=canExt?'':'none';
+  if(es1)es1.style.display=canExt?'':'none';
+  if(es2)es2.style.display=canExt?'':'none';
   if(ef1)ef1.style.display=canExt?'':'none';
   if(ef2)ef2.style.display=canExt?'':'none';
   if(ec1)ec1.style.display=canExt?'':'none';
@@ -7988,6 +8001,132 @@ function certLetterHtml(d){
   return _letterShell(d.co,'CERTIFICATE',esc(d.title), inner);
 }
 /* ═══════════════════ END CERTIFICATE LETTER ═══════════════════ */
+
+/* ═══════════════════ SAMPLE REQUEST LETTER (FORMAT 7) ═══════════════════ */
+var sampleCompany='ngrd';
+function sampleDefaultBody(){ return 'We kindly inform you that the items of the above order(s) require a sample for confirmation of the correct part, as matching the exact part to the vehicle chassis is difficult. We kindly request you to arrange the same, so that we may supply the correct matching items without error.\n\n{ITEMS}'; }
+function sampleSetCompany(cid){
+  sampleCompany=cid;
+  var head=document.getElementById('sample-modal-header'),gen=document.getElementById('sample-gen-btn');
+  var col=cid==='puspha'?'#B71C1C':'#0D1B2A';
+  if(head)head.style.background=col; if(gen)gen.style.background=col;
+  ['ngrd','puspha'].forEach(function(c){var b=document.getElementById('sample-co-'+c);if(b){b.style.background=(c===cid)?col:'#eee';b.style.color=(c===cid)?'#fff':'#333';}});
+}
+function samplePickCamp(){
+  var sel=document.getElementById('sample-camp');if(!sel)return;
+  var camps=(typeof extGetCamps==='function')?extGetCamps():{};
+  var c=camps[sel.value];
+  var ta=document.getElementById('sample-toaddr');
+  if(ta&&c&&c.addr)ta.value=(Array.isArray(c.addr)?c.addr.join('\n'):c.addr);
+}
+function sampleAddItem(){
+  var inp=document.getElementById('sample-newitem'); if(!inp)return;
+  var name=(inp.value||'').trim(); if(!name){inp.focus();return;}
+  var list=document.getElementById('sample-item-list'); if(!list)return;
+  var lbl=document.createElement('label');
+  lbl.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 9px;border-bottom:1px solid #eee;cursor:pointer;background:#eef6ff;';
+  lbl.innerHTML='<input type="checkbox" class="sample-item-cb" data-name="'+name.replace(/"/g,'&quot;')+'" checked style="width:16px;height:16px;"><span style="font-size:12px;font-weight:600;color:#0D47A1;flex:1;">➕ '+name.replace(/</g,'&lt;')+'</span><span onclick="this.parentNode.remove()" style="color:#EF4444;cursor:pointer;font-size:13px;padding:0 4px;">🗑️</span>';
+  list.appendChild(lbl); inp.value='';inp.focus();
+}
+function openSampleModal(){
+  var co=getCompany();
+  var d=(typeof buildQData==='function')?buildQData():{items:[],refNo:'',eqNo:'',chassis:''};
+  var ex=document.getElementById('sample-modal');if(ex)ex.remove();
+  var camps=(typeof extGetCamps==='function')?extGetCamps():{};
+  var opts=Object.keys(camps).map(function(k){return '<option value="'+k+'">'+(camps[k].label||k)+'</option>';}).join('');
+  var orderDefault=d.refNo||d.eqNo||'';
+  var chassisDefault=d.chassis||'';
+  var itemRows=(d.items||[]).map(function(item,i){
+    return '<label style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-bottom:1px solid #eee;cursor:pointer;">'
+      +'<input type="checkbox" class="sample-item-cb" data-name="'+(item.description||'').replace(/"/g,'&quot;')+'" checked style="width:16px;height:16px;">'
+      +'<span style="font-size:12px;font-weight:600;color:#0D1B2A;">'+(i+1)+'. '+(item.description||'—')+'</span></label>';
+  }).join('');
+  var m=document.createElement('div');
+  m.id='sample-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10002;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  m.innerHTML='<div id="sample-modal-box" style="background:#fff;border-radius:10px;width:100%;max-width:480px;box-shadow:0 10px 40px rgba(0,0,0,.4);">'
+    +'<div id="sample-modal-header" style="background:#0D1B2A;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;cursor:move;">'
+      +'<div style="font-weight:700;font-size:15px;">📋 Sample Request Letter</div>'
+      +'<button onclick="document.getElementById(\'sample-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:15px;">✕</button></div>'
+    +'<div style="padding:18px;">'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Company (letterhead + seal auto)</label>'
+      +'<div style="display:flex;gap:8px;margin:4px 0 12px;"><button id="sample-co-ngrd" onclick="sampleSetCompany(\'ngrd\')" style="flex:1;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:12px;">🏢 NGRD</button><button id="sample-co-puspha" onclick="sampleSetCompany(\'puspha\')" style="flex:1;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:12px;">🏢 Puspha</button></div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Camp / Department</label>'
+      +'<select id="sample-camp" onchange="samplePickCamp()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'+opts+'</select>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">To Address (edit ✏️)</label>'
+      +'<textarea id="sample-toaddr" rows="4" placeholder="Commodore Superintendent Logistics&#10;Department East&#10;SLNS Dockyard&#10;Trincomalee" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;font-family:var(--fb);resize:vertical;"></textarea>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Order Application Number(s) — ஒரு line-க்கு ஒன்னு</label>'
+      +'<textarea id="sample-orders" rows="2" placeholder="ENA/APOE/PO/2026/0737&#10;ENA/APOE/PO/2026/0987" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;font-family:var(--fb);resize:vertical;">'+orderDefault+'</textarea>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Vehicle Chassis No (optional)</label>'
+      +'<input id="sample-chassis" value="'+chassisDefault+'" placeholder="quotation-லிருந்து auto / manual" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><label style="font-size:11px;font-weight:700;color:#555;">Items (optional — auto + manual)</label>'
+        +'<div style="display:flex;gap:6px;"><button onclick="document.querySelectorAll(\'.sample-item-cb\').forEach(function(c){c.checked=true});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">All</button><button onclick="document.querySelectorAll(\'.sample-item-cb\').forEach(function(c){c.checked=false});" style="font-size:10px;padding:3px 8px;background:#eee;border:none;border-radius:4px;cursor:pointer;">None</button></div></div>'
+      +'<div id="sample-item-list" style="border:1px solid #eee;border-radius:8px;max-height:150px;overflow-y:auto;margin-bottom:8px;">'+(itemRows||'<div style="padding:10px;font-size:12px;color:#999;">Quotation இல்ல / item வேண்டாம் — காலியா விடலாம்</div>')+'</div>'
+      +'<div style="display:flex;gap:6px;margin-bottom:12px;"><input id="sample-newitem" placeholder="Manual item name சேர்க்க..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();sampleAddItem();}" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:12px;"><button onclick="sampleAddItem()" style="background:#0D47A1;color:#fff;border:none;border-radius:5px;padding:0 14px;font-weight:700;cursor:pointer;">➕ Add</button></div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Letter Body (edit ✏️ — <b>{ITEMS}</b> = item list இடம்)</label>'
+      +'<textarea id="sample-body" rows="6" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;font-family:var(--fb);resize:vertical;line-height:1.5;"></textarea>'
+      +'<button id="sample-gen-btn" onclick="genSamplePDF()" style="width:100%;padding:12px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;">🖨️ Generate PDF</button>'
+    +'</div></div>';
+  document.body.appendChild(m);
+  _sampleDrag();
+  sampleSetCompany(co.id);
+  var bd=document.getElementById('sample-body'); if(bd)bd.value=sampleDefaultBody();
+}
+function _sampleDrag(){
+  var box=document.getElementById('sample-modal-box'),head=document.getElementById('sample-modal-header');
+  if(!box||!head)return;var ox,oy,dragging=false;
+  head.addEventListener('mousedown',function(e){dragging=true;var r=box.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;box.style.position='fixed';box.style.margin='0';e.preventDefault();});
+  document.addEventListener('mousemove',function(e){if(dragging){box.style.left=(e.clientX-ox)+'px';box.style.top=(e.clientY-oy)+'px';}});
+  document.addEventListener('mouseup',function(){dragging=false;});
+}
+function genSamplePDF(){
+  var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var orders=(g('sample-orders')||'').split('\n').map(function(x){return x.trim();}).filter(function(x){return x!=='';});
+  if(!orders.length){alert('குறைஞ்சது ஒரு Order Application Number போடுங்க!');return;}
+  var names=[];document.querySelectorAll('.sample-item-cb').forEach(function(c){if(c.checked){var n=c.getAttribute('data-name')||'';if(n.trim())names.push(n.trim());}});
+  var toLines=(g('sample-toaddr')||'').split('\n').filter(function(x){return x.trim()!=='';});
+  var data={
+    co:sampleCompany, coName:sampleCompany==='puspha'?'PUSPHA MOTORS':'N.G.R.D. MOTORS',
+    toLines:toLines, orders:orders, chassis:g('sample-chassis'),
+    items:names.map(function(n){return {description:n};}),
+    bodyText:g('sample-body')||sampleDefaultBody(),
+    date:new Date().toLocaleDateString('en-LK')
+  };
+  var html=sampleLetterHtml(data);
+  var modal=document.getElementById('sample-modal');if(modal)modal.remove();
+  _printWithIframe(html);
+  if(typeof addLog==='function')addLog('Sample Request: '+orders.join(', '));
+  if(typeof showToast==='function')showToast('✅ Sample Request Letter ready!','t-s');
+}
+function sampleLetterHtml(d){
+  var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var toBlock=(d.toLines||[]).map(function(l,i){return '<div'+(i===0?' style="font-weight:700;"':'')+'>'+esc(l)+'</div>';}).join('');
+  var orderBlock=(d.orders||[]).map(function(o){return '<div style="font-weight:700;text-decoration:underline;margin-bottom:3px;">'+esc(o)+'</div>';}).join('');
+  var itemListInner=(d.items||[]).map(function(it,i){return '<div style="display:flex;margin-bottom:4px;"><div style="width:22px;flex-shrink:0;">'+(i+1)+'.</div><div style="font-weight:600;">'+esc(it.description||'')+'</div></div>';}).join('');
+  var itemListHtml=itemListInner?'<div style="margin:6px 0 12px 26px;font-size:12px;">'+itemListInner+'</div>':'';
+  var chassisLine=d.chassis?('<div style="font-size:12px;margin-bottom:14px;"><b>Vehicle Chassis No :-</b>&nbsp;&nbsp;'+esc(d.chassis)+'</div>'):'';
+  var raw=(d.bodyText||sampleDefaultBody());
+  var blocks=raw.split(/\n\s*\n/);var body='';
+  blocks.forEach(function(blk){
+    if(blk.indexOf('{ITEMS}')>=0){var p=blk.split('{ITEMS}');
+      if(p[0].trim())body+='<div style="margin-bottom:12px;text-align:justify;">'+esc(p[0].trim()).replace(/\n/g,'<br>')+'</div>';
+      body+=itemListHtml;
+      if(p[1]&&p[1].trim())body+='<div style="margin-bottom:12px;text-align:justify;">'+esc(p[1].trim()).replace(/\n/g,'<br>')+'</div>';
+    } else if(blk.trim()){body+='<div style="margin-bottom:12px;text-align:justify;">'+esc(blk.trim()).replace(/\n/g,'<br>')+'</div>';}
+  });
+  var inner=''
+   +'<div style="display:flex;justify-content:flex-end;margin:22px 0 18px;font-size:12px;"><div>Date: <b>'+d.date+'</b></div></div>'
+   +'<div style="font-size:12px;line-height:1.8;margin-bottom:20px;">'+toBlock+'</div>'
+   +'<div style="display:flex;margin-bottom:16px;font-size:12px;"><div style="font-weight:700;white-space:nowrap;">Order Application Number :-&nbsp;&nbsp;&nbsp;</div><div>'+orderBlock+'</div></div>'
+   +chassisLine
+   +'<div style="font-size:12px;line-height:1.9;">'+body+'</div>'
+   +'<div style="margin-top:38px;font-size:12px;"><div>Thank you,</div>'
+     +'<div style="font-weight:700;margin-top:3px;">For '+d.coName+',</div>'
+     +_letterSeal(d.co)
+     +'<div style="font-weight:700;">(Manager)</div></div>';
+  return _letterShell(d.co,'SAMPLE REQUEST','Sample Request '+esc((d.orders||[])[0]||''), inner);
+}
+/* ═══════════════════ END SAMPLE REQUEST LETTER ═══════════════════ */
 
 function loadSubmitterSettings(){
   var panel=document.getElementById('company-submitter-panel');
