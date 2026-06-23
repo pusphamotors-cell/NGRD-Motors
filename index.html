@@ -410,6 +410,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-dashboard" onclick="showPage('dashboard');closeSidebarMobile()"><span class="nav-icon">📊</span>Dashboard</button>
         <button class="nav-item active" id="nav-new" onclick="showPage('new');closeSidebarMobile()"><span class="nav-icon">📄</span>New Quotation</button>
         <button class="nav-item" id="nav-history" onclick="showPage('history');closeSidebarMobile()"><span class="nav-icon">🗂️</span>History<span class="nav-badge" id="pending-badge" style="display:none;">!</span></button>
+        <button class="nav-item" id="nav-letters" onclick="openLettersHub();closeSidebarMobile()" style="display:none;"><span class="nav-icon">📑</span>Letters</button>
         <button class="nav-item" id="nav-calendar" onclick="showPage('calendar');closeSidebarMobile()"><span class="nav-icon">📅</span>Calendar</button>
         <button class="nav-item" id="nav-extension" onclick="openExtensionModal();closeSidebarMobile()" style="display:none;"><span class="nav-icon">📜</span>Validity Extension</button>
         <button class="nav-item" id="nav-prices" onclick="showPage('prices');closeSidebarMobile()"><span class="nav-icon">💰</span>Parts Price List</button>
@@ -425,7 +426,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
-      <div class="sidebar-footer">v3.4 ldwaiver · 22Jun</div>
+      <div class="sidebar-footer">v3.5 letters-menu · 23Jun</div>
     </div>
 
     <div class="main-content">
@@ -7547,7 +7548,9 @@ function applyExtVisibility(){
   var es1=document.getElementById('fmt-sample'),es2=document.getElementById('fmt-sample-div');
   var el1=document.getElementById('fmt-ldw'),el2=document.getElementById('fmt-ldw-div');
   var hub=document.getElementById('db-letters-hub');
-  if(hub)hub.style.display=canExt?'':'none';
+  var navL=document.getElementById('nav-letters');
+  if(navL)navL.style.display=canExt?'':'none';
+  if(hub)hub.style.display='none';
   if(el1)el1.style.display=canExt?'':'none';
   if(el2)el2.style.display=canExt?'':'none';
   if(es1)es1.style.display=canExt?'':'none';
@@ -7558,7 +7561,7 @@ function applyExtVisibility(){
   if(ec2)ec2.style.display=canExt?'':'none';
   if(e1)e1.style.display=canExt?'':'none';
   if(e2)e2.style.display=canExt?'':'none';
-  if(e3)e3.style.display=canExt?'':'none';
+  if(e3)e3.style.display='none';
   if(e4)e4.style.display=canExt?'flex':'none';
 }
 function extSetCompany(cid){
@@ -8273,6 +8276,34 @@ function ldwLetterHtml(d){
   return _letterShell(d.co,'LD WAIVER','LD Waiver '+esc(d.refNo), inner);
 }
 /* ═══════════════════ END LD WAIVER LETTER ═══════════════════ */
+
+/* ═══════════════════ LETTERS HUB POPUP ═══════════════════ */
+function openLettersHub(){
+  var ex=document.getElementById('letters-hub-modal');if(ex)ex.remove();
+  var card=function(onclk,grad,shadow,icon,title,sub){
+    return '<div onclick="document.getElementById(\'letters-hub-modal\').remove();'+onclk+'" style="background:'+grad+';color:#fff;border-radius:10px;padding:16px;cursor:pointer;box-shadow:0 2px 8px '+shadow+';transition:transform .12s;" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'none\'">'
+      +'<div style="font-size:26px;margin-bottom:6px;">'+icon+'</div>'
+      +'<div style="font-size:14px;font-weight:700;">'+title+'</div>'
+      +'<div style="font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;">'+sub+'</div></div>';
+  };
+  var m=document.createElement('div');
+  m.id='letters-hub-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;';
+  m.innerHTML='<div style="background:#fff;border-radius:12px;width:100%;max-width:560px;box-shadow:0 10px 40px rgba(0,0,0,.4);">'
+    +'<div style="background:#0D1B2A;color:#fff;padding:16px 20px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;">'
+      +'<div style="font-weight:800;font-size:16px;letter-spacing:0.5px;">📑 LETTERS</div>'
+      +'<button onclick="document.getElementById(\'letters-hub-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;">✕</button></div>'
+    +'<div style="padding:20px;"><div style="font-size:11px;color:#888;margin-bottom:12px;">NGRD &amp; Puspha · letterhead + seal auto</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;">'
+        +card('openExtensionModal()','linear-gradient(135deg,#1A6B3C,#15803d)','rgba(26,107,60,.22)','📄','Validity Extension','Extend / decline validity')
+        +card('openClarificationModal()','linear-gradient(135deg,#6D28D9,#7c3aed)','rgba(109,40,217,.22)','📋','Clarification Reply','Confirm / unable / correct')
+        +card('openCertificateModal()','linear-gradient(135deg,#0D6E4F,#0f766e)','rgba(13,110,79,.22)','📜','Certificate','Genuine·Warranty·Conformity')
+        +card('openSampleModal()','linear-gradient(135deg,#0D47A1,#1565C0)','rgba(13,71,161,.22)','📋','Sample Request','PO item sample — chassis')
+        +card('openLdwModal()','linear-gradient(135deg,#9a3412,#c2410c)','rgba(154,52,18,.22)','🛡️','LD Waiver','LD waiver / refund கேட்க')
+      +'</div></div></div>';
+  document.body.appendChild(m);
+}
+/* ═══════════════════ END LETTERS HUB POPUP ═══════════════════ */
 
 function loadSubmitterSettings(){
   var panel=document.getElementById('company-submitter-panel');
