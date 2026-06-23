@@ -425,7 +425,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
-      <div class="sidebar-footer">v3.3 sample+ld · 22Jun</div>
+      <div class="sidebar-footer">v3.4 ldwaiver · 22Jun</div>
     </div>
 
     <div class="main-content">
@@ -622,6 +622,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <button class="btn" onclick="openSampleModal()" style="background:#0D47A1;color:#fff;border:none;">📋 Sample Request Letter</button>
               </div>
               <div class="action-div" id="fmt-sample-div" style="display:none;"></div>
+              <div class="format-group" id="fmt-ldw" style="display:none;">
+                <div class="format-lbl">Format 8 — LD Waiver</div>
+                <button class="btn" onclick="openLdwModal()" style="background:#9a3412;color:#fff;border:none;">🛡️ LD Waiver Letter</button>
+              </div>
+              <div class="action-div" id="fmt-ldw-div" style="display:none;"></div>
               <!-- Workflow Progress Bar -->
               <div id="workflow-bar" style="width:100%;margin-bottom:10px;display:none;">
                 <div style="display:flex;align-items:center;gap:0;background:#f0f4f8;border-radius:8px;overflow:hidden;border:1px solid #dde4ee;">
@@ -861,6 +866,11 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <div style="font-size:24px;margin-bottom:6px;">📋</div>
               <div style="font-size:14px;font-weight:700;">Sample Request</div>
               <div style="font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;">PO item sample — chassis correct part</div>
+            </div>
+            <div onclick="openLdwModal()" style="background:linear-gradient(135deg,#9a3412,#c2410c);color:#fff;border-radius:10px;padding:14px 16px;cursor:pointer;box-shadow:0 2px 8px rgba(154,52,18,.22);transition:transform .12s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+              <div style="font-size:24px;margin-bottom:6px;">🛡️</div>
+              <div style="font-size:14px;font-weight:700;">LD Waiver</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;">LD cut ஆனப்பறம் waiver / refund கேட்க</div>
             </div>
           </div>
         </div>
@@ -7535,8 +7545,11 @@ function applyExtVisibility(){
   var ec1=document.getElementById('fmt-clarification'),ec2=document.getElementById('fmt-clarification-div');
   var ef1=document.getElementById('fmt-certificate'),ef2=document.getElementById('fmt-certificate-div');
   var es1=document.getElementById('fmt-sample'),es2=document.getElementById('fmt-sample-div');
+  var el1=document.getElementById('fmt-ldw'),el2=document.getElementById('fmt-ldw-div');
   var hub=document.getElementById('db-letters-hub');
   if(hub)hub.style.display=canExt?'':'none';
+  if(el1)el1.style.display=canExt?'':'none';
+  if(el2)el2.style.display=canExt?'':'none';
   if(es1)es1.style.display=canExt?'':'none';
   if(es2)es2.style.display=canExt?'':'none';
   if(ef1)ef1.style.display=canExt?'':'none';
@@ -8144,6 +8157,122 @@ function sampleLetterHtml(d){
   return _letterShell(d.co,'SAMPLE REQUEST','Sample Request '+esc((d.orders||[])[0]||''), inner);
 }
 /* ═══════════════════ END SAMPLE REQUEST LETTER ═══════════════════ */
+
+/* ═══════════════════ LD WAIVER LETTER (FORMAT 8) ═══════════════════ */
+var ldwCompany='ngrd';
+function ldwDefaultBody(amount, reason){
+  var amt=(amount&&amount.trim())?('LKR '+amount.trim()):'LKR _______';
+  var rsn=(reason&&reason.trim())?reason.trim():'circumstances that were entirely beyond our control';
+  return 'We wish to bring to your kind attention that a sum of '+amt+' has been deducted from our payment as Liquidated Damages (LD) for the delay in delivery against the above order.\n\nWe respectfully submit that the said delay was caused by '+rsn+', which was beyond our control and not due to any negligence on our part.\n\nWe have always endeavoured to provide prompt and reliable service to your esteemed department. We therefore kindly request you to consider a waiver / refund of the Liquidated Damages deducted, taking into account the circumstances explained above.\n\nWe shall be most grateful for your favourable consideration of our request.';
+}
+function ldwSetCompany(cid){
+  ldwCompany=cid;
+  var head=document.getElementById('ldw-modal-header'),gen=document.getElementById('ldw-gen-btn');
+  var col=cid==='puspha'?'#B71C1C':'#0D1B2A';
+  if(head)head.style.background=col; if(gen)gen.style.background=col;
+  ['ngrd','puspha'].forEach(function(c){var b=document.getElementById('ldw-co-'+c);if(b){b.style.background=(c===cid)?col:'#eee';b.style.color=(c===cid)?'#fff':'#333';}});
+}
+function ldwPickCamp(){
+  var sel=document.getElementById('ldw-camp');if(!sel)return;
+  var camps=(typeof extGetCamps==='function')?extGetCamps():{};
+  var c=camps[sel.value]; var ta=document.getElementById('ldw-toaddr');
+  if(ta&&c&&c.addr)ta.value=(Array.isArray(c.addr)?c.addr.join('\n'):c.addr);
+}
+function ldwSetReason(txt){ var r=document.getElementById('ldw-reason'); if(r){r.value=txt; ldwRebuildBody();} }
+function ldwRebuildBody(){
+  var amt=document.getElementById('ldw-amount'), rsn=document.getElementById('ldw-reason'), bd=document.getElementById('ldw-body');
+  if(bd)bd.value=ldwDefaultBody(amt?amt.value:'', rsn?rsn.value:'');
+}
+function openLdwModal(){
+  var co=getCompany();
+  var d=(typeof buildQData==='function')?buildQData():{items:[],refNo:'',eqNo:''};
+  var ex=document.getElementById('ldw-modal');if(ex)ex.remove();
+  var camps=(typeof extGetCamps==='function')?extGetCamps():{};
+  var opts=Object.keys(camps).map(function(k){return '<option value="'+k+'">'+(camps[k].label||k)+'</option>';}).join('');
+  var refDefault=d.refNo||d.eqNo||'';
+  var m=document.createElement('div');
+  m.id='ldw-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10002;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  m.innerHTML='<div id="ldw-modal-box" style="background:#fff;border-radius:10px;width:100%;max-width:480px;box-shadow:0 10px 40px rgba(0,0,0,.4);">'
+    +'<div id="ldw-modal-header" style="background:#0D1B2A;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;cursor:move;">'
+      +'<div style="font-weight:700;font-size:15px;">🛡️ LD Waiver Letter</div>'
+      +'<button onclick="document.getElementById(\'ldw-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:15px;">✕</button></div>'
+    +'<div style="padding:18px;">'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Company (letterhead + seal auto)</label>'
+      +'<div style="display:flex;gap:8px;margin:4px 0 12px;"><button id="ldw-co-ngrd" onclick="ldwSetCompany(\'ngrd\')" style="flex:1;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:12px;">🏢 NGRD</button><button id="ldw-co-puspha" onclick="ldwSetCompany(\'puspha\')" style="flex:1;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:12px;">🏢 Puspha</button></div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Camp / Department</label>'
+      +'<select id="ldw-camp" onchange="ldwPickCamp()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'+opts+'</select>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">To Address (edit ✏️)</label>'
+      +'<textarea id="ldw-toaddr" rows="4" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;font-family:var(--fb);resize:vertical;"></textarea>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Subject</label>'
+      +'<input id="ldw-subject" value="REQUEST FOR WAIVER / REFUND OF LIQUIDATED DAMAGES" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;">'
+      +'<div style="display:flex;gap:10px;">'
+        +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#555;">Order / PO No.</label><input id="ldw-refno" value="'+refDefault+'" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;"></div>'
+        +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#555;">Bill / Invoice No. (opt)</label><input id="ldw-billno" placeholder="LD cut ஆன bill" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;"></div>'
+      +'</div>'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">LD Amount Deducted (LKR)</label>'
+      +'<input id="ldw-amount" oninput="ldwRebuildBody()" placeholder="e.g. 5,910.00" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Reason for Delay (quick-pick / edit)</label>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin:4px 0;">'
+        +'<button onclick="ldwSetReason(\'the time taken for the sample approval process\')" style="font-size:10px;padding:4px 8px;background:#eef;border:1px solid #ccd;border-radius:4px;cursor:pointer;">Sample delay</button>'
+        +'<button onclick="ldwSetReason(\'an unavoidable delay in the import and shipment of the item\')" style="font-size:10px;padding:4px 8px;background:#eef;border:1px solid #ccd;border-radius:4px;cursor:pointer;">Import delay</button>'
+        +'<button onclick="ldwSetReason(\'a temporary shortage in supply from the manufacturer\')" style="font-size:10px;padding:4px 8px;background:#eef;border:1px solid #ccd;border-radius:4px;cursor:pointer;">Stock shortage</button>'
+      +'</div>'
+      +'<input id="ldw-reason" oninput="ldwRebuildBody()" placeholder="reason type பண்ணு / மேல button தட்டு" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:13px;">'
+      +'<label style="font-size:11px;font-weight:700;color:#555;">Letter Body (edit ✏️)</label>'
+      +'<textarea id="ldw-body" rows="8" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin:4px 0 10px;font-size:12px;font-family:var(--fb);resize:vertical;line-height:1.5;"></textarea>'
+      +'<button id="ldw-gen-btn" onclick="genLdwPDF()" style="width:100%;padding:12px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;">🖨️ Generate PDF</button>'
+    +'</div></div>';
+  document.body.appendChild(m);
+  _ldwDrag();
+  ldwSetCompany(co.id);
+  ldwRebuildBody();
+}
+function _ldwDrag(){
+  var box=document.getElementById('ldw-modal-box'),head=document.getElementById('ldw-modal-header');
+  if(!box||!head)return;var ox,oy,dragging=false;
+  head.addEventListener('mousedown',function(e){dragging=true;var r=box.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;box.style.position='fixed';box.style.margin='0';e.preventDefault();});
+  document.addEventListener('mousemove',function(e){if(dragging){box.style.left=(e.clientX-ox)+'px';box.style.top=(e.clientY-oy)+'px';}});
+  document.addEventListener('mouseup',function(){dragging=false;});
+}
+function genLdwPDF(){
+  var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  if(!g('ldw-refno').trim()){alert('Order / PO No. போடுங்க!');return;}
+  var toLines=(g('ldw-toaddr')||'').split('\n').filter(function(x){return x.trim()!=='';});
+  var data={
+    co:ldwCompany, coName:ldwCompany==='puspha'?'PUSPHA MOTORS':'N.G.R.D. MOTORS',
+    toLines:toLines, subject:g('ldw-subject')||'REQUEST FOR WAIVER / REFUND OF LIQUIDATED DAMAGES',
+    refNo:g('ldw-refno'), billNo:g('ldw-billno'),
+    bodyText:g('ldw-body')||ldwDefaultBody(g('ldw-amount'),g('ldw-reason')),
+    date:new Date().toLocaleDateString('en-LK')
+  };
+  var html=ldwLetterHtml(data);
+  var modal=document.getElementById('ldw-modal');if(modal)modal.remove();
+  _printWithIframe(html);
+  if(typeof addLog==='function')addLog('LD Waiver: '+data.refNo);
+  if(typeof showToast==='function')showToast('✅ LD Waiver Letter ready!','t-s');
+}
+function ldwLetterHtml(d){
+  var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var toBlock=(d.toLines||[]).map(function(l,i){return i===0?('<div><b>'+esc(l)+'</b></div>'):('<div>'+esc(l)+'</div>');}).join('');
+  var para=function(num,txt){return '<div style="display:flex;margin-bottom:12px;"><div style="width:26px;flex-shrink:0;font-weight:700;">'+num+'.</div><div style="text-align:justify;">'+esc(txt).replace(/\n/g,'<br>')+'</div></div>';};
+  var blocks=(d.bodyText||'').split(/\n\s*\n/);var n=0,body='';
+  blocks.forEach(function(blk){ if(blk.trim()){ n++; body+=para(n,blk.trim()); } });
+  var refRows='<div style="font-size:12px;margin-bottom:4px;padding-left:20px;">A.&nbsp;&nbsp; Order / PO No. <b>'+esc(d.refNo)+'</b></div>';
+  if(d.billNo&&d.billNo.trim())refRows+='<div style="font-size:12px;margin-bottom:4px;padding-left:20px;">B.&nbsp;&nbsp; Our Invoice / Bill No. <b>'+esc(d.billNo)+'</b></div>';
+  var inner=''
+   +'<div style="display:flex;justify-content:flex-end;margin:22px 0 18px;font-size:12px;"><div>Date: <b>'+d.date+'</b></div></div>'
+   +'<div style="font-size:12px;line-height:1.8;margin-bottom:18px;">'+toBlock+'</div>'
+   +'<div style="font-size:12px;margin-bottom:16px;">Dear Sir,</div>'
+   +'<div style="text-align:center;margin:16px 0;"><span style="font-size:13px;font-weight:700;text-decoration:underline;letter-spacing:0.5px;">'+esc(d.subject)+'</span></div>'
+   +'<div style="font-size:12px;margin-bottom:8px;"><b>Reference:</b></div>'+refRows
+   +'<div style="height:10px;"></div>'
+   +'<div style="font-size:12px;line-height:1.9;">'+body+'</div>'
+   +'<div style="margin-top:36px;font-size:12px;"><div>Thanking you,</div><div>Yours faithfully,</div><div style="font-weight:700;margin-top:3px;">For '+d.coName+',</div>'
+     +_letterSeal(d.co)+'</div>';
+  return _letterShell(d.co,'LD WAIVER','LD Waiver '+esc(d.refNo), inner);
+}
+/* ═══════════════════ END LD WAIVER LETTER ═══════════════════ */
 
 function loadSubmitterSettings(){
   var panel=document.getElementById('company-submitter-panel');
