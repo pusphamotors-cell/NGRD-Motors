@@ -553,7 +553,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
         <div class="panel" id="items-panel" style="display:none;">
           <div class="panel-hdr"><span class="panel-hdr-icon">🔩</span><span class="panel-hdr-title">Spare Parts — Enter Prices</span>
-            <div class="panel-hdr-right" style="font-size:11px;color:rgba(255,255,255,.5);">💡 Price history hints shown below each input</div>
+            <div class="panel-hdr-right" style="display:flex;align-items:center;gap:8px;"><button class="btn btn-gold btn-sm" onclick="aiAutoPrice()" style="font-weight:700;">🤖 AI Auto-Price</button><span style="font-size:11px;color:rgba(255,255,255,.5);">💡 Hints below each input</span></div>
           </div>
           <div class="panel-body">
             <div class="tbl-wrap">
@@ -3091,6 +3091,69 @@ function autoSell(idx,bi){
   }
 }
 
+
+// ══════════════════════════════════════════════════
+// AI AUTO-PRICE — bulk match quotation items to price DB
+// ══════════════════════════════════════════════════
+function _aiFill(idx,bi,m){
+  function setv(id,val){var e=document.getElementById(id);if(e)e.value=val;}
+  setv('br-b-'+idx+'-'+bi,m.brand||'');
+  setv('br-p-'+idx+'-'+bi,m.partNo||'');
+  var cEl=document.getElementById('br-c-'+idx+'-'+bi);
+  if(cEl&&m.country){var has=Array.prototype.some.call(cEl.options,function(o){return o.value===m.country;});if(!has){var o=document.createElement('option');o.value=m.country;o.textContent=m.country;cEl.appendChild(o);}cEl.value=m.country;}
+  var cost=parseFloat(m.purchasePrice)||0, sell=parseFloat(m.price)||0;
+  var puEl=document.getElementById('br-pu-'+idx+'-'+bi);
+  if(puEl&&cost>0){puEl.value=cost;puEl.style.background='#fffde7';}
+  var sEl=document.getElementById('br-s-'+idx+'-'+bi);
+  if(sEl&&sell>0)sEl.value=sell;
+  var mEl=document.getElementById('br-m-'+idx+'-'+bi);
+  if(mEl&&cost>0&&sell>0)mEl.value=Math.round((sell-cost)/cost*100);
+  if(curItems[idx]&&curItems[idx].brandRows&&curItems[idx].brandRows[bi]){
+    var br=curItems[idx].brandRows[bi];
+    if(m.brand)br.brand=m.brand; if(m.partNo)br.partNo=m.partNo; if(m.country)br.country=m.country;
+    if(cost>0)br.purchasePrice=cost; if(sell>0)br.price=sell;
+    if(cost>0&&sell>0)br.marginPct=Math.round((sell-cost)/cost*100);
+  }
+  if(typeof syncRow==='function')syncRow(idx,bi);
+}
+async function aiAutoPrice(){
+  if(!curItems||!curItems.length){showToast('No items in quotation!','t-e');return;}
+  var prices=getPrices();
+  if(!prices.length){showToast('First load a price list (e.g. L200 K34)!','t-e');return;}
+  var vehicle=(document.getElementById('f-vname')||{value:''}).value||'';
+  var localCount=0, unmatched=[];
+  curItems.forEach(function(item,idx){
+    if(!item.brandRows||!item.brandRows.length)item.brandRows=[{brand:'',partNo:'',country:'Japan',price:'',purchasePrice:0,marginPct:0}];
+    var bi=0; var bEl=document.getElementById('br-b-'+idx+'-'+bi);
+    if(bEl&&bEl.value&&bEl.value.trim())return; // already filled, skip
+    var matches=(typeof findAllPriceMatches==='function')?findAllPriceMatches(item.description,prices,vehicle):[];
+    if(matches&&matches.length){_aiFill(idx,bi,matches[0]);localCount++;}
+    else unmatched.push({idx:idx,desc:item.description});
+  });
+  if(typeof calcTotals==='function')calcTotals();
+  showToast('\u2705 '+localCount+' matched'+(unmatched.length?(' \u00b7 '+unmatched.length+' need AI'):'')+'!','t-s');
+  if(!unmatched.length)return;
+  var akey=(typeof getAPIKey==='function')?getAPIKey():'';
+  if(!akey){showToast(unmatched.length+' unmatched (no API key for AI)','t-i');return;}
+  showToast('\ud83e\udd16 AI matching '+unmatched.length+' items...','t-i');
+  var dbNames=[],seen={};
+  prices.forEach(function(p){var d=p.description||'';if(d&&!seen[d.toLowerCase()]){seen[d.toLowerCase()]=1;dbNames.push(d);}});
+  var prompt='You match auto spare part descriptions to a price database. Be strict: only match if it is genuinely the same part.\n\nDATABASE ITEMS:\n'+dbNames.map(function(n,i){return (i+1)+'. '+n;}).join('\n')+'\n\nQUERIES:\n'+unmatched.map(function(u,i){return (i+1)+'. '+u.desc;}).join('\n')+'\n\nFor each query return the single best matching DATABASE ITEM (exact text) or null if none truly matches. Respond ONLY with valid JSON, no markdown: [{"q":1,"match":"exact db name or null"}]';
+  try{
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:4000,messages:[{role:'user',content:prompt}]})});
+    var data=await resp.json();
+    var txt=(data.content||[]).filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join('').replace(/```json|```/g,'').trim();
+    var arr=JSON.parse(txt); var aiCount=0;
+    arr.forEach(function(r){
+      if(!r||!r.match||String(r.match).toLowerCase()==='null')return;
+      var u=unmatched[r.q-1]; if(!u)return;
+      var m=prices.find(function(p){return (p.description||'').toLowerCase()===String(r.match).toLowerCase();});
+      if(m){_aiFill(u.idx,0,m);aiCount++;}
+    });
+    if(typeof calcTotals==='function')calcTotals();
+    showToast('\ud83e\udd16 AI matched '+aiCount+' more! ('+(unmatched.length-aiCount)+' still empty)','t-s');
+  }catch(e){showToast('AI error: '+(e.message||e),'t-e');}
+}
 function addBR(idx){
   if(!curItems[idx])return;
   var last=curItems[idx].brandRows[curItems[idx].brandRows.length-1]||{};
