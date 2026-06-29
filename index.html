@@ -3140,7 +3140,17 @@ async function aiAutoPrice(){
     item.brandRows.forEach(function(br,bi){
       var sEl=document.getElementById('br-s-'+idx+'-'+bi);
       if(sEl&&parseFloat(sEl.value)>0){filledAny=true;return;} // already priced — keep it
-      var m=matches[bi]||(bi===0?matches[0]:null);
+      // PRIORITY: if tender requires a specific brand, pick that brand's price from DB
+      var reqB=((br.brand||item.reqBrand||'')+'').toLowerCase().trim();
+      var m=null;
+      if(reqB){
+        m=matches.find(function(x){
+          var xb=((x.brand||'')+'').toLowerCase().trim();
+          if(!xb)return false;
+          return xb===reqB||(xb.length>=3&&reqB.indexOf(xb)>=0)||(reqB.length>=3&&xb.indexOf(reqB)>=0);
+        })||null;
+      }
+      if(!m) m=matches[bi]||(bi===0?matches[0]:null); // fallback: best match
       if(!m)return; // no more options for extra rows
       _aiFill(idx,bi,m);filledAny=true;
     });
