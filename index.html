@@ -1399,6 +1399,7 @@ function setHist(h){
   var deleted=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
   var clean=deleted.length>0?h.filter(function(e){return deleted.indexOf(String(e.id))<0;}):h;
   LS.set('ngrd_hist',clean);
+  window.__fapmVer=(window.__fapmVer||0)+1;
   if(typeof fbWrite==='function')fbWrite('history',clean);
 }
 function getPrices(){
@@ -1410,7 +1411,7 @@ function getPrices(){
   }
   return p||[];
 }
-function setPrices(p){LS.set('ngrd_prices',p);if(typeof fbWrite==='function')fbWrite('prices',p);}
+function setPrices(p){LS.set('ngrd_prices',p);window.__fapmVer=(window.__fapmVer||0)+1;if(typeof fbWrite==='function')fbWrite('prices',p);}
 function getLog(){return LS.get('ngrd_log')||[];}
 function addLog(msg){
   const log=getLog();
@@ -3190,8 +3191,8 @@ function renderItems(items){
 
   if(!items||!Array.isArray(items)){calcTotals();return;}
   items.forEach(function(item,idx){
+    var curVeh=document.getElementById('f-vname')?document.getElementById('f-vname').value||'':'';
     if(!item.brandRows||!item.brandRows.length){
-      var curVeh=document.getElementById('f-vname')?document.getElementById('f-vname').value||'':'';
       var matches=findAllPriceMatches(item.description,prices,curVeh);
       if(matches&&matches.length>0){
         item.brandRows=matches.map(function(m){
@@ -3315,7 +3316,18 @@ function renderItems(items){
 
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
+var _fapmCache={}, _fapmVerSeen=-1, _fapmLenSeen=-1;
 function findAllPriceMatches(desc,prices,vehicle){
+  var ver=(window.__fapmVer||0), len=prices?prices.length:0;
+  if(ver!==_fapmVerSeen||len!==_fapmLenSeen){_fapmCache={};_fapmVerSeen=ver;_fapmLenSeen=len;}
+  var key=(desc||'')+'\u241F'+(vehicle||'');
+  var c=_fapmCache[key];
+  if(c) return c;
+  var r=_fapmRaw(desc,prices,vehicle);
+  _fapmCache[key]=r;
+  return r;
+}
+function _fapmRaw(desc,prices,vehicle){
   if(!desc) return [];
   var allPrices=(prices||[]).slice();
 
