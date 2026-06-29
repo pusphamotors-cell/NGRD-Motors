@@ -3332,6 +3332,35 @@ function renderItems(items){
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
 var _fapmCache={}, _fapmVerSeen=-1, _fapmLenSeen=-1;
+var _poolCache=null,_poolVer=-1,_poolNoHist=null,_poolLen=-1;
+function _getMatchPool(prices,noHist){
+  var ver=(window.__fapmVer||0), len=prices?prices.length:0;
+  if(_poolCache&&ver===_poolVer&&noHist===_poolNoHist&&len===_poolLen) return _poolCache;
+  var allPrices=(prices||[]).slice();
+  if(!noHist) try{
+    var seen={};
+    allPrices.forEach(function(p){seen[((p.description||'')+'\u0001'+(p.brand||'')+'\u0001'+(p.vehicle||'')).toLowerCase()]=1;});
+    var hist=getHist();
+    hist.forEach(function(entry){
+      if(!entry.items||!Array.isArray(entry.items)) return;
+      var v=entry.vehicle||'';
+      entry.items.forEach(function(item){
+        if(!item.description) return;
+        var rows=item.brandRows||[];
+        if(!rows.length&&item.brand) rows=[{brand:item.brand,partNo:item.partNo||'',country:item.country||'Japan',price:item.unitPrice||0,purchasePrice:item.purchasePrice||0}];
+        rows.forEach(function(br){
+          if(!br.brand&&!br.price) return;
+          var k=((item.description||'')+'\u0001'+(br.brand||'')+'\u0001'+(v||'')).toLowerCase();
+          if(seen[k]) return;
+          seen[k]=1;
+          allPrices.push({id:'h_'+entry.id+'_'+item.itemNo,description:item.description,vehicle:v,brand:br.brand||'',partNo:br.partNo||'',country:br.country||'Japan',price:parseFloat(br.price)||0,purchasePrice:parseFloat(br.purchasePrice)||0});
+        });
+      });
+    });
+  }catch(e){}
+  _poolCache=allPrices;_poolVer=ver;_poolNoHist=noHist;_poolLen=len;
+  return allPrices;
+}
 function findAllPriceMatches(desc,prices,vehicle,noHist){
   var ver=(window.__fapmVer||0), len=prices?prices.length:0;
   if(ver!==_fapmVerSeen||len!==_fapmLenSeen){_fapmCache={};_fapmVerSeen=ver;_fapmLenSeen=len;}
@@ -3344,37 +3373,7 @@ function findAllPriceMatches(desc,prices,vehicle,noHist){
 }
 function _fapmRaw(desc,prices,vehicle,noHist){
   if(!desc) return [];
-  var allPrices=(prices||[]).slice();
-
-  // Add history prices
-  if(!noHist) try{
-    var hist=getHist();
-    hist.forEach(function(entry){
-      if(!entry.items||!Array.isArray(entry.items)) return;
-      var v=entry.vehicle||'';
-      entry.items.forEach(function(item){
-        if(!item.description) return;
-        var rows=item.brandRows||[];
-        if(!rows.length&&item.brand) rows=[{brand:item.brand,partNo:item.partNo||'',country:item.country||'Japan',price:item.unitPrice||0,purchasePrice:item.purchasePrice||0}];
-        rows.forEach(function(br){
-          if(!br.brand&&!br.price) return;
-          var exists=allPrices.find(function(p){
-            return (p.description||'').toLowerCase()===(item.description||'').toLowerCase()
-              &&(p.brand||'').toLowerCase()===(br.brand||'').toLowerCase()
-              &&(p.vehicle||'').toLowerCase()===(v||'').toLowerCase();
-          });
-          if(!exists) allPrices.push({
-            id:'h_'+entry.id+'_'+item.itemNo,
-            description:item.description,vehicle:v,
-            brand:br.brand||'',partNo:br.partNo||'',
-            country:br.country||'Japan',
-            price:parseFloat(br.price)||0,
-            purchasePrice:parseFloat(br.purchasePrice)||0
-          });
-        });
-      });
-    });
-  }catch(e){}
+  var allPrices=_getMatchPool(prices,noHist);
 
   if(!allPrices.length) return [];
 
