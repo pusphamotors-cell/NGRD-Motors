@@ -3128,11 +3128,17 @@ async function aiAutoPrice(){
   var localCount=0, unmatched=[];
   curItems.forEach(function(item,idx){
     if(!item.brandRows||!item.brandRows.length)item.brandRows=[{brand:'',partNo:'',country:'Japan',price:'',purchasePrice:0,marginPct:0}];
-    var bi=0; var bEl=document.getElementById('br-b-'+idx+'-'+bi);
-    if(bEl&&bEl.value&&bEl.value.trim())return; // already filled, skip
     var matches=(typeof findAllPriceMatches==='function')?findAllPriceMatches(item.description,prices,vehicle):[];
-    if(matches&&matches.length){_aiFill(idx,bi,matches[0]);localCount++;}
-    else unmatched.push({idx:idx,desc:item.description});
+    if(!matches||!matches.length){unmatched.push({idx:idx,desc:item.description});return;}
+    var filledAny=false;
+    item.brandRows.forEach(function(br,bi){
+      var sEl=document.getElementById('br-s-'+idx+'-'+bi);
+      if(sEl&&parseFloat(sEl.value)>0){filledAny=true;return;} // already priced — keep it
+      var m=matches[bi]||(bi===0?matches[0]:null);
+      if(!m)return; // no more options for extra rows
+      _aiFill(idx,bi,m);filledAny=true;
+    });
+    if(filledAny)localCount++; else unmatched.push({idx:idx,desc:item.description});
   });
   if(typeof calcTotals==='function')calcTotals();
   showToast('\u2705 '+localCount+' matched'+(unmatched.length?(' \u00b7 '+unmatched.length+' need AI'):'')+'!','t-s');
