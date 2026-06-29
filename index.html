@@ -3134,7 +3134,7 @@ async function aiAutoPrice(){
   var localCount=0, unmatched=[];
   curItems.forEach(function(item,idx){
     if(!item.brandRows||!item.brandRows.length)item.brandRows=[{brand:'',partNo:'',country:'Japan',price:'',purchasePrice:0,marginPct:0}];
-    var matches=(typeof findAllPriceMatches==='function')?findAllPriceMatches(item.description,prices,vehicle):[];
+    var matches=(typeof findAllPriceMatches==='function')?findAllPriceMatches(item.description,prices,vehicle,true):[];
     if(!matches||!matches.length){unmatched.push({idx:idx,desc:item.description});return;}
     var filledAny=false;
     item.brandRows.forEach(function(br,bi){
@@ -3332,22 +3332,22 @@ function renderItems(items){
 const COUNTRIES_OPTS=COUNTRIES.map(c=>`<option value="${c}">${c}</option>`).join('');
 
 var _fapmCache={}, _fapmVerSeen=-1, _fapmLenSeen=-1;
-function findAllPriceMatches(desc,prices,vehicle){
+function findAllPriceMatches(desc,prices,vehicle,noHist){
   var ver=(window.__fapmVer||0), len=prices?prices.length:0;
   if(ver!==_fapmVerSeen||len!==_fapmLenSeen){_fapmCache={};_fapmVerSeen=ver;_fapmLenSeen=len;}
-  var key=(desc||'')+'\u241F'+(vehicle||'');
+  var key=(desc||'')+'\u241F'+(vehicle||'')+'\u241F'+(noHist?'1':'0');
   var c=_fapmCache[key];
   if(c) return c;
-  var r=_fapmRaw(desc,prices,vehicle);
+  var r=_fapmRaw(desc,prices,vehicle,noHist);
   _fapmCache[key]=r;
   return r;
 }
-function _fapmRaw(desc,prices,vehicle){
+function _fapmRaw(desc,prices,vehicle,noHist){
   if(!desc) return [];
   var allPrices=(prices||[]).slice();
 
   // Add history prices
-  try{
+  if(!noHist) try{
     var hist=getHist();
     hist.forEach(function(entry){
       if(!entry.items||!Array.isArray(entry.items)) return;
