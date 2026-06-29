@@ -1402,14 +1402,18 @@ function setHist(h){
   window.__fapmVer=(window.__fapmVer||0)+1;
   if(typeof fbWrite==='function')fbWrite('history',clean);
 }
+var _pricesCache=null, _pricesVerSeen=-1;
 function getPrices(){
+  var ver=(window.__fapmVer||0);
+  if(_pricesCache!==null && ver===_pricesVerSeen) return _pricesCache;
   var p=LS.get('ngrd_prices');
-  if(!p) return [];
+  if(!p){_pricesCache=[];_pricesVerSeen=ver;return _pricesCache;}
   if(!Array.isArray(p)){
     p=Object.values(p).filter(function(x){return x&&typeof x==='object';});
     if(p.length>0) LS.set('ngrd_prices',p);
   }
-  return p||[];
+  _pricesCache=p||[];_pricesVerSeen=ver;
+  return _pricesCache;
 }
 function setPrices(p){LS.set('ngrd_prices',p);window.__fapmVer=(window.__fapmVer||0)+1;if(typeof fbWrite==='function')fbWrite('prices',p);}
 function getLog(){return LS.get('ngrd_log')||[];}
@@ -1553,6 +1557,7 @@ function doLogout(){
 function resetStorage(){
   if(!confirm('Clear ALL data and reset to defaults?')) return;
   ['ngrd_users','ngrd_hist','ngrd_s','ngrd_prices','ngrd_log','ngrd_last_backup'].forEach(k=>LS.del(k));
+  window.__fapmVer=(window.__fapmVer||0)+1;
   alert('Reset complete.\nUsername: admin\nPassword: ngrd2024');
   location.reload();
 }
