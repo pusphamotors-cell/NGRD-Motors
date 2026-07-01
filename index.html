@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title id="page-title">NGRD Motors – Army Quotation System v3</title>
+<!-- PWA / Standalone (no browser bar) -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1A3060">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NGRD Motors">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
 :root{
   --navy:#0D1B2A;--navy2:#1A3060;--steel:#1565C0;
@@ -9145,6 +9153,15 @@ function fbRead(key,cb){
   xhr.send();
 }
 window.addEventListener('load',function(){setTimeout(initFirebase,1500);});
+</script>
+
+<!-- PWA: register pass-through service worker (no caching) -->
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+  });
+}
 </script>
 
 </body>
