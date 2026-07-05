@@ -2554,6 +2554,29 @@ function calDayPDF(key){
 }
 function initFirebaseSync(){
   if(!FB_READY)return;
+  // ONE-TIME migration: convert old array-style history keys (0,1,2..) to id-keyed
+  // records so per-record PATCH saves don't create duplicates. Runs once per device.
+  if(!localStorage.getItem('ngrd_hist_v2')){
+    fbRead('history',function(hd){
+      try{
+        if(hd&&typeof hd==='object'&&!Array.isArray(hd)){
+          var patch={},changed=false;
+          Object.keys(hd).forEach(function(k){
+            var rec=hd[k];
+            if(rec&&typeof rec==='object'&&rec.id!=null){
+              var idk=String(rec.id);
+              if(k!==idk){ patch[idk]=rec; patch[k]=null; changed=true; }
+            }
+          });
+          if(changed){
+            var xhr=new XMLHttpRequest();xhr.open('PATCH',FB_BASE+'/history.json',true);
+            xhr.setRequestHeader('Content-Type','application/json');xhr.send(JSON.stringify(patch));
+          }
+        }
+      }catch(e){}
+      localStorage.setItem('ngrd_hist_v2','1');
+    });
+  }
   // Sync deleted blacklist first
   fbRead('deleted',function(delData){
     try{
@@ -4376,6 +4399,7 @@ function delHist(id){
   localStorage.setItem('ngrd_deleted',JSON.stringify(deleted));
   // Also push delete to Firebase blacklist
   if(typeof fbWrite==='function') fbWrite('deleted',deleted);
+  if(typeof fbDelHist==='function') fbDelHist(id);
   setHist(getHist().filter(x=>String(x.id)!==String(id)));renderHistory();
   addLog('Deleted quotation id:'+id);
   showToast('🗑️ Deleted!','t-i');updatePendingBadge();
@@ -5544,6 +5568,8 @@ function clearAllHistory(){
   var h = getHist();
   if(!h.length){showToast('History empty','t-i');return;}
   if(!confirm('ALL '+h.length+' quotations delete ஆகும்! Sure?')) return;
+  try{var _d=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');h.forEach(function(e){if(e&&e.id!=null&&_d.indexOf(String(e.id))<0)_d.push(String(e.id));});localStorage.setItem('ngrd_deleted',JSON.stringify(_d));if(typeof fbWrite==='function')fbWrite('deleted',_d);}catch(e){}
+  if(typeof fbDelHist==='function')h.forEach(function(e){if(e&&e.id!=null)fbDelHist(e.id);});
   setHist([]);
   addLog('All history cleared');
   showToast('✅ All history cleared!','t-s');
@@ -5553,6 +5579,8 @@ function clearAllHistory(){
 
 function deleteSingleHist(id){
   if(!confirm('இந்த quotation delete பண்ணட்டுமா?')) return;
+  try{var _d=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');if(_d.indexOf(String(id))<0)_d.push(String(id));localStorage.setItem('ngrd_deleted',JSON.stringify(_d));if(typeof fbWrite==='function')fbWrite('deleted',_d);}catch(e){}
+  if(typeof fbDelHist==='function')fbDelHist(id);
   var h = getHist().filter(function(e){return e.id!==id;});
   setHist(h);
   addLog('Deleted quotation: '+id);
@@ -6005,6 +6033,7 @@ function cleanDuplicateQuotations(){
   removeIds.forEach(function(id){if(deleted.indexOf(id)<0)deleted.push(id);});
   localStorage.setItem('ngrd_deleted',JSON.stringify(deleted));
   if(typeof fbWrite==='function')fbWrite('deleted',deleted);
+  if(typeof fbDelHist==='function')removeIds.forEach(function(rid){fbDelHist(rid);});
   setHist(getHist().filter(function(e){return removeIds.indexOf(String(e.id))<0;}));
   if(typeof renderHistory==='function')renderHistory();
   if(typeof updatePendingBadge==='function')updatePendingBadge();
@@ -9132,17 +9161,32 @@ function onFbFail(){
   if(_fbRetry<=8){if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}setTimeout(initFirebase,3000);}
   else{if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}}
 }
+function _histMapFromArr(val){
+  var arr=Array.isArray(val)?val:(val&&typeof val==='object'?Object.values(val):[]);
+  var m={};arr.forEach(function(e){if(e&&typeof e==='object'&&e.id!=null)m[String(e.id)]=e;});return m;
+}
 function fbWrite(key,val){_fbQueue[key]=val;if(!FB_READY)return;_flushQueue();}
 function _flushQueue(){
   var keys=Object.keys(_fbQueue);if(!keys.length)return;
   keys.forEach(function(key){
     var val=_fbQueue[key];delete _fbQueue[key];
+    var isHist=(key==='history');
+    var body=isHist?_histMapFromArr(val):val;
+    // SAFE: history is written per-record (PATCH), never whole-node overwrite.
+    // An empty map would do nothing, so skip it — protects against accidental wipe.
+    if(isHist&&!Object.keys(body).length)return;
     var xhr=new XMLHttpRequest();
-    xhr.open('PUT',FB_BASE+'/'+key+'.json',true);
+    xhr.open(isHist?'PATCH':'PUT',FB_BASE+'/'+key+'.json',true);
     xhr.setRequestHeader('Content-Type','application/json');
     xhr.onerror=function(){_fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);};
-    xhr.send(JSON.stringify(val));
+    xhr.send(JSON.stringify(body));
   });
+}
+// Remove ONE quotation from Firebase by id (per-record delete, safe)
+function fbDelHist(id){
+  if(id==null)return;var o={};o[String(id)]=null;
+  var send=function(){var xhr=new XMLHttpRequest();xhr.open('PATCH',FB_BASE+'/history.json',true);xhr.setRequestHeader('Content-Type','application/json');xhr.send(JSON.stringify(o));};
+  if(FB_READY)send();else setTimeout(send,3500);
 }
 function fbRead(key,cb){
   var xhr=new XMLHttpRequest();
