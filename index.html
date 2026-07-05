@@ -990,6 +990,9 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <span class="panel-hdr-icon">⏳</span>
             <span class="panel-hdr-title">Pending Approval</span>
           </div>
+          <div style="padding:8px 12px;border-bottom:1px solid var(--border);">
+            <input id="db-approval-search" type="text" oninput="renderPendingApprovalFiltered()" placeholder="🔍 File No / Vehicle / NAHA / Vehicle No தேடு..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;font-family:var(--fb);outline:none;">
+          </div>
           <div class="panel-body" id="db-approval-list">
             <div style="text-align:center;padding:20px;color:var(--muted);">No pending approvals</div>
           </div>
@@ -5266,6 +5269,51 @@ function getDeadlineBadge(closingDate,status){
   return '<span style="background:#eee;color:#666;padding:2px 6px;border-radius:10px;font-size:10px;">'+days+'d</span>';
 }
 
+function renderPendingApprovalFiltered(){
+  var approvalEl=document.getElementById('db-approval-list');
+  if(!approvalEl)return;
+  var data=window._pendingApprovalData||{list:[],canApprove:false};
+  var pendingList=data.list||[];
+  var canApproveNow=data.canApprove;
+  var today=data.today||(function(){var n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate());})();
+  var q=((document.getElementById('db-approval-search')||{}).value||'').trim().toLowerCase();
+  var shown=pendingList;
+  if(q){
+    shown=pendingList.filter(function(e){
+      return ((e.vehicle||'')+' '+(e.vNo||'')+' '+(e.eqNo||'')+' '+(e.refNo||'')+' '+(e.entity||'')).toLowerCase().indexOf(q)>=0;
+    });
+  }
+  if(pendingList.length===0){
+    approvalEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">✅ No pending approvals</div>';return;
+  }
+  if(shown.length===0){
+    approvalEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">🔍 "'+q+'" — match ஆகல, வேற word try பண்ணு</div>';return;
+  }
+  approvalEl.innerHTML='<div style="padding:6px 12px;font-size:11px;color:var(--muted);">'+shown.length+' / '+pendingList.length+' காட்டுது</div>'+shown.map(function(e){
+    var cd=parseClosingDate(e.closingDate);
+    var days=cd?Math.floor((cd-today)/86400000):null;
+    var urgent=days!==null&&days<=3;
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:'+(urgent?'rgba(178,34,34,.05)':'')+';">'
+      +'<div>'
+      +'<div style="font-weight:700;font-size:13px;">'+(e.vehicle||'Vehicle')+' — '+(e.eqNo||e.refNo||'—')+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
+      +(e.entity||'')
+      +' &nbsp;|&nbsp; '+(e.items?e.items.length:0)+' items'
+      +' &nbsp;|&nbsp; '+lkr(e.grandTotal||0)
+      +(days!==null?' &nbsp;|&nbsp; <span style="color:'+(urgent?'#B22222':'#888')+';">'+days+'d left</span>':'')
+      +'</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">By: '+(e.savedBy||'?')+' | '+e.date+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;flex-shrink:0;">'
+      +(canApproveNow
+        ?'<button onclick="approveQuot('+e.id+')" style="padding:6px 14px;background:#1A6B3C;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;">✅ Approve</button>'
+        +'<button onclick="rejectQuot('+e.id+')" style="padding:6px 14px;background:#B22222;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;">❌ Reject</button>'
+        :'<span style="font-size:11px;color:var(--muted);padding:6px;">Waiting approval</span>')
+      +'<button onclick="viewQuot('+e.id+')" style="padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:3px;font-size:12px;cursor:pointer;">👁️ View</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
 function renderDashboard(){
   var allHist=getHist();
   var isAdmin=CU&&CU.role==='admin';
@@ -5421,36 +5469,8 @@ function renderDashboard(){
   var canApproveNow=role.canApprove||isAdmin;
   var approvalEl=document.getElementById('db-approval-list');
   var pendingList=h.filter(function(e){return e.status==='pending';});
-  if(approvalEl){
-    if(pendingList.length===0){
-      approvalEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">✅ No pending approvals</div>';
-    } else {
-      approvalEl.innerHTML=pendingList.map(function(e){
-        var cd=parseClosingDate(e.closingDate);
-        var days=cd?Math.floor((cd-today)/86400000):null;
-        var urgent=days!==null&&days<=3;
-        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:'+(urgent?'rgba(178,34,34,.05)':'')+';">'
-          +'<div>'
-          +'<div style="font-weight:700;font-size:13px;">'+(e.vehicle||'Vehicle')+' — '+(e.eqNo||e.refNo||'—')+'</div>'
-          +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
-          +(e.entity||'')
-          +' &nbsp;|&nbsp; '+(e.items?e.items.length:0)+' items'
-          +' &nbsp;|&nbsp; '+lkr(e.grandTotal||0)
-          +(days!==null?' &nbsp;|&nbsp; <span style="color:'+(urgent?'#B22222':'#888')+';">'+days+'d left</span>':'')
-          +'</div>'
-          +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">By: '+(e.savedBy||'?')+' | '+e.date+'</div>'
-          +'</div>'
-          +'<div style="display:flex;gap:6px;flex-shrink:0;">'
-          +(canApproveNow
-            ?'<button onclick="approveQuot('+e.id+')" style="padding:6px 14px;background:#1A6B3C;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;">✅ Approve</button>'
-            +'<button onclick="rejectQuot('+e.id+')" style="padding:6px 14px;background:#B22222;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;">❌ Reject</button>'
-            :'<span style="font-size:11px;color:var(--muted);padding:6px;">Waiting approval</span>')
-          +'<button onclick="viewQuot('+e.id+')" style="padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:3px;font-size:12px;cursor:pointer;">👁️ View</button>'
-          +'</div>'
-          +'</div>';
-      }).join('');
-    }
-  }
+  window._pendingApprovalData={list:pendingList,canApprove:canApproveNow,today:today};
+  renderPendingApprovalFiltered();
 
   // All quotations
   var allEl=document.getElementById('db-all-list');
