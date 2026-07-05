@@ -3172,7 +3172,7 @@ function showAllPriceProof(){
   if(!items.length){showToast('No items','t-e');return;}
   var prices=getPrices();
   var vehicle=(document.getElementById('f-vname')||{value:''}).value||'';
-  var cheStr=(((document.getElementById('f-chas')||{value:''}).value||'')+' '+((document.getElementById('f-eng')||{value:''}).value||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var cheStr=((vehicle||'')+' '+((document.getElementById('f-chas')||{value:''}).value||'')+' '+((document.getElementById('f-eng')||{value:''}).value||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
   var margin=(typeof _ceoMargin==='function')?_ceoMargin():25;
   function tagBadge(t){
     if(!t)return '';
@@ -3218,7 +3218,7 @@ function showPriceProof(idx){
   if(!item){return;}
   var prices=getPrices();
   var vehicle=(document.getElementById('f-vname')||{value:''}).value||'';
-  var cheStr=(((document.getElementById('f-chas')||{value:''}).value||'')+' '+((document.getElementById('f-eng')||{value:''}).value||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var cheStr=((vehicle||'')+' '+((document.getElementById('f-chas')||{value:''}).value||'')+' '+((document.getElementById('f-eng')||{value:''}).value||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
   var margin=(typeof _ceoMargin==='function')?_ceoMargin():25;
   var matches=(typeof findAllPriceMatches==='function')?findAllPriceMatches(item.description,prices,vehicle,true):[];
   if(typeof _reorderByTag==='function') matches=_reorderByTag(matches,cheStr);
@@ -3294,7 +3294,7 @@ async function aiAutoPrice(){
   if(!vehPrices.length){showToast('\u26a0\ufe0f No prices for "'+vehicle+'". Load that vehicle list first!','t-e');return;}
   window._aiNoCost=0; var _ceoM=_ceoMargin();
   // CHASSIS + ENGINE variant detection: prefer price records whose Busy tag (K34, 4D56...) appears in this vehicle's chassis/engine
-  var _cheStr=(((document.getElementById('f-chas')||{value:''}).value||'')+' '+((document.getElementById('f-eng')||{value:''}).value||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var _cheStr=((vehicle||'')+' '+((document.getElementById('f-chas')||{value:''}).value||'')+' '+((document.getElementById('f-eng')||{value:''}).value||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
   var localCount=0, unmatched=[];
   curItems.forEach(function(item,idx){
     if(!item.brandRows||!item.brandRows.length)item.brandRows=[{brand:'',partNo:'',country:'Japan',price:'',purchasePrice:0,marginPct:0}];
