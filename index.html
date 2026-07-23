@@ -4622,7 +4622,13 @@ function renderHistory(){
   if(!c) return;
   if(!h.length){var debugCount=getHist().length;
   c.innerHTML='<div class="hist-empty">📁 No saved quotations found.</div><div style="font-size:10px;color:#888;text-align:center;margin-top:4px;">Total in storage: '+debugCount+' | Filtered: '+h.length+'</div>';return;}
-  c.innerHTML=h.map(e=>{
+  // PERFORMANCE: rendering 1000+ DOM rows at once freezes the browser. Show a capped batch,
+  // with a "Load More" button to reveal the rest — keeps the page responsive.
+  window._histRenderLimit=window._histRenderLimit||150;
+  var totalMatch=h.length;
+  var truncated=totalMatch>window._histRenderLimit;
+  var hShown=truncated?h.slice(0,window._histRenderLimit):h;
+  c.innerHTML=hShown.map(e=>{
     const sb=getStatusBadge(e.status);
     const coBadge=e.company==='puspha'?
       '<span style="background:#FFFBEB;color:#B45309;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #FCD34D;margin-left:4px;">PUSH</span>':
@@ -4669,7 +4675,7 @@ function renderHistory(){
         ${CU?.role==='admin'?`<button class="hist-btn" onclick="delHist(${e.id})" style="color:var(--red);">🗑️</button>`:''}
       </div>
     </div>`;
-  }).join('');
+  }).join('')+(truncated?'<div style="text-align:center;padding:14px;"><button onclick="window._histRenderLimit+=150;renderHistory();" style="padding:10px 20px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">⬇️ இன்னும் காட்டு ('+(totalMatch-window._histRenderLimit)+' மீதி)</button></div>':'');
 }
 
 function getStatusBadge(status){
@@ -9789,6 +9795,7 @@ function onFbFail(){
   if(_fbRetry<=8){if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}setTimeout(initFirebase,3000);}
   else{if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}}
 }
+var _histSyncSnap={}; // id -> last-synced JSON string, used to diff and send ONLY changed records
 function _histMapFromArr(val){
   var arr=Array.isArray(val)?val:(val&&typeof val==='object'?Object.values(val):[]);
   var m={};arr.forEach(function(e){if(e&&typeof e==='object'&&e.id!=null)m[String(e.id)]=e;});return m;
@@ -9798,16 +9805,34 @@ function _flushQueue(){
   var keys=Object.keys(_fbQueue);if(!keys.length)return;
   keys.forEach(function(key){
     var val=_fbQueue[key];delete _fbQueue[key];
-    var isHist=(key==='history');
-    var body=isHist?_histMapFromArr(val):val;
-    // SAFE: history is written per-record (PATCH), never whole-node overwrite.
-    // An empty map would do nothing, so skip it — protects against accidental wipe.
-    if(isHist&&!Object.keys(body).length)return;
-    var xhr=new XMLHttpRequest();
-    xhr.open(isHist?'PATCH':'PUT',FB_BASE+'/'+key+'.json',true);
-    xhr.setRequestHeader('Content-Type','application/json');
-    xhr.onerror=function(){_fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);};
-    xhr.send(JSON.stringify(body));
+    if(key==='history'){
+      // DIFF-BASED SYNC: only upload records that actually changed since last successful sync.
+      // Previously the ENTIRE history (1300+ records) was re-sent on every single edit — this
+      // was the main cause of slow Approve/Submit/Save clicks. Now only the changed record(s) go out.
+      var arr=Array.isArray(val)?val:(val&&typeof val==='object'?Object.values(val):[]);
+      var body={};
+      arr.forEach(function(e){
+        if(!e||typeof e!=='object'||e.id==null) return;
+        var idStr=String(e.id);
+        var js=JSON.stringify(e);
+        if(_histSyncSnap[idStr]!==js){body[idStr]=e;_histSyncSnap[idStr]=js;}
+      });
+      if(!Object.keys(body).length) return; // nothing actually changed — skip the network call entirely
+      var xhr=new XMLHttpRequest();
+      xhr.open('PATCH',FB_BASE+'/history.json',true);
+      xhr.setRequestHeader('Content-Type','application/json');
+      xhr.onerror=function(){
+        Object.keys(body).forEach(function(k){delete _histSyncSnap[k];}); // retry these next time
+        _fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);
+      };
+      xhr.send(JSON.stringify(body));
+    } else {
+      var xhr2=new XMLHttpRequest();
+      xhr2.open('PUT',FB_BASE+'/'+key+'.json',true);
+      xhr2.setRequestHeader('Content-Type','application/json');
+      xhr2.onerror=function(){_fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);};
+      xhr2.send(JSON.stringify(val));
+    }
   });
 }
 // Remove ONE quotation from Firebase by id (per-record delete, safe)
