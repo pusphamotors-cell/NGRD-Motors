@@ -4715,7 +4715,13 @@ function renderHistory(){
   var totalMatch=h.length;
   var truncated=totalMatch>window._histRenderLimit;
   var hShown=truncated?h.slice(0,window._histRenderLimit):h;
-  c.innerHTML=hShown.map(e=>{
+  var _sumTotal=h.reduce(function(s,e){return s+(e.grandTotal||0);},0);
+  var _summaryLabel=sf?(({draft:'📝 Draft',pending:'⏳ Pending',approved:'✅ Approved',submitted:'📤 Submitted',awarded:'🏆 Awarded',rejected:'❌ Rejected',missed:'🚫 Missed',notsubmitted:'⚠️ Not Submitted'})[sf]||sf):'📊 All';
+  var summaryHtml='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:#0D1B2A;color:#fff;border-radius:8px;padding:12px 16px;margin-bottom:12px;">'
+    +'<div style="font-size:14px;font-weight:700;">'+_summaryLabel+' — Total: '+totalMatch+' quotation'+(totalMatch!==1?'s':'')+'</div>'
+    +'<div style="font-size:14px;font-weight:700;color:#E8B84B;">💰 '+lkr(_sumTotal)+'</div>'
+    +'</div>';
+  c.innerHTML=summaryHtml+hShown.map(e=>{
     const sb=e.notSubmittedInfo?'<span class="status-badge sb-rejected">⚠️ '+((e.status||'draft').charAt(0).toUpperCase()+(e.status||'draft').slice(1))+' (Not Submitted)</span>':getStatusBadge(e.status);
     const coBadge=e.company==='puspha'?
       '<span style="background:#FFFBEB;color:#B45309;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #FCD34D;margin-left:4px;">PUSH</span>':
