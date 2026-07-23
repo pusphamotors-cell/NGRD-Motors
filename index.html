@@ -843,6 +843,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;background:#E8800B;border-radius:3px;display:inline-block;"></span> Within 3 days</span>
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;background:#1A6B3C;border-radius:3px;display:inline-block;"></span> Upcoming</span>
         </div>
+        <div id="cal-week-summary"></div>
         <div id="cal-grid" style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow-x:auto;"></div>
         <div id="cal-day-detail" style="margin-top:16px;"></div>
       </div>
@@ -2500,6 +2501,7 @@ function renderCalendar(){
     var isToday=cellDate.getTime()===today.getTime();
     var diff=Math.floor((cellDate-today)/86400000);
     var bg='#fff', mark='';
+    var dayTotal=qs.reduce(function(s,e){return s+(e.grandTotal||0);},0);
     if(qs.length){
       var col= diff<0?'#9e9e9e' : diff===0?'#B22222' : diff<=3?'#E8800B' : '#1A6B3C';
       bg=col+'18';
@@ -2508,6 +2510,7 @@ function renderCalendar(){
     var border=isToday?'border:2px solid #1A3A6B;':'border:1px solid #f0f0f0;';
     var items=qs.slice(0,2).map(function(e){return '<div style="font-size:9px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">• '+((e.vehicle||e.eqNo||'?')+'').substring(0,18)+'</div>';}).join('');
     if(qs.length>2) items+='<div style="font-size:9px;color:#888;">+'+(qs.length-2)+' more</div>';
+    if(dayTotal>0) items+='<div style="font-size:9px;font-weight:700;color:#1A6B3C;margin-top:2px;">'+calShortLkr(dayTotal)+'</div>';
     html+='<td onclick="calShowDay(\''+key+'\')" style="height:92px;vertical-align:top;position:relative;cursor:pointer;'+border+'background:'+bg+';padding:4px 5px;">'
       +'<div style="font-size:13px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#1A3A6B':'#333')+';">'+d+'</div>'+mark+items+'</td>';
     cell++;
@@ -2515,7 +2518,41 @@ function renderCalendar(){
   while(cell%7!==0){html+='<td style="height:92px;border:1px solid #f0f0f0;background:#fafafa;"></td>';cell++;}
   html+='</tr></tbody></table>';
   grid.innerHTML=html;
+  var wk=document.getElementById('cal-week-summary'); if(wk) wk.innerHTML=calWeekSummaryHtml(byDate);
   var det=document.getElementById('cal-day-detail'); if(det) det.innerHTML='';
+}
+function calShortLkr(n){
+  if(n>=100000) return (n/100000).toFixed(1).replace(/\.0$/,'')+'L';
+  if(n>=1000) return (n/1000).toFixed(1).replace(/\.0$/,'')+'K';
+  return String(Math.round(n));
+}
+function calWeekSummaryHtml(byDate){
+  // Build week-wise (Sun-Sat) totals for the currently displayed month
+  var daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  var weeks=[]; // {label, count, total}
+  var cur=null;
+  for(var d=1;d<=daysInMonth;d++){
+    var dt=new Date(calYear,calMonth,d);
+    if(dt.getDay()===0||d===1){
+      if(cur) weeks.push(cur);
+      cur={start:d,end:d,count:0,total:0};
+    }
+    var key=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var qs=byDate[key]||[];
+    cur.count+=qs.length;
+    cur.total+=qs.reduce(function(s,e){return s+(e.grandTotal||0);},0);
+    cur.end=d;
+  }
+  if(cur) weeks.push(cur);
+  var monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var cards=weeks.map(function(w,i){
+    return '<div style="flex:1;min-width:120px;background:#f7fafd;border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">'
+      +'<div style="font-size:10px;color:#888;font-weight:700;">WEEK '+(i+1)+' ('+w.start+'–'+w.end+' '+monthNames[calMonth]+')</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#0D1B2A;margin-top:3px;">'+w.count+' quotation'+(w.count!==1?'s':'')+'</div>'
+      +'<div style="font-size:12px;font-weight:700;color:#1A6B3C;">'+lkr(w.total)+'</div>'
+      +'</div>';
+  }).join('');
+  return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">'+cards+'</div>';
 }
 function calShowDay(key){
   var byDate=calClosingMap();
@@ -2523,12 +2560,13 @@ function calShowDay(key){
   var det=document.getElementById('cal-day-detail'); if(!det) return;
   if(!qs.length){ det.innerHTML='<div style="padding:14px;background:#fff;border-radius:8px;color:#888;text-align:center;">இந்த நாள் closing ஒண்ணும் இல்ல</div>'; return; }
   qs.sort(function(a,b){return (a.vehicle||'').localeCompare(b.vehicle||'');});
+  var dayTotal=qs.reduce(function(s,e){return s+(e.grandTotal||0);},0);
   var rows=qs.map(function(e){
     return '<div onclick="loadHist('+e.id+')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #eee;cursor:pointer;" onmouseover="this.style.background=\'#f7fafd\'" onmouseout="this.style.background=\'#fff\'">'
       +'<div><div style="font-weight:700;font-size:13px;color:#0D1B2A;">'+(e.vehicle||'—')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+(e.entity?(' · '+e.entity):'')+'</div></div>'
-      +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;white-space:nowrap;">'+(e.status||'draft')+'</div></div>';
+      +'<div style="text-align:right;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;white-space:nowrap;">'+(e.status||'draft')+'</div><div style="font-size:12px;font-weight:700;color:#1A6B3C;">'+lkr(e.grandTotal||0)+'</div></div></div>';
   }).join('');
-  det.innerHTML='<div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);"><div style="font-size:14px;font-weight:700;margin-bottom:10px;color:#0D1B2A;">📋 '+key+' — '+qs.length+' closing (தட்டினா open ஆகும்)</div>'+rows
+  det.innerHTML='<div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);"><div style="font-size:14px;font-weight:700;margin-bottom:10px;color:#0D1B2A;">📋 '+key+' — '+qs.length+' closing &nbsp;|&nbsp; Total: '+lkr(dayTotal)+'</div>'+rows
     +'<div style="display:flex;gap:8px;margin-top:14px;">'
     +'<button onclick="event.stopPropagation();calSendWhatsApp(\''+key+'\')" style="flex:1;padding:10px;background:#B22222;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📲 WhatsApp</button>'
     +'<button onclick="event.stopPropagation();calDayPDF(\''+key+'\')" style="flex:1;padding:10px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📄 PDF</button>'
@@ -5724,6 +5762,28 @@ function approveQuot(id){
   addLog('Approved: '+(h[idx].eqNo||h[idx].refNo));
   showToast('✅ Approved!','t-s');
   renderDashboard();
+  // Auto-generate the quotation PDF + notify the assigned Submit staff on WhatsApp
+  notifySubmitterApproved(id);
+}
+
+function notifySubmitterApproved(id){
+  var entry=getHist().find(function(x){return x.id===id;});if(!entry)return;
+  var co=entry.company||'ngrd';
+  var submitterName=getSubmitter(co);
+  var target=null;
+  if(submitterName){
+    var users=getUsers();
+    target=users.find(function(u){return u.active&&u.name===submitterName&&u.whatsapp;});
+  }
+  var number=target?target.whatsapp:ADMIN_WA;
+  var refTxt=entry.eqNo||entry.refNo||('#'+entry.id);
+  var msg='✅ *NGRD Motors — Approved!*%0A%0A🚗 '+encodeURIComponent(entry.vehicle||'')+'%0A📋 '+encodeURIComponent(refTxt)+'%0A📅 Closing: '+encodeURIComponent((entry.closingDate||'—')+(entry.closingTime?' '+entry.closingTime:''))+'%0A%0A📤 Promise.lk-ல் submit பண்ணுங்க — PDF இப்போ download ஆகும், அதை இங்க attach பண்ணி அனுப்புங்க.%0A%0A🔗 ngrd-motors.vercel.app';
+  // Trigger PDF download for this exact quotation
+  if(typeof reExportPDF==='function'){ try{ reExportPDF(id); }catch(err){} }
+  setTimeout(function(){
+    window.open('https://wa.me/'+number+'?text='+msg,'_blank');
+    showToast((target?'📱 '+target.name+'-க்கு':'📱 Admin-க்கு')+' WhatsApp அனுப்பப்பட்டது!','t-s');
+  },400);
 }
 
 function rejectQuot(id){
