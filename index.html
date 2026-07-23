@@ -389,6 +389,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
     <div class="topbar-right">
       <span id="top-vehicle" class="veh-badge" style="display:none;"></span>
       <span class="session-timer" id="session-timer"></span>
+      <span id="server-time-badge" style="font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap;" title="Firebase server time — spoof பண்ண முடியாத real time">🕐 --:--:--</span>
       <div class="user-pill">
         <div class="uav" id="top-av">A</div>
         <span class="unm" id="top-nm">Admin</span>
@@ -1625,6 +1626,7 @@ function initApp(){
   document.getElementById('admin-nav').style.display=CU.role==='admin'?'block':'none';
   applyExtVisibility();
   startSessionTimer();
+  if(typeof startServerTimeClock==='function') startServerTimeClock();
   showPage('dashboard');
   setTimeout(checkDeadlineAlarms,500);
   setTimeout(function(){if(typeof showDailySummary==='function')showDailySummary(false);},1500);
@@ -4162,6 +4164,23 @@ function getServerTime(cb){
   xhr.onerror=function(){cb(new Date());}; // offline fallback — device clock
   xhr.ontimeout=function(){cb(new Date());};
   xhr.send(JSON.stringify({ts:{'.sv':'timestamp'}}));
+}
+var _srvClockOffset=0,_srvClockGood=false;
+function startServerTimeClock(){
+  function resync(){
+    getServerTime(function(t){
+      _srvClockOffset=t.getTime()-Date.now();
+      _srvClockGood=true;
+    });
+  }
+  resync();
+  setInterval(resync,5*60*1000); // resync every 5 min to correct drift
+  setInterval(function(){
+    var el=document.getElementById('server-time-badge');if(!el)return;
+    var now=new Date(Date.now()+_srvClockOffset);
+    var hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0'),ss=String(now.getSeconds()).padStart(2,'0');
+    el.textContent=(_srvClockGood?'🕐 ':'🕐⏳ ')+hh+':'+mm+':'+ss;
+  },1000);
 }
 
 function markNotSubmitted(id){
