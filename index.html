@@ -857,6 +857,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       <!-- ═ DASHBOARD ═ -->
       <div id="page-dashboard" style="display:none;">
         <div id="db-digest-banner" style="display:none;margin-bottom:14px;"></div>
+        <div id="db-followup-banner" style="display:none;margin-bottom:14px;"></div>
         <!-- LETTERS HUB (permission-gated) -->
         <div id="db-letters-hub" style="display:none;margin-bottom:18px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -1183,6 +1184,8 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div id="backup-summary" style="margin-bottom:14px;"></div>
             <button class="btn btn-gold" onclick="exportBackup()">📥 Download Backup File</button>
             <div style="font-size:12px;color:var(--muted);margin-top:10px;">💡 Download weekly backup. Store safely on your computer.</div>
+            <button class="btn btn-navy" onclick="exportHistoryCSV()" style="margin-top:12px;">📊 Export ALL Quotations — Excel/CSV (Busy21 reconcile-க்கு)</button>
+            <div style="font-size:12px;color:var(--muted);margin-top:6px;">💡 History முழுவதும் ஒரே Excel file-ஆ — Date, e-Q No, Vehicle, Entity, Status, Total, Staff columns-ஓட.</div>
           </div>
         </div>
         <div class="panel">
@@ -2556,6 +2559,34 @@ function renderCalendar(){
   var wk=document.getElementById('cal-week-summary'); if(wk) wk.innerHTML=calWeekSummaryHtml(byDate);
   var det=document.getElementById('cal-day-detail'); if(det) det.innerHTML='';
 }
+function checkResultFollowupReminder(){
+  var banner=document.getElementById('db-followup-banner');if(!banner)return;
+  if(!CU||CU.role!=='admin'){banner.style.display='none';return;}
+  var todayStr=new Date().toLocaleDateString('en-LK');
+  var lastShown=localStorage.getItem('ngrd_followup_lastshown');
+  if(lastShown===todayStr){banner.style.display='none';return;}
+  var h=getHist();
+  var cutoff=Date.now()-14*24*60*60*1000; // 14 days
+  var stale=h.filter(function(e){
+    if(e.status!=='submitted') return false;
+    var ts=e.steps&&e.steps.submitted&&e.steps.submitted.ts;
+    if(!ts) return false; // older entries without ts — skip, can't reliably tell age
+    return ts<cutoff;
+  });
+  if(!stale.length){banner.style.display='none';return;}
+  banner.style.display='block';
+  banner.innerHTML='<div style="background:linear-gradient(135deg,#7B3FA0,#4A1D6B);color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+    +'<div><div style="font-size:14px;font-weight:700;">🔔 '+stale.length+' quotation(s) — 14+ நாள் ஆச்சு, Result (Won/Lost) update பண்ணல</div><div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;">History-ல போய் ✅ Won அல்லது ❌ Lost mark பண்ணுங்க</div></div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="showPage(\'history\');document.getElementById(\'hist-status-filter\').value=\'submitted\';renderHistory();" style="padding:9px 16px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">📂 History-ல பாருங்க</button>'
+    +'<button onclick="dismissFollowupReminder()" style="padding:9px 12px;background:rgba(255,255,255,.12);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">✕ Later</button>'
+    +'</div></div>';
+}
+function dismissFollowupReminder(){
+  localStorage.setItem('ngrd_followup_lastshown',new Date().toLocaleDateString('en-LK'));
+  var banner=document.getElementById('db-followup-banner');if(banner)banner.style.display='none';
+}
+
 function checkWeeklyDigestReminder(){
   var banner=document.getElementById('db-digest-banner');if(!banner)return;
   var todayStr=new Date().toLocaleDateString('en-LK');
@@ -3980,6 +4011,27 @@ function saveToHistory(){
   }
   var hist=getHist();
   var hasPrices=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
+  // ── MARGIN SAFETY CHECK — warn before saving if any priced row has low/negative margin ──
+  if(hasPrices){
+    var lowMarginItems=[];
+    curItems.forEach(function(item){
+      (item.brandRows||[]).forEach(function(br){
+        var pp=parseFloat(br.purchasePrice)||0,sp=parseFloat(br.price)||0;
+        if(pp>0&&sp>0){
+          var marginPct=((sp-pp)/pp)*100;
+          if(marginPct<10){
+            lowMarginItems.push({desc:item.description,brand:br.brand,pp:pp,sp:sp,marginPct:marginPct});
+          }
+        }
+      });
+    });
+    if(lowMarginItems.length){
+      var warnMsg='⚠️ MARGIN LOW/LOSS Warning!\n\n'+lowMarginItems.slice(0,8).map(function(m){
+        return '• '+(m.desc||'').substring(0,30)+' ('+(m.brand||'')+'): '+m.marginPct.toFixed(0)+'% margin (Cost '+lkr(m.pp)+' → Sell '+lkr(m.sp)+')';
+      }).join('\n')+(lowMarginItems.length>8?'\n...+'+(lowMarginItems.length-8)+' more':'')+'\n\nஇதே price-ல Save பண்ணட்டுமா?';
+      if(!confirm(warnMsg)) return;
+    }
+  }
   var now=new Date().toLocaleString('en-LK');
   if(window.curEditId){
     // Use == not === to handle number/string type mismatch
@@ -3998,14 +4050,21 @@ function saveToHistory(){
       if(hasPrices&&!orig.steps.priced){orig.steps.priced={by:CU.name,role:CU.role,at:now};}
       if(quotStatus==='submitted'&&!orig.steps.submitted){orig.steps.submitted={by:CU.name,role:CU.role,at:now};}
       if(quotStatus==='approved'&&!orig.steps.approved){orig.steps.approved={by:CU.name,role:CU.role,at:now};}
+      // ── VERSION HISTORY — snapshot old total before overwriting, if price actually changed ──
+      var _newTotal=curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0);
+      var _priceHist=orig.priceHistory||[];
+      if(orig.grandTotal!=null&&Math.abs((orig.grandTotal||0)-_newTotal)>0.01){
+        _priceHist=_priceHist.concat([{grandTotal:orig.grandTotal||0,at:now,by:CU.name}]);
+        if(_priceHist.length>10) _priceHist=_priceHist.slice(_priceHist.length-10);
+      }
       hist[idx]=Object.assign({},orig,{
         refNo:refNo,eqNo:eqNo,vehicle:g('f-vname'),vNo:g('f-vno'),
         entity:g('f-entity'),title:g('f-title'),closingDate:g('f-close'),closingTime:g('f-close-time'),
         validityPeriod:g('f-valid'),deliveryPeriod:g('f-deliv'),destination:g('f-dest'),
         engineNo:g('f-eng'),chassisNo:g('f-chas'),
         items:JSON.parse(JSON.stringify(curItems)),
-        grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
-        status:quotStatus,
+        grandTotal:_newTotal,
+        status:quotStatus,priceHistory:_priceHist,editLock:null,
         // Keep original savedBy/owner — only update updatedBy
         savedBy:orig.savedBy||CU.name,
         owner:orig.owner||CU.username,
@@ -4141,7 +4200,7 @@ function markSubmitted(id){
         _late=_now>_cd;
       }
     }
-    entry.steps.submitted={by:CU.name,role:CU.role,at:_now.toLocaleString('en-LK'),late:_late,serverVerified:true};
+    entry.steps.submitted={by:CU.name,role:CU.role,at:_now.toLocaleString('en-LK'),ts:_now.getTime(),late:_late,serverVerified:true};
     entry.status='submitted';
     entry.notSubmittedInfo=null; // clear any earlier "not submitted" mark
     setHist(h);
@@ -4690,6 +4749,14 @@ function loadHist(id){
   } else {
     window._submitOnlyMode=false;
   }
+  // ── "SOMEONE ELSE EDITING" WARNING — soft advisory lock, expires after 10 min ──
+  if(e.editLock&&e.editLock.by&&e.editLock.by!==CU.name&&e.editLock.ts&&(Date.now()-e.editLock.ts)<10*60*1000){
+    var minsAgo=Math.round((Date.now()-e.editLock.ts)/60000);
+    if(!confirm('⚠️ '+e.editLock.by+' இப்போ இதை edit பண்றாங்க ('+minsAgo+' நிமிஷம் முன்ன திறந்தாங்க).\n\nதொடர்ந்தா, அவங்க changes lose ஆகலாம். தொடரணுமா?')) return;
+  }
+  // Claim the edit lock (best-effort — advisory only, not a hard database lock)
+  var _hAll=getHist();var _lIdx=_hAll.findIndex(function(x){return x.id===id;});
+  if(_lIdx>=0){_hAll[_lIdx].editLock={by:CU.name,ts:Date.now()};setHist(_hAll);}
   // SET EDIT MODE — save will UPDATE not create new
   window.curEditId=id;
   // Restore company for correct letterhead
@@ -5942,6 +6009,7 @@ function renderDashboard(){
     }
   }
   if(typeof checkWeeklyDigestReminder==='function') checkWeeklyDigestReminder();
+  if(typeof checkResultFollowupReminder==='function') checkResultFollowupReminder();
 }
 
 function viewQuot(id){
@@ -6937,6 +7005,35 @@ function renderBackupPage(){
       lbEl.innerHTML='<div style="padding:10px 14px;background:'+(warn?'rgba(178,34,34,.06)':'rgba(26,107,60,.06)')+';border:1px solid '+(warn?'rgba(178,34,34,.2)':'rgba(26,107,60,.2)')+';border-radius:3px;"><div style="font-weight:700;font-size:13px;color:'+(warn?'var(--red)':'var(--green)')+';">'+(warn?'⚠️ Last backup '+days+'d ago':'✅ Last backup: '+days+'d ago')+'</div><div style="font-size:12px;color:var(--muted);margin-top:4px;">Last: <b>'+lb.date+'</b> — '+(lb.by||'Admin')+' ('+lb.count+' quotations)</div></div>';
     }else lbEl.innerHTML='<div style="padding:10px 14px;background:rgba(178,34,34,.06);border:1px solid rgba(178,34,34,.2);border-radius:3px;color:var(--red);font-weight:600;font-size:13px;">⚠️ No backup yet! Please backup now.</div>';
   }
+}
+function exportHistoryCSV(){
+  var h=getHist();
+  if(!h.length){showToast('History empty!','t-e');return;}
+  var cols=['Date','Company','e-Q No / Ref No','Vehicle','Vehicle No','Entity','Status','Items','Grand Total (LKR)','Saved By','Approved By','Submitted By','Submitted On Time?','Closing Date','Closing Time','Result Date','Loss Reason','Competitor Name','Competitor Price'];
+  function esc(v){
+    v=(v===null||v===undefined)?'':String(v);
+    if(v.indexOf(',')>=0||v.indexOf('"')>=0||v.indexOf('\n')>=0) return '"'+v.replace(/"/g,'""')+'"';
+    return v;
+  }
+  var rows=[cols.join(',')];
+  h.slice().sort(function(a,b){return (b.id||0)-(a.id||0);}).forEach(function(e){
+    var sub=e.steps&&e.steps.submitted;
+    rows.push([
+      e.date||'',(e.company||'ngrd').toUpperCase(),e.eqNo||e.refNo||'',e.vehicle||'',e.vNo||'',e.entity||'',
+      (e.status||'draft').toUpperCase(),e.items?e.items.length:0,(e.grandTotal||0).toFixed(2),
+      e.savedBy||'',e.approvedBy||'',sub?sub.by:'',sub?(sub.late===true?'LATE':sub.late===false?'ON TIME':''):'',
+      e.closingDate||'',e.closingTime||'',e.resultDate||'',e.lossReason||'',e.competitorName||'',e.competitorPrice||''
+    ].map(esc).join(','));
+  });
+  var csv='\uFEFF'+rows.join('\r\n'); // BOM for Excel to read Tamil/UTF-8 correctly
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='NGRD_All_Quotations_'+new Date().toLocaleDateString('en-LK').replace(/\//g,'-')+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  addLog('Exported full history CSV ('+h.length+' records) by '+(CU?CU.name:'?'));
+  showToast('📊 '+h.length+' records exported! Excel-ல open பண்ணுங்க','t-s');
 }
 function exportBackup(){
   try{
