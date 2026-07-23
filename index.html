@@ -702,6 +702,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="awarded">🏆 Awarded</option>
                 <option value="rejected">❌ Rejected</option>
                 <option value="missed">🚫 Missed</option>
+                <option value="notsubmitted">⚠️ Not Submitted (all status)</option>
               </select>
               <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:7px 12px;background:#F5F3FF;color:#6D28D9;border:1.5px solid #DDD6FE;border-radius:20px;font-size:12px;font-weight:600;outline:none;font-family:var(--fb);cursor:pointer;"><option value="">🚗 All Vehicles</option></select>
               <select id="hist-closing-filter" onchange="renderHistory()" style="padding:7px 12px;background:#FFF7ED;color:#C2410C;border:1.5px solid #FED7AA;border-radius:20px;font-size:12px;font-weight:600;outline:none;cursor:pointer;">
@@ -945,6 +946,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div onclick="goToHistory('pending','')" style="background:#1A2E45;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:28px;font-weight:700;" id="db-pending-n">0</div>
             <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:4px;">⏳ Pending Approval</div>
+          </div>
+          <div onclick="goToHistory('notsubmitted','')" style="background:#5A2A0A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            <div style="font-size:28px;font-weight:700;color:#FFB74D;" id="db-notsubmitted-n">0</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:4px;">⚠️ Not Submitted</div>
           </div>
           <div onclick="goToHistory('submitted','')" style="background:#2A1A3A;color:#fff;border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             <div style="font-size:16px;font-weight:700;color:#E8B84B;" id="db-value-n">0</div>
@@ -4630,7 +4635,8 @@ function renderHistory(){
     if(curVF) vfSel.value=curVF;
   }
   if(vf) h=h.filter(function(x){return (x.vehicle||'').toLowerCase()===vf;});
-  if(sf) h=h.filter(x=>x.status===sf);
+  if(sf==='notsubmitted') h=h.filter(x=>!!x.notSubmittedInfo);
+  else if(sf) h=h.filter(x=>x.status===sf);
   var cf=document.getElementById('hist-company-filter')?.value||'';
   if(cf) h=h.filter(function(x){return (x.company||'ngrd')===cf;});
   // User filter — populate and apply
@@ -5988,6 +5994,8 @@ function renderDashboard(){
   if(isAdmin){
     document.getElementById('db-total-n').textContent=total;
     document.getElementById('db-pending-n').textContent=pendingApproval;
+    var _notSubEl=document.getElementById('db-notsubmitted-n');
+    if(_notSubEl) _notSubEl.textContent=allHist.filter(function(e){return !!e.notSubmittedInfo;}).length;
     document.getElementById('db-approved-n').textContent=approved;
     document.getElementById('db-value-n').textContent=lkr(totalValue);
     // Extra stats
