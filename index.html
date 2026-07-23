@@ -664,7 +664,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                   ➡️ Next Step
                 </button>
               </div>
-              <button class="btn btn-outline" id="ai-review-btn" onclick="aiReviewQuotation()" style="display:none;border-color:#7B3FA0;color:#7B3FA0;font-weight:700;">🤖 AI Review — Save/Submit முன்னாடி check பண்ணு</button>
+              <button class="btn btn-outline" id="ai-review-btn" onclick="aiReviewQuotation()" style="display:none;border-color:#7B3FA0;color:#7B3FA0;font-weight:700;">🤖 AI CEO Review — 20 வருஷ Experience Analysis</button>
               <button class="btn btn-green" id="save-btn" onclick="saveToHistory()">💾 Save</button>
               <button class="btn btn-navy" id="submit-btn" onclick="submitToPromise()" style="background:#2060a0;">📤 Submit to Promise.lk</button>
               <button class="btn btn-outline" onclick="resetAll()">🔄 New</button>
@@ -3655,7 +3655,7 @@ async function aiReviewQuotation(){
   popup.id='ai-review-popup';
   popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:92vw;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3);';
   var body='<div style="background:#7B3FA0;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">'
-    +'<div style="font-weight:700;font-size:14px;">🤖 AI Quotation Review</div>'
+    +'<div style="font-weight:700;font-size:14px;">🤖 AI CEO Review — Expert Analysis</div>'
     +'<span onclick="document.getElementById(\'ai-review-popup\').remove()" style="cursor:pointer;font-size:20px;opacity:.8;">✕</span></div>';
   body+='<div style="padding:16px;" id="ai-review-body">';
   body+='<div id="ai-review-risk"></div>';
@@ -3676,7 +3676,7 @@ async function aiReviewQuotation(){
     body+='<div style="font-size:11px;padding:8px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:5px;">Total: '+entityHistory.total+' &nbsp;|&nbsp; Won: '+entityHistory.won+' &nbsp;|&nbsp; Lost: '+entityHistory.lost
       +(entityHistory.reasons.length?('<br>Loss Reasons: '+entityHistory.reasons.slice(0,3).join(', ')):'')+'</div>';
   }
-  body+='<div id="ai-review-llm" style="margin-top:14px;font-size:12px;color:#888;">🤖 AI Analysis load ஆகுது...</div>';
+  body+='<div id="ai-review-llm" style="margin-top:14px;font-size:12px;color:#888;">🤖 CEO Analysis load ஆகுது...</div>';
   body+='</div>';
   popup.innerHTML=body;
   document.body.appendChild(popup);
@@ -3703,14 +3703,14 @@ async function aiReviewQuotation(){
   if(missingItems.length) extraContext+='\nPOSSIBLY MISSING ITEMS (were in original PDF, not in current list): '+missingItems.map(function(m){return m.description;}).join('; ')+'.';
   if(priceDeviations.length) extraContext+='\nPRICE DEVIATIONS from past purchase average: '+priceDeviations.map(function(d){return d.desc+' now '+d.pp+' vs avg '+d.avgPast.toFixed(0);}).join('; ')+'.';
   if(entityHistory) extraContext+='\nENTITY TRACK RECORD for '+entity+': '+entityHistory.won+' won, '+entityHistory.lost+' lost out of '+entityHistory.total+' past tenders. Loss reasons: '+(entityHistory.reasons.join(', ')||'none recorded')+'.';
-  var prompt='You are reviewing a Sri Lankan government tender spare-parts quotation before submission. Vehicle: '+vehicle+' '+vNo+', Entity: '+entity+', Closing: '+closingDate+' '+closingTime+'.\n\nITEMS:\n'+itemSummary+extraContext+'\n\nFirst line of your response MUST be exactly one of: "RISK: LOW", "RISK: MEDIUM", or "RISK: HIGH" — based on how risky this quotation looks before submission (missing items, price deviations, past loss patterns, low margins all raise risk).\n\nThen give a SHORT risk review (max 4 bullet points), focused on: unusual price patterns, missing items, entity loss-history relevance, obviously wrong brand/vehicle mismatches, or data-entry mistakes. If everything looks fine, just say so briefly. Do NOT repeat generic advice.\n\nIMPORTANT: Write your response (after the RISK line) in proper Tamil script (தமிழ் எழுத்துக்களில்) — full Tamil sentences, not romanized/Tanglish. Part names, brand names, and numbers can stay in English since they are technical terms, but all sentence structure and explanation must be in Tamil. Respond in plain text, no markdown, no JSON.';
+  var prompt='You are a highly experienced CEO of a Sri Lankan automobile spare-parts trading business, with 20+ years of hands-on experience winning and losing government tenders (Navy, Army, Police) via the Promise.lk e-GP portal. You personally review every quotation before it goes out — you have sharp business instincts for spotting pricing mistakes, missing items, and patterns that led to past losses. You are reviewing this quotation before submission. Vehicle: '+vehicle+' '+vNo+', Entity: '+entity+', Closing: '+closingDate+' '+closingTime+'.\n\nITEMS:\n'+itemSummary+extraContext+'\n\nFirst line of your response MUST be exactly one of: "RISK: LOW", "RISK: MEDIUM", or "RISK: HIGH" — based on how risky this quotation looks before submission (missing items, price deviations, past loss patterns, low margins all raise risk).\n\nThen give a SHORT, direct CEO-style review (max 4 bullet points) — the kind of sharp, no-nonsense feedback a business owner gives before signing off, focused on: unusual price patterns, missing items, entity loss-history relevance, obviously wrong brand/vehicle mismatches, or data-entry mistakes. If everything looks fine, say so briefly and confidently. Do NOT repeat generic advice — every sentence must be specific to THIS quotation\'s actual numbers and items.\n\nIMPORTANT: Write your response (after the RISK line) in proper Tamil script (தமிழ் எழுத்துக்களில்) — full Tamil sentences, not romanized/Tanglish. Part names, brand names, and numbers can stay in English since they are technical terms, but all sentence structure and explanation must be in Tamil. Respond in plain text, no markdown, no JSON.';
   try{
     var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:prompt}]})});
     var data=await resp.json();
     var txt=(data.content||[]).filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join('').trim();
     var riskMatch=txt.match(/^RISK:\s*(LOW|MEDIUM|HIGH)/i);
     if(riskMatch){ showRiskBadge(riskMatch[1].toUpperCase()); txt=txt.replace(/^RISK:\s*(LOW|MEDIUM|HIGH)\s*/i,'').trim(); }
-    if(llmEl) llmEl.innerHTML='<div style="font-size:12px;font-weight:700;color:#7B3FA0;margin-bottom:6px;">🤖 AI Analysis</div><div style="font-size:12px;color:#333;white-space:pre-line;background:#F5F3FF;padding:10px;border-radius:6px;border:1px solid #DDD6FE;">'+txt.replace(/</g,'&lt;')+'</div>';
+    if(llmEl) llmEl.innerHTML='<div style="font-size:12px;font-weight:700;color:#7B3FA0;margin-bottom:6px;">🤖 CEO Analysis</div><div style="font-size:12px;color:#333;white-space:pre-line;background:#F5F3FF;padding:10px;border-radius:6px;border:1px solid #DDD6FE;">'+txt.replace(/</g,'&lt;')+'</div>';
   }catch(e){
     if(llmEl) llmEl.innerHTML='<div style="color:#B22222;font-size:12px;">AI error: '+(e.message||e)+'</div>';
   }
