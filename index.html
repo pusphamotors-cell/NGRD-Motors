@@ -2603,6 +2603,7 @@ function checkUrgent24hReminder(){
   var now=new Date();
   var urgent=h.filter(function(e){
     if(e.status!=='approved') return false; // already submitted/awarded/etc → not urgent
+    if(e.notSubmittedInfo) return false; // reason already given — don't nag
     if(!e.closingDate) return false;
     var cd=parseClosingDate(e.closingDate);if(!cd) return false;
     if(e.closingTime){var tp=e.closingTime.split(':');cd.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0);}else{cd.setHours(23,59,59,999);}
@@ -2633,6 +2634,7 @@ function checkMissedApprovedReminder(){
   var now=new Date();
   var missed=h.filter(function(e){
     if(e.status!=='approved') return false;
+    if(e.notSubmittedInfo) return false; // reason already given — don't nag
     if(!e.closingDate) return false;
     var cd=parseClosingDate(e.closingDate);if(!cd) return false;
     if(e.closingTime){var tp=e.closingTime.split(':');cd.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0);}else{cd.setHours(23,59,59,999);}
@@ -2651,6 +2653,7 @@ function markAllMissed(){
   var now=new Date();
   var ids=h.filter(function(e){
     if(e.status!=='approved') return false;
+    if(e.notSubmittedInfo) return false; // reason already given — skip, already documented
     if(!e.closingDate) return false;
     var cd=parseClosingDate(e.closingDate);if(!cd) return false;
     if(e.closingTime){var tp=e.closingTime.split(':');cd.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0);}else{cd.setHours(23,59,59,999);}
@@ -9309,6 +9312,7 @@ function checkDeadlineAlarms(){
   var ACTIVE=['draft','pending','approved','assigned'];
   h.forEach(function(e){
     if(ACTIVE.indexOf(e.status||'draft')<0) return; // skip submitted/awarded/rejected
+    if(e.notSubmittedInfo) return; // reason already given — stop nagging about this one
     var days=getDaysUntil(e.closingDate);if(days===null)return;
     if(days>=0&&days<=1)urgent.push(e);else if(days>1&&days<=3)warning.push(e);
   });
