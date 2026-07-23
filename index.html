@@ -819,10 +819,15 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:5px;">Part Name</label>
                 <input id="qs-part" placeholder="e.g. Ball Joint, Hole Joint..." oninput="runQuickSearch()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;">
               </div>
+              <div>
+                <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:5px;">Part No.</label>
+                <input id="qs-partno" placeholder="e.g. MB123456..." oninput="runQuickSearch()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;">
+              </div>
             </div>
             <div id="qs-results">
               <div style="text-align:center;padding:30px;color:var(--muted);font-size:14px;">🔍 Vehicle, Brand அல்லது Part name type பண்ணுங்கள்</div>
             </div>
+            <div id="qs-hist-results" style="margin-top:16px;"></div>
           </div>
         </div>
       </div>
@@ -850,6 +855,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
       <!-- ═ DASHBOARD ═ -->
       <div id="page-dashboard" style="display:none;">
+        <div id="db-digest-banner" style="display:none;margin-bottom:14px;"></div>
         <!-- LETTERS HUB (permission-gated) -->
         <div id="db-letters-hub" style="display:none;margin-bottom:18px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -1026,6 +1032,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel" style="margin-top:14px;">
           <div class="panel-hdr"><span class="panel-hdr-icon">📅</span><span class="panel-hdr-title">Monthly Summary</span></div>
           <div class="panel-body" id="chart-monthly"></div>
+        </div>
+        <div class="panel" style="margin-top:14px;">
+          <div class="panel-hdr"><span class="panel-hdr-icon">❌</span><span class="panel-hdr-title">Loss Reasons (ஏன் Lost ஆனோம்)</span></div>
+          <div class="panel-body" id="chart-lossreasons"></div>
         </div>
         <div class="panel" style="margin-top:14px;">
           <div class="panel-hdr"><span class="panel-hdr-icon">⚡</span><span class="panel-hdr-title">Today's Activity</span></div>
@@ -1433,10 +1443,22 @@ function setPrices(p){LS.set('ngrd_prices',p);window.__fapmVer=(window.__fapmVer
 function getLog(){return LS.get('ngrd_log')||[];}
 function addLog(msg){
   const log=getLog();
-  log.unshift({ts:Date.now(),time:new Date().toLocaleString('en-LK'),user:CU?.name||'System',msg});
+  var entry={ts:Date.now(),time:new Date().toLocaleString('en-LK'),user:CU?.name||'System',msg};
+  log.unshift(entry);
   if(log.length>200) log.pop();
   LS.set('ngrd_log',log);
   updatePendingBadge();
+  // Permanent audit trail — separate Firebase node, written per-record (never overwritten/cleared by clearLog)
+  if(typeof FB_BASE!=='undefined'){
+    try{
+      var auditKey=entry.ts+'_'+Math.random().toString(36).slice(2,8);
+      var o={};o[auditKey]=entry;
+      var xhr=new XMLHttpRequest();
+      xhr.open('PATCH',FB_BASE+'/auditlog.json',true);
+      xhr.setRequestHeader('Content-Type','application/json');
+      xhr.send(JSON.stringify(o));
+    }catch(e){}
+  }
 }
 function clearLog(){if(confirm('Clear all activity log?')){LS.del('ngrd_log');renderLog();showToast('Log cleared','t-i');}}
 
@@ -2153,15 +2175,18 @@ function showPurchaseHistory(itemIdx,brandIdx){
   }
   // Sort histMatches by date descending (latest first)
   histMatches.sort(function(a,b){return new Date(b.date)-new Date(a.date);});
-  // Deduplicate by brand — keep latest entry per brand
+  // Deduplicate by brand — keep latest entry per brand, but remember the 2nd-latest too (for trend %)
   var seenHist={};
   var brandMatches=[];
+  var prevByBrand={};
   histMatches.forEach(function(m){
     var key=(m.brand||'').toLowerCase().trim();
     if(!key) return;
     if(!seenHist[key]){
       seenHist[key]=true;
       brandMatches.push(m); // Already sorted latest first → first occurrence = latest
+    } else if(!prevByBrand[key]){
+      prevByBrand[key]=m; // 2nd occurrence = previous purchase for this brand
     }
   });
   var last5=brandMatches.slice(0,10); // Show up to 10 unique brands
@@ -2169,10 +2194,20 @@ function showPurchaseHistory(itemIdx,brandIdx){
     h2+='<div style="padding:12px 16px;">';
     h2+='<div style="font-size:11px;font-weight:700;color:#2060a0;margin-bottom:8px;">📅 Available Brands ('+last5.length+')</div>';
     last5.forEach(function(m){
+      var key=(m.brand||'').toLowerCase().trim();
+      var prev=prevByBrand[key];
+      var trendHtml='';
+      if(prev&&prev.purchasePrice>0&&m.purchasePrice>0){
+        var diff=m.purchasePrice-prev.purchasePrice;
+        var pct=((diff/prev.purchasePrice)*100).toFixed(0);
+        if(diff>0) trendHtml='<div style="font-size:10px;color:#B22222;font-weight:700;">📈 +'+pct+'% vs '+prev.date+'</div>';
+        else if(diff<0) trendHtml='<div style="font-size:10px;color:#1A6B3C;font-weight:700;">📉 '+pct+'% vs '+prev.date+'</div>';
+        else trendHtml='<div style="font-size:10px;color:#888;">➡️ Same as last purchase</div>';
+      }
       h2+='<div style="padding:8px 10px;background:#f9f9f9;border-radius:4px;margin-bottom:5px;border-left:3px solid #c47020;">';
       h2+='<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
       h2+='<div><div style="font-size:12px;font-weight:700;">'+m.brand+(m.partNo?' — '+m.partNo:'')+'</div>';
-      h2+='<div style="font-size:10px;color:#888;">'+m.date+' | '+m.ref+'</div></div>';
+      h2+='<div style="font-size:10px;color:#888;">'+m.date+' | '+m.ref+'</div>'+trendHtml+'</div>';
       h2+='<div style="text-align:right;">';
       if(m.purchasePrice>0) h2+='<div style="font-size:11px;color:#c47020;font-weight:700;">Cost: '+lkr(m.purchasePrice)+'</div>';
       h2+='<div style="font-size:11px;color:#1A6B3C;">Sell: '+lkr(m.sellingPrice)+'</div></div></div>';
@@ -2518,6 +2553,54 @@ function renderCalendar(){
   grid.innerHTML=html;
   var wk=document.getElementById('cal-week-summary'); if(wk) wk.innerHTML=calWeekSummaryHtml(byDate);
   var det=document.getElementById('cal-day-detail'); if(det) det.innerHTML='';
+}
+function checkWeeklyDigestReminder(){
+  var banner=document.getElementById('db-digest-banner');if(!banner)return;
+  var todayStr=new Date().toLocaleDateString('en-LK');
+  var lastShown=localStorage.getItem('ngrd_digest_lastshown');
+  if(lastShown===todayStr){banner.style.display='none';return;} // Already shown today — avoid nagging every click
+  var h=getHist();
+  var ACTIVE=['draft','pending','approved','assigned'];
+  var today=new Date();today.setHours(0,0,0,0);
+  var weekEnd=new Date(today);weekEnd.setDate(weekEnd.getDate()+7);
+  var upcoming=h.filter(function(e){
+    if(ACTIVE.indexOf(e.status||'draft')<0) return false;
+    var cd=(typeof parseClosingDate==='function')?parseClosingDate(e.closingDate):null;
+    return cd&&cd>=today&&cd<=weekEnd;
+  });
+  if(!upcoming.length){banner.style.display='none';return;}
+  banner.style.display='block';
+  banner.innerHTML='<div style="background:linear-gradient(135deg,#1A3A6B,#0D1B2A);color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+    +'<div><div style="font-size:14px;font-weight:700;">📲 இந்த வாரம் ('+upcoming.length+') quotation(s) closing</div><div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;">Weekly reminder — daily ஒரு தடவை மட்டும் காட்டும்</div></div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="sendWeeklyDigestWA()" style="padding:9px 16px;background:#1A6B3C;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">📲 Send Digest</button>'
+    +'<button onclick="dismissWeeklyDigest()" style="padding:9px 12px;background:rgba(255,255,255,.12);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">✕ Later</button>'
+    +'</div></div>';
+}
+function dismissWeeklyDigest(){
+  localStorage.setItem('ngrd_digest_lastshown',new Date().toLocaleDateString('en-LK'));
+  var banner=document.getElementById('db-digest-banner');if(banner)banner.style.display='none';
+}
+function sendWeeklyDigestWA(){
+  var h=getHist();
+  var ACTIVE=['draft','pending','approved','assigned'];
+  var today=new Date();today.setHours(0,0,0,0);
+  var weekEnd=new Date(today);weekEnd.setDate(weekEnd.getDate()+7);
+  var upcoming=h.filter(function(e){
+    if(ACTIVE.indexOf(e.status||'draft')<0) return false;
+    var cd=(typeof parseClosingDate==='function')?parseClosingDate(e.closingDate):null;
+    return cd&&cd>=today&&cd<=weekEnd;
+  });
+  upcoming.sort(function(a,b){return parseClosingDate(a.closingDate)-parseClosingDate(b.closingDate);});
+  var lines=upcoming.map(function(e){
+    var cd=parseClosingDate(e.closingDate);
+    var dstr=cd?(cd.getDate()+'/'+(cd.getMonth()+1)):'';
+    return '• '+dstr+' — '+(e.vehicle||'')+' ('+(e.eqNo||e.refNo||'')+') — '+(e.status||'draft').toUpperCase();
+  });
+  var text='📅 *WEEKLY CLOSING DIGEST — NGRD/Puspha Motors*\n\n'+lines.join('\n')+'\n\n⚠️ Total: '+upcoming.length+' quotation(s) இந்த வாரம்\n🔗 ngrd-motors.vercel.app';
+  window.open('https://wa.me/'+ADMIN_WA+'?text='+encodeURIComponent(text),'_blank');
+  dismissWeeklyDigest();
+  showToast('📲 Weekly digest ready!','t-s');
 }
 function calWeekSummaryHtml(byDate){
   // Build week-wise (Sun-Sat) counts for the currently displayed month
@@ -4040,29 +4123,45 @@ function markSubmitted(id){
   }
   if(!confirm('Promise.lk-ல் submit பண்ணிவிட்டீர்களா?')) return;
   if(!entry.steps) entry.steps={};
-  var _now=new Date();
-  // Auto on-time/late check against Closing Date+Time (server/device clock — not editable by staff)
-  var _late=null;
-  if(entry.closingDate){
-    var _cd=parseClosingDate(entry.closingDate);
-    if(_cd){
-      if(entry.closingTime){
-        var _tp=entry.closingTime.split(':');
-        _cd.setHours(parseInt(_tp[0])||0,parseInt(_tp[1])||0,0,0);
-      } else {
-        _cd.setHours(23,59,59,999); // no time given → end of day
+  showToast('⏳ Server time verify பண்றோம்...','t-i');
+  getServerTime(function(_now){
+    // Auto on-time/late check against Closing Date+Time — using SERVER clock (tamper-proof, not staff device time)
+    var _late=null;
+    if(entry.closingDate){
+      var _cd=parseClosingDate(entry.closingDate);
+      if(_cd){
+        if(entry.closingTime){
+          var _tp=entry.closingTime.split(':');
+          _cd.setHours(parseInt(_tp[0])||0,parseInt(_tp[1])||0,0,0);
+        } else {
+          _cd.setHours(23,59,59,999); // no time given → end of day
+        }
+        _late=_now>_cd;
       }
-      _late=_now>_cd;
     }
-  }
-  entry.steps.submitted={by:CU.name,role:CU.role,at:_now.toLocaleString('en-LK'),late:_late};
-  entry.status='submitted';
-  entry.notSubmittedInfo=null; // clear any earlier "not submitted" mark
-  setHist(h);
-  if(typeof fbWrite==='function') fbWrite('history',h);
-  renderHistory();
-  addLog('Submitted: '+(entry.eqNo||entry.refNo)+' by '+CU.name+(_late===true?' (LATE)':''));
-  showToast(_late===true?'⚠️ Submitted — but AFTER closing time!':'✅ Submitted by '+CU.name+'!',_late===true?'t-e':'t-s');
+    entry.steps.submitted={by:CU.name,role:CU.role,at:_now.toLocaleString('en-LK'),late:_late,serverVerified:true};
+    entry.status='submitted';
+    entry.notSubmittedInfo=null; // clear any earlier "not submitted" mark
+    setHist(h);
+    if(typeof fbWrite==='function') fbWrite('history',h);
+    renderHistory();
+    addLog('Submitted: '+(entry.eqNo||entry.refNo)+' by '+CU.name+(_late===true?' (LATE)':''));
+    showToast(_late===true?'⚠️ Submitted — but AFTER closing time!':'✅ Submitted by '+CU.name+'!',_late===true?'t-e':'t-s');
+  });
+}
+function getServerTime(cb){
+  // Uses Firebase server-side timestamp (".sv") — cannot be spoofed by changing the device clock
+  if(typeof FB_BASE==='undefined'){cb(new Date());return;}
+  var xhr=new XMLHttpRequest();
+  xhr.open('PATCH',FB_BASE+'/_servertime.json',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.timeout=5000;
+  xhr.onload=function(){
+    try{var d=JSON.parse(xhr.responseText);cb(d&&d.ts?new Date(d.ts):new Date());}catch(e){cb(new Date());}
+  };
+  xhr.onerror=function(){cb(new Date());}; // offline fallback — device clock
+  xhr.ontimeout=function(){cb(new Date());};
+  xhr.send(JSON.stringify({ts:{'.sv':'timestamp'}}));
 }
 
 function markNotSubmitted(id){
@@ -4528,6 +4627,20 @@ function markResult(id, result){
   if(!confirm(label+' mark பண்ணட்டுமா?\n'+( e.eqNo||e.refNo)+' — '+(e.vehicle||'')+' '+(e.vNo||'')))return;
   const prev=e.status;
   e.status=result;
+  // Loss Reason + Competitor benchmark — captured only when marking LOST
+  if(result==='rejected'){
+    var reasonOpts=['Price — competitor cheaper','Wrong brand/spec mismatch','Disqualified (docs/eligibility)','Late submission','Cancelled by client','Other'];
+    var promptTxt='ஏன் Lost ஆச்சு? எண் type பண்ணுங்க:\n'+reasonOpts.map(function(r,i){return (i+1)+'. '+r;}).join('\n');
+    var pick=prompt(promptTxt,'1');
+    var idx2=parseInt(pick)-1;
+    e.lossReason=(idx2>=0&&idx2<reasonOpts.length)?reasonOpts[idx2]:(pick||'Not specified');
+    var compName=prompt('Competitor பெயர் தெரியுமா? (optional, Cancel/blank ஆனா skip)');
+    if(compName){
+      e.competitorName=compName.trim();
+      var compPrice=prompt('அவங்க எவ்வளவுக்கு quote பண்ணாங்க? (LKR, optional)');
+      if(compPrice&&!isNaN(parseFloat(compPrice))) e.competitorPrice=parseFloat(compPrice);
+    }
+  }
   // Log result date for reporting
   if(!e.resultDate) e.resultDate=new Date().toLocaleDateString('en-LK');
   e.resultBy=CU.name;
@@ -4536,7 +4649,7 @@ function markResult(id, result){
   if(typeof fbWrite==='function') fbWrite('history',h);
   renderHistory();
   if(typeof renderDashboard==='function') renderDashboard();
-  addLog('Result marked: '+(e.eqNo||e.refNo)+' → '+result+' (was: '+prev+') by '+CU.name);
+  addLog('Result marked: '+(e.eqNo||e.refNo)+' → '+result+' (was: '+prev+') by '+CU.name+(e.lossReason?' — Reason: '+e.lossReason:''));
   showToast(label+' marked!','t-s');
   updatePendingBadge();
 }
@@ -5279,6 +5392,28 @@ function renderAnalytics(){
   } else {
     document.getElementById('chart-monthly').innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Data இல்லை — quotations save பண்ணினா இங்கே காட்டும்</div>';
   }
+  // ── LOSS REASONS ──
+  var lossEl=document.getElementById('chart-lossreasons');
+  if(lossEl){
+    var lost=h.filter(function(e){return e.status==='rejected'&&e.lossReason;});
+    if(!lost.length){
+      lossEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);">Lost quotations-க்கு reason இன்னும் இல்ல</div>';
+    } else {
+      var rMap={};lost.forEach(function(e){rMap[e.lossReason]=(rMap[e.lossReason]||0)+1;});
+      var maxR=Math.max.apply(null,Object.values(rMap).concat([1]));
+      var lHtml='<div class="chart-bar-wrap">'+Object.entries(rMap).sort(function(a,b){return b[1]-a[1];}).map(function(kv){
+        return '<div class="chart-row"><div class="chart-label" title="'+kv[0]+'">'+kv[0]+'</div><div class="chart-bar-bg"><div class="chart-bar loss" style="width:'+(kv[1]/maxR*100).toFixed(1)+'%"></div></div><div class="chart-val">'+kv[1]+'</div></div>';
+      }).join('')+'</div>';
+      var withComp=lost.filter(function(e){return e.competitorName;});
+      if(withComp.length){
+        lHtml+='<div style="margin-top:10px;font-size:11px;color:var(--muted);font-weight:700;">📋 Competitor Notes:</div>';
+        lHtml+=withComp.slice(0,10).map(function(e){
+          return '<div style="font-size:11px;padding:5px 8px;border-bottom:1px solid #eee;">'+(e.vehicle||'')+' — '+(e.eqNo||e.refNo||'')+': <b>'+e.competitorName+'</b>'+(e.competitorPrice?' @ '+lkr(e.competitorPrice):'')+'</div>';
+        }).join('');
+      }
+      lossEl.innerHTML=lHtml;
+    }
+  }
 }
 
 function renderLog(){
@@ -5385,11 +5520,13 @@ function runQuickSearch(){
   var veh=document.getElementById('qs-veh')?document.getElementById('qs-veh').value.toLowerCase():'';
   var brand=document.getElementById('qs-brand')?document.getElementById('qs-brand').value.toLowerCase().trim():'';
   var part=document.getElementById('qs-part')?document.getElementById('qs-part').value.toLowerCase().trim():'';
+  var partNo=document.getElementById('qs-partno')?document.getElementById('qs-partno').value.toLowerCase().trim():'';
   var res=document.getElementById('qs-results');
   if(!res) return;
 
-  if(!veh&&!brand&&!part){
+  if(!veh&&!brand&&!part&&!partNo){
     res.innerHTML='<div style="text-align:center;padding:30px;color:#888;font-size:14px;">Vehicle, Brand அல்லது Part name type பண்ணுங்கள்</div>';
+    var hr0=document.getElementById('qs-hist-results');if(hr0)hr0.innerHTML='';
     return;
   }
 
@@ -5398,16 +5535,17 @@ function runQuickSearch(){
     var pv=(p.vehicle||'').toLowerCase();
     var pb=(p.brand||'').toLowerCase();
     var pd=(p.description||'').toLowerCase();
+    var pn=(p.partNo||'').toLowerCase();
     var matchVeh=!veh||pv===veh||pv==='';
     var matchBrand=!brand||pb.includes(brand);
     var matchPart=!part||pd.includes(part);
-    return matchVeh&&matchBrand&&matchPart;
+    var matchPartNo=!partNo||pn.includes(partNo);
+    return matchVeh&&matchBrand&&matchPart&&matchPartNo;
   });
 
   if(!filtered.length){
     res.innerHTML='<div style="text-align:center;padding:30px;color:#B22222;font-size:14px;">Part கிடைக்கவில்லை</div>';
-    return;
-  }
+  } else {
 
   var out='<div style="font-size:12px;color:#888;margin-bottom:10px;">'+filtered.length+' result(s)</div><div style="display:grid;gap:8px;">';
   filtered.forEach(function(p){
@@ -5431,6 +5569,41 @@ function runQuickSearch(){
   });
   out+='</div>';
   res.innerHTML=out;
+  }
+  // ── Also search across actual Quotation History (shows which e-Q used this part & at what price) ──
+  var hr=document.getElementById('qs-hist-results');
+  if(hr){
+    if(!part&&!partNo){ hr.innerHTML=''; }
+    else {
+      var q1=part,q2=partNo;
+      var hist=getHist();
+      var occ=[];
+      hist.forEach(function(e){
+        (e.items||[]).forEach(function(item){
+          var descMatch=q1&&(item.description||'').toLowerCase().includes(q1);
+          (item.brandRows||[{}]).forEach(function(br){
+            var pnMatch=q2&&(br.partNo||'').toLowerCase().includes(q2);
+            if((q1&&descMatch)||(q2&&pnMatch)){
+              occ.push({eqNo:e.eqNo||e.refNo,vehicle:e.vehicle,entity:e.entity,date:e.date,status:e.status,desc:item.description,partNo:br.partNo,brand:br.brand,price:br.price||0,id:e.id});
+            }
+          });
+        });
+      });
+      if(!occ.length){
+        hr.innerHTML='';
+      } else {
+        occ.sort(function(a,b){return (b.id||0)-(a.id||0);});
+        var hOut='<div class="panel"><div class="panel-hdr"><span class="panel-hdr-icon">📜</span><span class="panel-hdr-title">இந்த Part எந்தெந்த Quotations-ல வந்துச்சு ('+occ.length+')</span></div><div class="panel-body">';
+        hOut+=occ.slice(0,30).map(function(o){
+          return '<div onclick="loadHist('+o.id+')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 10px;border-bottom:1px solid #eee;cursor:pointer;" onmouseover="this.style.background=\'#f7fafd\'" onmouseout="this.style.background=\'\'">'
+            +'<div><div style="font-weight:700;font-size:12px;">'+(o.desc||'')+(o.partNo?' — '+o.partNo:'')+'</div><div style="font-size:11px;color:#666;">'+(o.vehicle||'')+' · '+(o.eqNo||'')+(o.entity?(' · '+o.entity):'')+'</div></div>'
+            +'<div style="text-align:right;"><div style="font-size:13px;font-weight:700;color:#1A6B3C;">'+lkr(o.price)+'</div><div style="font-size:10px;color:#888;text-transform:uppercase;">'+(o.status||'draft')+' · '+(o.date||'')+'</div></div></div>';
+        }).join('');
+        hOut+='</div></div>';
+        hr.innerHTML=hOut;
+      }
+    }
+  }
 }
 
 
@@ -5749,6 +5922,7 @@ function renderDashboard(){
       }).join('');
     }
   }
+  if(typeof checkWeeklyDigestReminder==='function') checkWeeklyDigestReminder();
 }
 
 function viewQuot(id){
