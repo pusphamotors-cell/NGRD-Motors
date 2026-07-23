@@ -3582,7 +3582,7 @@ async function aiReviewQuotation(){
     var key=(item.description||'').toLowerCase().trim();
     if(key){ if(descSeen[key]) dupCount++; descSeen[key]=(descSeen[key]||0)+1; }
     var hasPrice=item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
-    if(!hasPrice) noPriceCount++;
+    if(!hasPrice&&!item.notQuoting) noPriceCount++;
     (item.brandRows||[]).forEach(function(br){
       var pp=parseFloat(br.purchasePrice)||0,sp=parseFloat(br.price)||0;
       if(pp>0&&sp>0){
@@ -3831,28 +3831,31 @@ function renderItems(items){
     if(!item.reqBrand&&item.brand) item.reqBrand=item.brand; // Save original req brand
     var reqBrand=item.reqBrand||item.brand||'';
     item.brandRows.forEach(function(br,bi){
-      var tr=document.createElement('tr');tr.style.background=bg;
+      var tr=document.createElement('tr');tr.style.background=item.notQuoting?'#F3F4F6':bg;
+      if(item.notQuoting) tr.style.opacity='0.55';
+      var _nq=item.notQuoting?' disabled':'';
       var h='';
       if(bi===0){
         h+='<td class="tc" rowspan="'+rc+'" style="font-weight:700;color:var(--navy);vertical-align:middle;border-right:2px solid #ddd;padding:5px 3px;">'+item.itemNo+'</td>';
-        h+='<td rowspan="'+rc+'" style="font-size:11px;vertical-align:middle;border-right:2px solid #ddd;padding:5px 7px;">'+item.description+'</td>';
+        h+='<td rowspan="'+rc+'" style="font-size:11px;vertical-align:middle;border-right:2px solid #ddd;padding:5px 7px;">'+item.description
+          +'<label style="display:flex;align-items:center;gap:4px;margin-top:5px;font-size:9px;color:#B22222;cursor:pointer;font-weight:700;"><input type="checkbox" '+(item.notQuoting?'checked':'')+' onchange="toggleNotQuoting('+idx+',this.checked)" style="cursor:pointer;">🚫 Not Quoting</label></td>';
         h+='<td class="tc" rowspan="'+rc+'" style="font-weight:700;vertical-align:middle;border-right:2px solid #ddd;padding:5px 3px;">'+item.qty+'</td>';
         h+='<td rowspan="'+rc+'" style="color:var(--muted);font-size:11px;vertical-align:middle;border-right:2px solid #ddd;padding:5px 3px;">'+item.unit+'</td>';
         var rb=reqBrand?'<span style="display:inline-block;padding:2px 7px;background:#1A3A1A;color:#6FCF6F;border-radius:3px;font-size:11px;font-weight:700;">'+reqBrand+'</span>':'<span style="color:var(--muted);font-size:11px;font-style:italic;">Any</span>';
         h+='<td rowspan="'+rc+'" style="vertical-align:middle;padding:4px 5px;background:rgba(26,58,26,.04);border-right:2px solid #ddd;">'+rb+'</td>';
       }
-      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"></td>';
-      h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" onblur="setTimeout(function(){if(typeof showPartCrossRef===\'function\')showPartCrossRef('+idx+','+bi+')},150)" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"></td>';
+      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"'+_nq+'></td>';
+      h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" onblur="setTimeout(function(){if(typeof showPartCrossRef===\'function\')showPartCrossRef('+idx+','+bi+')},150)" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"'+_nq+'></td>';
       h+='<td style="padding:3px 4px;"><select id="br-c-'+idx+'-'+bi+'" onchange="syncRow('+idx+','+bi+');calcTotals()" style="width:73px;padding:4px 3px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"><option value="">—</option>'+co+'</select></td>';
       if(role.seePurchase){
-        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for history" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;cursor:pointer;">'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
+        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for history" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;cursor:pointer;"'+_nq+'>'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
         h+='<td style="padding:3px 4px;background:rgba(42,26,10,.04);">'+puInp+'</td>';
       } else {
         h+='<td style="padding:3px 4px;text-align:center;background:rgba(42,26,10,.04);"><span title="Margin role only">🔒</span></td>';
       }
       h+='<td style="padding:3px 4px;background:rgba(26,42,58,.04);">';
       if(role.canMargin){
-        h+='<input id="br-m-'+idx+'-'+bi+'" value="'+(br.marginPct||'')+'" type="number" min="0" max="999" step="1" placeholder="%" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" style="width:58px;padding:4px 4px;border:1px solid #2060a0;border-radius:2px;font-size:11px;background:#f0f5ff;outline:none;text-align:center;">';
+        h+='<input id="br-m-'+idx+'-'+bi+'" value="'+(br.marginPct||'')+'" type="number" min="0" max="999" step="1" placeholder="%" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" style="width:58px;padding:4px 4px;border:1px solid #2060a0;border-radius:2px;font-size:11px;background:#f0f5ff;outline:none;text-align:center;"'+_nq+'>';
       } else {h+='<span style="color:var(--muted);font-size:11px;">—</span>';}
       h+='</td>';
       var daysOld=hint?getPriceDaysOld(hint.date):null;
@@ -3875,7 +3878,7 @@ function renderItems(items){
           hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hintPrice)+hintDate+matchLabel+'</div>';
         }
       }
-      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');autoMargin('+idx+','+bi+');calcTotals()" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for price history" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;cursor:pointer;">'+hintHtml+'</td>';
+      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');autoMargin('+idx+','+bi+');calcTotals()" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for price history" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;cursor:pointer;"'+_nq+'>'+hintHtml+'</td>';
       h+='<td class="tr" id="rt-'+idx+'-'+bi+'" style="font-weight:700;color:var(--navy2);font-size:12px;padding:3px 6px;">—</td>';
       h+='<td class="tc" style="padding:3px 3px;white-space:nowrap;"><button onclick="addBR('+idx+')" style="width:22px;height:22px;background:var(--light);border:1px solid var(--border);border-radius:2px;cursor:pointer;font-size:12px;">➕</button>';
       if(rc>1) h+='<button onclick="remBR('+idx+','+bi+')" style="width:22px;height:22px;background:rgba(178,34,34,.07);border:1px solid rgba(178,34,34,.2);border-radius:2px;cursor:pointer;font-size:10px;color:var(--red);display:block;margin-top:2px;">✕</button>';
@@ -4215,14 +4218,24 @@ function calcTotals(){
   curItems.forEach(function(item,idx){
     if(!item.brandRows)return;
     item.brandRows.forEach(function(br,bi){
-      var p=parseFloat(br.price)||0;var t=p*item.qty;br.totalPrice=t;
-      var el=document.getElementById('rt-'+idx+'-'+bi);if(el)el.textContent=t>0?lkr(t):'—';
-      if(bi===0){grand+=t;item.unitPrice=p;item.ourBrand=br.brand||'';}
+      var p=parseFloat(br.price)||0;var t=item.notQuoting?0:p*item.qty;br.totalPrice=t;
+      var el=document.getElementById('rt-'+idx+'-'+bi);if(el)el.textContent=item.notQuoting?'N/A':(t>0?lkr(t):'—');
+      if(bi===0){grand+=t;item.unitPrice=item.notQuoting?0:p;item.ourBrand=br.brand||'';}
     });
   });
   var ts=document.getElementById('tot-sub');if(ts)ts.textContent=lkr(grand);
   var tg=document.getElementById('tot-grand');if(tg)tg.textContent=lkr(grand);
   if(grand>0){setStep(4);setTimeout(updateWorkflowBar,100);}
+}
+function toggleNotQuoting(idx,checked){
+  if(!curItems[idx])return;
+  curItems[idx].notQuoting=checked;
+  if(checked){
+    // Clear price fields so it doesn't accidentally get counted anywhere
+    (curItems[idx].brandRows||[]).forEach(function(br){br.price=0;br.purchasePrice=0;br.marginPct=0;});
+  }
+  renderItems(curItems);
+  showToast(checked?'🚫 Not Quoting இந்த item-க்கு':'✅ Quoting-க்கு திரும்ப வந்துச்சு','t-i');
 }
 
 function lkr(n){return 'LKR '+n.toLocaleString('en-LK',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -4246,7 +4259,7 @@ function submitToPromise(){
   curItems.forEach(function(item){
     var k=(item.description||'').toLowerCase().trim();
     if(k){if(_descSeen[k])_dupCount++;_descSeen[k]=(_descSeen[k]||0)+1;}
-    if(!(item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;}))) _noPriceCount++;
+    if(!item.notQuoting&&!(item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;}))) _noPriceCount++;
   });
   if(_noPriceCount>0) _preIssues.push('💰 '+_noPriceCount+' items-க்கு price இல்ல');
   if(_dupCount>0) _preIssues.push('🔁 '+_dupCount+' duplicate item(s) இருக்கு');
@@ -7551,7 +7564,7 @@ function _downloadBlob(content,type,filename){
 // ── QUOTATION PDF ──
 function generatePDFHtml(d){
   var co=d&&d.company&&COMPANIES[d.company]?COMPANIES[d.company]:getCompany();
-  const grand=d.items.reduce((s,i)=>s+((i.unitPrice||0)*i.qty),0);
+  const grand=d.items.reduce((s,i)=>s+(i.notQuoting?0:(i.unitPrice||0)*i.qty),0);
   // Dynamic brands & countries from items
   var uniqueBrands=[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.brand||i.brand||'';}).filter(Boolean))].join(', ')||'—';
   var uniqueCountries=[...new Set(d.items.map(i=>{var br=(i.brandRows&&i.brandRows[0])||{};return br.country||i.country||'';}).filter(Boolean))].join(', ')||'—';
@@ -7562,9 +7575,17 @@ function generatePDFHtml(d){
     var brand=br.brand||item.brand||'';
     var country=br.country||item.country||'';
     var price=parseFloat(br.price)||item.unitPrice||0;
-    var total=price*item.qty;
+    var total=item.notQuoting?0:price*item.qty;
     var bg=isPuspha?(idx%2===0?'#fff':'#FFF8E1'):(idx%2===0?'#fff':'#f7f9fc');
     var brandColor=isPuspha?'#B71C1C':'#1565C0';
+    if(item.notQuoting){
+      return `<tr style="background:${bg}">
+      <td style="text-align:center;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#888;">${item.itemNo}</td>
+      <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;color:#111;">${item.description}</td>
+      <td style="text-align:center;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;">${item.qty}</td>
+      <td colspan="4" style="text-align:center;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#B22222;font-weight:700;font-style:italic;">N/A — Not Quoted</td>
+    </tr>`;
+    }
     return `<tr style="background:${bg}">
       <td style="text-align:center;padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10px;color:#888;">${item.itemNo}</td>
       <td style="padding:7px 8px;border-bottom:0.5px solid #e0e8f0;font-size:10.5px;color:#111;">${item.description}</td>
