@@ -1411,16 +1411,22 @@ function getUsers(){
   return s||getDefaultUsers();
 }
 
+var _histCache=null,_histVerSeen=-1,_histDeletedSeen=null;
 function getHist(){
+  var ver=(window.__fapmVer||0);
+  var deletedRaw=localStorage.getItem('ngrd_deleted')||'[]';
+  if(_histCache!==null && ver===_histVerSeen && deletedRaw===_histDeletedSeen) return _histCache;
   var h=LS.get('ngrd_hist');
-  if(!h) return [];
+  if(!h){_histCache=[];_histVerSeen=ver;_histDeletedSeen=deletedRaw;return _histCache;}
   if(!Array.isArray(h)){
     h=Object.values(h).filter(function(x){return x&&typeof x==='object';});
     if(h.length>0) LS.set('ngrd_hist',h);
   }
   // Filter out blacklisted (deleted) entries
-  var deleted=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
-  return deleted.length>0?(h||[]).filter(function(e){return deleted.indexOf(String(e.id))<0;}):(h||[]);
+  var deleted=JSON.parse(deletedRaw);
+  var result=deleted.length>0?(h||[]).filter(function(e){return deleted.indexOf(String(e.id))<0;}):(h||[]);
+  _histCache=result;_histVerSeen=ver;_histDeletedSeen=deletedRaw;
+  return _histCache;
 }
 function setHist(h){
   // Filter out blacklisted (deleted) entries
@@ -6018,15 +6024,25 @@ function viewQuot(id){
 }
 
 function approveQuot(id){
-  if(!confirm('Approve this quotation?')) return;
   var h=getHist();
   var idx=h.findIndex(function(e){return e.id===id;});
   if(idx<0) return;
+  var e0=h[idx];
+  // Check if closing has already passed BEFORE approving — catches the "approved after closing" complaint at the source
+  var expiredWarn='';
+  if(e0.closingDate){
+    var cd0=parseClosingDate(e0.closingDate);
+    if(cd0){
+      if(e0.closingTime){var tp0=e0.closingTime.split(':');cd0.setHours(parseInt(tp0[0])||0,parseInt(tp0[1])||0,0,0);}else{cd0.setHours(23,59,59,999);}
+      if(new Date()>cd0) expiredWarn='\n\n⛔ கவனம்! இந்த tender closing date/time ஏற்கனவே கழிஞ்சு போச்சு ('+e0.closingDate+(e0.closingTime?' '+e0.closingTime:'')+'). Approve பண்ணினாலும் Promise.lk-ல submit பண்ண முடியாது.';
+    }
+  }
+  if(!confirm('Approve this quotation?'+expiredWarn)) return;
   h[idx].status='approved';
   h[idx].approvedBy=CU.name;
   h[idx].approvedAt=new Date().toLocaleString('en-LK');
   setHist(h);
-  addLog('Approved: '+(h[idx].eqNo||h[idx].refNo));
+  addLog('Approved: '+(h[idx].eqNo||h[idx].refNo)+(expiredWarn?' (⚠️ approved after closing)':''));
   showToast('✅ Approved!','t-s');
   renderDashboard();
   // Auto-generate the quotation PDF + notify the assigned Submit staff on WhatsApp
