@@ -4710,7 +4710,7 @@ function renderHistory(){
   var truncated=totalMatch>window._histRenderLimit;
   var hShown=truncated?h.slice(0,window._histRenderLimit):h;
   c.innerHTML=hShown.map(e=>{
-    const sb=(e.status==='approved'&&e.notSubmittedInfo)?'<span class="status-badge sb-rejected">⚠️ Approved (Not Submitted)</span>':getStatusBadge(e.status);
+    const sb=e.notSubmittedInfo?'<span class="status-badge sb-rejected">⚠️ '+((e.status||'draft').charAt(0).toUpperCase()+(e.status||'draft').slice(1))+' (Not Submitted)</span>':getStatusBadge(e.status);
     const coBadge=e.company==='puspha'?
       '<span style="background:#FFFBEB;color:#B45309;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #FCD34D;margin-left:4px;">PUSH</span>':
       '<span style="background:#EFF6FF;color:#1D4ED8;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #BFDBFE;margin-left:4px;">NGRD</span>';
@@ -6087,7 +6087,7 @@ function renderDashboard(){
       allEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">No quotations yet</div>';
     } else {
       allEl.innerHTML=h.slice(0,20).map(function(e){
-        var sb=(e.status==='approved'&&e.notSubmittedInfo)?'<span class="status-badge sb-rejected">⚠️ Approved (Not Submitted)</span>':getStatusBadge(e.status);
+        var sb=e.notSubmittedInfo?'<span class="status-badge sb-rejected">⚠️ '+((e.status||'draft').charAt(0).toUpperCase()+(e.status||'draft').slice(1))+' (Not Submitted)</span>':getStatusBadge(e.status);
     var coBadge=e.company==='puspha'?
       '<span style="background:#FFFBEB;color:#B45309;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #FCD34D;margin-left:4px;">PUSH</span>':
       '<span style="background:#EFF6FF;color:#1D4ED8;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #BFDBFE;margin-left:4px;">NGRD</span>';
