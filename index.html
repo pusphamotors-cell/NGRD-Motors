@@ -664,6 +664,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                   ➡️ Next Step
                 </button>
               </div>
+              <button class="btn btn-outline" onclick="aiReviewQuotation()" style="border-color:#7B3FA0;color:#7B3FA0;font-weight:700;">🤖 AI Review — Save/Submit முன்னாடி check பண்ணு</button>
               <button class="btn btn-green" id="save-btn" onclick="saveToHistory()">💾 Save</button>
               <button class="btn btn-navy" id="submit-btn" onclick="submitToPromise()" style="background:#2060a0;">📤 Submit to Promise.lk</button>
               <button class="btn btn-outline" onclick="resetAll()">🔄 New</button>
@@ -3553,6 +3554,76 @@ function _reorderByTag(matches, cheStr){
   return matches.map(function(m,i){return {m:m,i:i,r:rank(m)};})
     .sort(function(a,b){return a.r-b.r||a.i-b.i;})
     .map(function(x){return x.m;});
+}
+async function aiReviewQuotation(){
+  if(!curItems||!curItems.length){showToast('Items இல்ல, review பண்ண எதுவும் இல்ல!','t-e');return;}
+  var g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
+  var vehicle=g('f-vname'),vNo=g('f-vno'),entity=g('f-entity'),closingDate=g('f-close'),closingTime=g('f-close-time');
+  // ── LOCAL SANITY CHECKS (instant, no API needed) ──
+  var issues=[];
+  if(!vehicle) issues.push('🚗 Vehicle name காலி — fill பண்ணுங்க');
+  if(!closingDate) issues.push('📅 Closing Date காலி');
+  if(closingDate){
+    var cd=parseClosingDate(closingDate);
+    if(cd){
+      if(closingTime){var tp=closingTime.split(':');cd.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0);}else{cd.setHours(23,59,59,999);}
+      var now=new Date();
+      if(now>cd) issues.push('⛔ Closing date/time ஏற்கனவே கழிஞ்சு போச்சு!');
+      else if((cd-now)<24*3600*1000) issues.push('🚨 24 மணி நேரத்துக்குள் closing — urgent!');
+    }
+  }
+  var noPriceCount=0,lowMarginItems=[],descSeen={},dupCount=0;
+  curItems.forEach(function(item){
+    var key=(item.description||'').toLowerCase().trim();
+    if(key){ if(descSeen[key]) dupCount++; descSeen[key]=(descSeen[key]||0)+1; }
+    var hasPrice=item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});
+    if(!hasPrice) noPriceCount++;
+    (item.brandRows||[]).forEach(function(br){
+      var pp=parseFloat(br.purchasePrice)||0,sp=parseFloat(br.price)||0;
+      if(pp>0&&sp>0){
+        var m=((sp-pp)/pp)*100;
+        if(m<10) lowMarginItems.push({desc:item.description,m:m});
+      }
+    });
+  });
+  if(noPriceCount>0) issues.push('💰 '+noPriceCount+' items-க்கு price இன்னும் போடல');
+  if(dupCount>0) issues.push('🔁 '+dupCount+' duplicate item description(s) இருக்கு — check பண்ணுங்க');
+  if(lowMarginItems.length>0) issues.push('⚠️ '+lowMarginItems.length+' items low/negative margin-ல இருக்கு');
+
+  var popup=document.createElement('div');
+  popup.id='ai-review-popup';
+  popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:92vw;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3);';
+  var body='<div style="background:#7B3FA0;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">'
+    +'<div style="font-weight:700;font-size:14px;">🤖 AI Quotation Review</div>'
+    +'<span onclick="document.getElementById(\'ai-review-popup\').remove()" style="cursor:pointer;font-size:20px;opacity:.8;">✕</span></div>';
+  body+='<div style="padding:16px;" id="ai-review-body">';
+  body+='<div style="font-size:12px;font-weight:700;color:#7B3FA0;margin-bottom:8px;">🔍 Quick Checks</div>';
+  if(!issues.length){
+    body+='<div style="padding:10px;background:#F0FDF4;border:1px solid #86EFAC;border-radius:6px;color:#15803D;font-size:13px;font-weight:600;">✅ Local checks-ல எந்த problem-உம் இல்ல!</div>';
+  } else {
+    body+=issues.map(function(i){return '<div style="padding:8px 10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:5px;margin-bottom:6px;font-size:12px;color:#B22222;font-weight:600;">'+i+'</div>';}).join('');
+  }
+  body+='<div id="ai-review-llm" style="margin-top:14px;font-size:12px;color:#888;">🤖 AI Analysis load ஆகுது...</div>';
+  body+='</div>';
+  popup.innerHTML=body;
+  document.body.appendChild(popup);
+
+  var akey=(typeof getAPIKey==='function')?getAPIKey():'';
+  var llmEl=document.getElementById('ai-review-llm');
+  if(!akey){ if(llmEl) llmEl.innerHTML='<div style="color:#888;">ℹ️ AI Analysis-க்கு API key வேணும் (Backup/Restore page-ல set பண்ணுங்க). Local checks மேலேயே இருக்கு.</div>'; return; }
+  var itemSummary=curItems.slice(0,40).map(function(it,i){
+    var br=(it.brandRows&&it.brandRows[0])||{};
+    return (i+1)+'. '+(it.description||'')+' | Qty:'+it.qty+' | Brand:'+(br.brand||'-')+' | Cost:'+(br.purchasePrice||0)+' | Sell:'+(br.price||0);
+  }).join('\n');
+  var prompt='You are reviewing a Sri Lankan government tender spare-parts quotation before submission. Vehicle: '+vehicle+' '+vNo+', Entity: '+entity+', Closing: '+closingDate+' '+closingTime+'.\n\nITEMS:\n'+itemSummary+'\n\nGive a SHORT risk review (max 4 bullet points) in Tanglish (Tamil-English mix), focused on: unusual price patterns (e.g. one item priced very differently from similar items), obviously wrong brand/vehicle mismatches, or anything that looks like a data-entry mistake. If everything looks fine, just say so briefly. Do NOT repeat generic advice. Respond in plain text, no markdown, no JSON.';
+  try{
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:prompt}]})});
+    var data=await resp.json();
+    var txt=(data.content||[]).filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join('').trim();
+    if(llmEl) llmEl.innerHTML='<div style="font-size:12px;font-weight:700;color:#7B3FA0;margin-bottom:6px;">🤖 AI Analysis</div><div style="font-size:12px;color:#333;white-space:pre-line;background:#F5F3FF;padding:10px;border-radius:6px;border:1px solid #DDD6FE;">'+txt.replace(/</g,'&lt;')+'</div>';
+  }catch(e){
+    if(llmEl) llmEl.innerHTML='<div style="color:#B22222;font-size:12px;">AI error: '+(e.message||e)+'</div>';
+  }
 }
 async function aiAutoPrice(){
   if(!curItems||!curItems.length){showToast('No items in quotation!','t-e');return;}
