@@ -701,6 +701,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 <option value="submitted">📤 Submitted</option>
                 <option value="awarded">🏆 Awarded</option>
                 <option value="rejected">❌ Rejected</option>
+                <option value="missed">🚫 Missed</option>
               </select>
               <select id="hist-vehicle-filter" onchange="renderHistory()" style="padding:7px 12px;background:#F5F3FF;color:#6D28D9;border:1.5px solid #DDD6FE;border-radius:20px;font-size:12px;font-weight:600;outline:none;font-family:var(--fb);cursor:pointer;"><option value="">🚗 All Vehicles</option></select>
               <select id="hist-closing-filter" onchange="renderHistory()" style="padding:7px 12px;background:#FFF7ED;color:#C2410C;border:1.5px solid #FED7AA;border-radius:20px;font-size:12px;font-weight:600;outline:none;cursor:pointer;">
@@ -856,8 +857,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
       <!-- ═ DASHBOARD ═ -->
       <div id="page-dashboard" style="display:none;">
+        <div id="db-urgent24-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-digest-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-followup-banner" style="display:none;margin-bottom:14px;"></div>
+        <div id="db-missed-banner" style="display:none;margin-bottom:14px;"></div>
         <!-- LETTERS HUB (permission-gated) -->
         <div id="db-letters-hub" style="display:none;margin-bottom:18px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -2593,6 +2596,81 @@ function dismissFollowupReminder(){
   var banner=document.getElementById('db-followup-banner');if(banner)banner.style.display='none';
 }
 
+// ── URGENT 24H: Approved but NOT submitted, closing within 24 hours ──
+function checkUrgent24hReminder(){
+  var banner=document.getElementById('db-urgent24-banner');if(!banner)return;
+  var h=getHist();
+  var now=new Date();
+  var urgent=h.filter(function(e){
+    if(e.status!=='approved') return false; // already submitted/awarded/etc → not urgent
+    if(!e.closingDate) return false;
+    var cd=parseClosingDate(e.closingDate);if(!cd) return false;
+    if(e.closingTime){var tp=e.closingTime.split(':');cd.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0);}else{cd.setHours(23,59,59,999);}
+    var hoursLeft=(cd-now)/3600000;
+    return hoursLeft>-1&&hoursLeft<=24; // closing within next 24h, or just closed in the last hour
+  });
+  if(!urgent.length){banner.style.display='none';return;}
+  banner.style.display='block';
+  var rows=urgent.map(function(e){return '• '+(e.vehicle||'')+' — '+(e.eqNo||e.refNo||'')+' ('+(e.entity||'')+')';}).join('\n');
+  banner.innerHTML='<div style="background:linear-gradient(135deg,#B22222,#7A1010);color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+    +'<div><div style="font-size:14px;font-weight:700;">🚨 '+urgent.length+' Approved quotation(s) — 24 மணி நேரத்துக்குள் closing, இன்னும் SUBMIT ஆகல!</div><div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">உடனே Submit team-க்கு தெரியப்படுத்துங்க</div></div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick=\'sendUrgent24WA(\"'+encodeURIComponent(rows)+'\")\' style="padding:9px 16px;background:#fff;color:#B22222;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">📲 Alert Now</button>'
+    +'<button onclick="showPage(\'history\');document.getElementById(\'hist-status-filter\').value=\'approved\';renderHistory();" style="padding:9px 16px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">📂 பாருங்க</button>'
+    +'</div></div>';
+}
+function sendUrgent24WA(encodedRows){
+  var text='🚨 *URGENT — 24hr-க்குள் Closing, Submit ஆகல!*\n\n'+decodeURIComponent(encodedRows)+'\n\n⚠️ இப்பவே Promise.lk-ல் Submit பண்ணுங்க!\n🔗 ngrd-motors.vercel.app';
+  window.open('https://wa.me/'+ADMIN_WA+'?text='+encodeURIComponent(text),'_blank');
+  showToast('📲 Urgent alert ready!','t-s');
+}
+
+// ── MISSED: Approved, closing date already passed, never submitted → offer bulk cleanup ──
+function checkMissedApprovedReminder(){
+  var banner=document.getElementById('db-missed-banner');if(!banner)return;
+  if(!CU||CU.role!=='admin'){banner.style.display='none';return;}
+  var h=getHist();
+  var now=new Date();
+  var missed=h.filter(function(e){
+    if(e.status!=='approved') return false;
+    if(!e.closingDate) return false;
+    var cd=parseClosingDate(e.closingDate);if(!cd) return false;
+    if(e.closingTime){var tp=e.closingTime.split(':');cd.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0);}else{cd.setHours(23,59,59,999);}
+    return now>cd;
+  });
+  if(!missed.length){banner.style.display='none';return;}
+  banner.style.display='block';
+  banner.innerHTML='<div style="background:linear-gradient(135deg,#5A2A0A,#3A1A05);color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+    +'<div><div style="font-size:14px;font-weight:700;">🚫 '+missed.length+' Approved quotation(s) — closing கழிஞ்சும் Submit ஆகல (Missed)</div><div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">Clean பண்ணி "Missed" status-க்கு மாற்றலாம் — data delete ஆகாது</div></div>'
+    +'<button onclick="markAllMissed()" style="padding:9px 16px;background:#fff;color:#5A2A0A;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">🚫 Mark All Missed ('+missed.length+')</button>'
+    +'</div>';
+}
+function markAllMissed(){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
+  var h=getHist();
+  var now=new Date();
+  var ids=h.filter(function(e){
+    if(e.status!=='approved') return false;
+    if(!e.closingDate) return false;
+    var cd=parseClosingDate(e.closingDate);if(!cd) return false;
+    if(e.closingTime){var tp=e.closingTime.split(':');cd.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0);}else{cd.setHours(23,59,59,999);}
+    return now>cd;
+  }).map(function(e){return e.id;});
+  if(!ids.length){showToast('Missed entries இல்லை!','t-i');return;}
+  if(!confirm('🚫 '+ids.length+' Approved quotations-ஐ "Missed"-ஆ mark பண்ணனுமா?\n\nஇவை Approve ஆனது, ஆனா closing date கழிஞ்சும் Submit ஆகல. Data delete ஆகாது, status மட்டும் மாறும்.')) return;
+  var when=new Date().toLocaleString('en-LK');
+  h.forEach(function(e){
+    if(ids.indexOf(e.id)<0) return;
+    e.status='missed';
+    e.missedBy=CU.name;
+    e.missedAt=when;
+  });
+  setHist(h);
+  addLog('Bulk marked '+ids.length+' Approved-but-expired entries as MISSED by '+CU.name);
+  showToast('🚫 '+ids.length+' entries marked Missed!','t-i');
+  renderDashboard();
+}
+
 function checkWeeklyDigestReminder(){
   var banner=document.getElementById('db-digest-banner');if(!banner)return;
   var todayStr=new Date().toLocaleDateString('en-LK');
@@ -4274,7 +4352,7 @@ function markNotSubmitted(id){
 
 function autoFixStatus(hist){
   var changed=false;
-  var FINAL=['submitted','approved','awarded','rejected'];
+  var FINAL=['submitted','approved','awarded','rejected','missed'];
   var _today=new Date();_today.setHours(0,0,0,0);
   hist.forEach(function(e){
     if(!e.status) e.status='draft';
@@ -4679,7 +4757,7 @@ function renderHistory(){
 }
 
 function getStatusBadge(status){
-  const map={draft:'sb-draft 📝 Draft',submitted:'sb-submitted 📤 Submitted',awarded:'sb-awarded ✅ Awarded',rejected:'sb-rejected ❌ Rejected',pending:'sb-pending ⏳ Pending',approved:'sb-approved ✅ Approved',assigned:'sb-pending 📋 Assigned'};
+  const map={draft:'sb-draft 📝 Draft',submitted:'sb-submitted 📤 Submitted',awarded:'sb-awarded ✅ Awarded',rejected:'sb-rejected ❌ Rejected',pending:'sb-pending ⏳ Pending',approved:'sb-approved ✅ Approved',assigned:'sb-pending 📋 Assigned',missed:'sb-rejected 🚫 Missed'};
   const val=map[status||'draft']||'sb-draft 📝 Draft';
   const [cls,...rest]=val.split(' ');
   return `<span class="status-badge ${cls}">${rest.join(' ')}</span>`;
@@ -6022,6 +6100,8 @@ function renderDashboard(){
   }
   if(typeof checkWeeklyDigestReminder==='function') checkWeeklyDigestReminder();
   if(typeof checkResultFollowupReminder==='function') checkResultFollowupReminder();
+  if(typeof checkUrgent24hReminder==='function') checkUrgent24hReminder();
+  if(typeof checkMissedApprovedReminder==='function') checkMissedApprovedReminder();
 }
 
 function viewQuot(id){
