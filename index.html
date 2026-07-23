@@ -552,6 +552,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <div class="form-field"><label>Engine No.</label><input id="f-eng"></div>
               <div class="form-field"><label>Chassis No.</label><input id="f-chas"></div>
               <div class="form-field"><label>Closing Date</label><input id="f-close"></div>
+              <div class="form-field"><label>Closing Time</label><input id="f-close-time" type="time"></div>
               <div class="form-field"><label>Validity Period</label><input id="f-valid"></div>
               <div class="form-field"><label>Delivery Period</label><input id="f-deliv"></div>
               <div class="form-field"><label>Destination</label><input id="f-dest"></div>
@@ -2906,7 +2907,7 @@ function fillForm(d){
     _vnEl.value=d.vehicleName;
   }
   s('f-vno',d.vehicleNo);s('f-eng',d.engineNo);s('f-chas',d.chassisNo);
-  s('f-close',d.closingDate);s('f-valid',d.validityPeriod);s('f-deliv',d.deliveryPeriod);s('f-dest',d.destination);
+  s('f-close',d.closingDate);s('f-close-time',d.closingTime);s('f-valid',d.validityPeriod);s('f-deliv',d.deliveryPeriod);s('f-dest',d.destination);
 }
 function updateQuotStatus(){curStatus=document.getElementById('quot-status')?.value||'draft';}
 
@@ -3853,7 +3854,7 @@ function saveToHistory(){
       if(quotStatus==='approved'&&!orig.steps.approved){orig.steps.approved={by:CU.name,role:CU.role,at:now};}
       hist[idx]=Object.assign({},orig,{
         refNo:refNo,eqNo:eqNo,vehicle:g('f-vname'),vNo:g('f-vno'),
-        entity:g('f-entity'),title:g('f-title'),closingDate:g('f-close'),
+        entity:g('f-entity'),title:g('f-title'),closingDate:g('f-close'),closingTime:g('f-close-time'),
         validityPeriod:g('f-valid'),deliveryPeriod:g('f-deliv'),destination:g('f-dest'),
         engineNo:g('f-eng'),chassisNo:g('f-chas'),
         items:JSON.parse(JSON.stringify(curItems)),
@@ -3922,7 +3923,7 @@ function saveToHistory(){
   var entry={
     id:Date.now(),date:now,savedBy:CU.name,owner:CU.username,
     refNo:refNo,eqNo:eqNo,vehicle:g('f-vname'),vNo:g('f-vno'),
-    entity:g('f-entity'),title:g('f-title'),closingDate:g('f-close'),
+    entity:g('f-entity'),title:g('f-title'),closingDate:g('f-close'),closingTime:g('f-close-time'),
     validityPeriod:g('f-valid'),deliveryPeriod:g('f-deliv'),destination:g('f-dest'),
     engineNo:g('f-eng'),chassisNo:g('f-chas'),
     items:JSON.parse(JSON.stringify(curItems)),
@@ -3978,13 +3979,53 @@ function markSubmitted(id){
   }
   if(!confirm('Promise.lk-ல் submit பண்ணிவிட்டீர்களா?')) return;
   if(!entry.steps) entry.steps={};
-  entry.steps.submitted={by:CU.name,role:CU.role,at:new Date().toLocaleString('en-LK')};
+  var _now=new Date();
+  // Auto on-time/late check against Closing Date+Time (server/device clock — not editable by staff)
+  var _late=null;
+  if(entry.closingDate){
+    var _cd=parseClosingDate(entry.closingDate);
+    if(_cd){
+      if(entry.closingTime){
+        var _tp=entry.closingTime.split(':');
+        _cd.setHours(parseInt(_tp[0])||0,parseInt(_tp[1])||0,0,0);
+      } else {
+        _cd.setHours(23,59,59,999); // no time given → end of day
+      }
+      _late=_now>_cd;
+    }
+  }
+  entry.steps.submitted={by:CU.name,role:CU.role,at:_now.toLocaleString('en-LK'),late:_late};
   entry.status='submitted';
+  entry.notSubmittedInfo=null; // clear any earlier "not submitted" mark
   setHist(h);
   if(typeof fbWrite==='function') fbWrite('history',h);
   renderHistory();
-  addLog('Submitted: '+(entry.eqNo||entry.refNo)+' by '+CU.name);
-  showToast('✅ Submitted by '+CU.name+'!','t-s');
+  addLog('Submitted: '+(entry.eqNo||entry.refNo)+' by '+CU.name+(_late===true?' (LATE)':''));
+  showToast(_late===true?'⚠️ Submitted — but AFTER closing time!':'✅ Submitted by '+CU.name+'!',_late===true?'t-e':'t-s');
+}
+
+function markNotSubmitted(id){
+  if(!CU){showToast('⛔ Login required!','t-e');return;}
+  var h=getHist();var idx=h.findIndex(function(e){return e.id===id;});if(idx<0) return;
+  var entry=h[idx];
+  var isAdmin=CU.role==='admin';
+  var role=getRole();
+  if(!isAdmin&&!role.canSubmit){showToast('⛔ Submit permission இல்லை!','t-e');return;}
+  if(!isAdmin){
+    var co=entry.company||'ngrd';
+    var assignedSubmitter=getSubmitter(co);
+    if(assignedSubmitter&&assignedSubmitter!==CU.name){
+      showToast('⛔ '+co.toUpperCase()+' submitter: '+assignedSubmitter+' மட்டும்!','t-e');return;
+    }
+  }
+  var reason=prompt('❌ Submit ஆகல — காரணம் என்ன? (உதா: portal down, net issue, time miss)');
+  if(reason===null) return; // cancelled
+  entry.notSubmittedInfo={by:CU.name,role:CU.role,at:new Date().toLocaleString('en-LK'),reason:reason.trim()||'Reason not given'};
+  setHist(h);
+  if(typeof fbWrite==='function') fbWrite('history',h);
+  renderHistory();
+  addLog('Not Submitted: '+(entry.eqNo||entry.refNo)+' by '+CU.name+' — '+(reason||''));
+  showToast('❌ Not Submitted — noted with reason.','t-e');
 }
 
 function autoFixStatus(hist){
@@ -4352,7 +4393,8 @@ function renderHistory(){
         <div style="font-size:10px;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
           ${e.steps&&e.steps.uploaded?'<span style="background:#EFF6FF;color:#1D4ED8;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #BFDBFE;">📤 '+e.steps.uploaded.by+'</span>':''}
           ${e.steps&&e.steps.priced?'<span style="background:#F0FDF4;color:#15803D;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #86EFAC;">💰 '+e.steps.priced.by+'</span>':'<span style="background:#FEF2F2;color:#DC2626;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #FECACA;">⚠️ No Price</span>'}
-          ${e.steps&&e.steps.submitted?'<span style="background:#F0FDF4;color:#15803D;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #86EFAC;">✅ '+e.steps.submitted.by+'</span>':''}
+          ${e.steps&&e.steps.submitted?'<span style="background:#F0FDF4;color:#15803D;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #86EFAC;">✅ '+e.steps.submitted.by+(e.steps.submitted.late===true?' ⚠️ LATE':e.steps.submitted.late===false?' • On Time':'')+'</span>':''}
+          ${e.notSubmittedInfo?'<span style="background:#FEF2F2;color:#B22222;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid #FECACA;" title="'+(e.notSubmittedInfo.at||'')+'">❌ Not Submitted — '+(e.notSubmittedInfo.reason||'')+' ('+(e.notSubmittedInfo.by||'')+')</span>':''}
         </div>
       </div>
       <div class="hist-date">${e.date}</div>
@@ -4372,7 +4414,7 @@ function renderHistory(){
           // Status is the truth — steps.submitted alone should NOT block!
           var submittedBy=e.steps&&e.steps.submitted?e.steps.submitted.by:'';
           return (canSub&&isAssigned&&!alreadyDone)?
-            '<button class="hist-btn" onclick="markSubmitted('+e.id+')" title="Mark Submitted" style="color:#1A6B3C;">📤</button>':
+            '<button class="hist-btn" onclick="markSubmitted('+e.id+')" title="Mark Submitted" style="color:#1A6B3C;">📤</button><button class="hist-btn" onclick="markNotSubmitted('+e.id+')" title="Mark Not Submitted (with reason)" style="color:#B22222;">🚫</button>':
             '<button class="hist-btn" style="color:'+(e.steps&&e.steps.submitted?'#1A6B3C':'#ccc')+';opacity:.4;cursor:default;" title="'+(e.steps&&e.steps.submitted?'✅ Submitted: '+submittedBy:'Not assigned')+'" disabled>📤</button>';
         })()}
         <button class="hist-btn" onclick="reExport(${e.id})">📥Q</button>
@@ -4462,7 +4504,7 @@ function loadHist(id){
   showPage('new');
   fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,
     vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,
-    closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});
+    closingDate:e.closingDate,closingTime:e.closingTime,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});
   renderItems(e.items||[]);
   const qs=document.getElementById('quot-status');if(qs)qs.value=e.status||'draft';
   curStatus=e.status||'draft';
@@ -4597,7 +4639,7 @@ function openQV(id){
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Ref No:</b> ${e.refNo||'—'}</div>
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>e-Q No:</b> ${e.eqNo||'—'}</div>
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Vehicle:</b> ${e.vehicle||'—'} (${e.vNo||'—'})</div>
-      <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Closing:</b> ${e.closingDate||'—'}</div>
+      <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Closing:</b> ${e.closingDate||'—'}${e.closingTime?' '+e.closingTime:''}</div>
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Status:</b> ${getStatusBadge(e.status)}</div>
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Total:</b> <span style="font-weight:700;color:#0D1B2A;">${lkr(e.grandTotal||0)}</span></div>
     </div>
