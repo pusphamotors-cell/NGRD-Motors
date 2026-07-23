@@ -664,7 +664,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                   ➡️ Next Step
                 </button>
               </div>
-              <button class="btn btn-outline" onclick="aiReviewQuotation()" style="border-color:#7B3FA0;color:#7B3FA0;font-weight:700;">🤖 AI Review — Save/Submit முன்னாடி check பண்ணு</button>
+              <button class="btn btn-outline" id="ai-review-btn" onclick="aiReviewQuotation()" style="display:none;border-color:#7B3FA0;color:#7B3FA0;font-weight:700;">🤖 AI Review — Save/Submit முன்னாடி check பண்ணு</button>
               <button class="btn btn-green" id="save-btn" onclick="saveToHistory()">💾 Save</button>
               <button class="btn btn-navy" id="submit-btn" onclick="submitToPromise()" style="background:#2060a0;">📤 Submit to Promise.lk</button>
               <button class="btn btn-outline" onclick="resetAll()">🔄 New</button>
@@ -1643,6 +1643,7 @@ function initApp(){
   vt.textContent='🚗 '+vehicleLabel(CU);
   vt.style.display='inline-block';
   document.getElementById('admin-nav').style.display=CU.role==='admin'?'block':'none';
+  var _arBtn=document.getElementById('ai-review-btn');if(_arBtn)_arBtn.style.display=(CU.role==='admin')?'block':'none';
   applyExtVisibility();
   startSessionTimer();
   if(typeof startServerTimeClock==='function') startServerTimeClock();
@@ -3556,6 +3557,7 @@ function _reorderByTag(matches, cheStr){
     .map(function(x){return x.m;});
 }
 async function aiReviewQuotation(){
+  if(!CU||CU.role!=='admin'){showToast('⛔ AI Review — Admin மட்டும்!','t-e');return;}
   if(!curItems||!curItems.length){showToast('Items இல்ல, review பண்ண எதுவும் இல்ல!','t-e');return;}
   var g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
   var vehicle=g('f-vname'),vNo=g('f-vno'),entity=g('f-entity'),closingDate=g('f-close'),closingTime=g('f-close-time');
@@ -3615,7 +3617,7 @@ async function aiReviewQuotation(){
     var br=(it.brandRows&&it.brandRows[0])||{};
     return (i+1)+'. '+(it.description||'')+' | Qty:'+it.qty+' | Brand:'+(br.brand||'-')+' | Cost:'+(br.purchasePrice||0)+' | Sell:'+(br.price||0);
   }).join('\n');
-  var prompt='You are reviewing a Sri Lankan government tender spare-parts quotation before submission. Vehicle: '+vehicle+' '+vNo+', Entity: '+entity+', Closing: '+closingDate+' '+closingTime+'.\n\nITEMS:\n'+itemSummary+'\n\nGive a SHORT risk review (max 4 bullet points) in Tanglish (Tamil-English mix), focused on: unusual price patterns (e.g. one item priced very differently from similar items), obviously wrong brand/vehicle mismatches, or anything that looks like a data-entry mistake. If everything looks fine, just say so briefly. Do NOT repeat generic advice. Respond in plain text, no markdown, no JSON.';
+  var prompt='You are reviewing a Sri Lankan government tender spare-parts quotation before submission. Vehicle: '+vehicle+' '+vNo+', Entity: '+entity+', Closing: '+closingDate+' '+closingTime+'.\n\nITEMS:\n'+itemSummary+'\n\nGive a SHORT risk review (max 4 bullet points), focused on: unusual price patterns (e.g. one item priced very differently from similar items), obviously wrong brand/vehicle mismatches, or anything that looks like a data-entry mistake. If everything looks fine, just say so briefly. Do NOT repeat generic advice.\n\nIMPORTANT: Write your response in proper Tamil script (தமிழ் எழுத்துக்களில்) — full Tamil sentences, not romanized/Tanglish. Part names, brand names, and numbers can stay in English since they are technical terms, but all sentence structure and explanation must be in Tamil. Respond in plain text, no markdown, no JSON.';
   try{
     var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:prompt}]})});
     var data=await resp.json();
