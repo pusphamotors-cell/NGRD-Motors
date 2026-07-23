@@ -1990,6 +1990,9 @@ function loadExtractedData(parsed){
       reqBrand:_reqBrand, // Explicit reqBrand field
       unitPrice:_brs[0].price||0,brandRows:_brs};
   });
+  // Stash the ORIGINAL PDF-extracted item list — used later by AI Review to detect
+  // if items were accidentally deleted before Save/Submit.
+  window._originalItemList=parsed.items.map(function(item,i){return {itemNo:item.itemNo||(i+1),description:(item.description||'').trim()};});
   renderItems(curItems);setStep(3);
   if(st){st.style.cssText='';st.className='ai-status success';}
   if(stx) stx.innerHTML='✅ '+curItems.length+' items extracted!';
@@ -3592,6 +3595,62 @@ async function aiReviewQuotation(){
   if(dupCount>0) issues.push('🔁 '+dupCount+' duplicate item description(s) இருக்கு — check பண்ணுங்க');
   if(lowMarginItems.length>0) issues.push('⚠️ '+lowMarginItems.length+' items low/negative margin-ல இருக்கு');
 
+  // ── #2 MISSING ITEMS CHECK — compare against originally AI-extracted PDF item list ──
+  var missingItems=[];
+  if(window._originalItemList&&window._originalItemList.length){
+    var curDescSet={};
+    curItems.forEach(function(it){var k=(it.description||'').toLowerCase().trim();if(k)curDescSet[k]=true;});
+    window._originalItemList.forEach(function(orig){
+      var k=(orig.description||'').toLowerCase().trim();
+      if(k&&!curDescSet[k]) missingItems.push(orig);
+    });
+    if(missingItems.length>0) issues.push('📋 PDF-ல இருந்த '+missingItems.length+' item(s) இப்போ இந்த quotation-ல இல்ல — accidental delete-ஆ இருக்கலாம்');
+  }
+
+  // ── #1 PRICE HISTORY CROSS-CHECK — compare current purchase price vs last known purchase price ──
+  var priceDeviations=[];
+  try{
+    var histAll=getHist();
+    curItems.forEach(function(item){
+      (item.brandRows||[]).forEach(function(br){
+        var pp=parseFloat(br.purchasePrice)||0;
+        if(pp<=0) return;
+        var pastPrices=[];
+        histAll.forEach(function(e){
+          if((e.vehicle||'').toLowerCase().trim()!==(vehicle||'').toLowerCase().trim()) return;
+          (e.items||[]).forEach(function(it2){
+            if((it2.description||'').toLowerCase().trim()!==(item.description||'').toLowerCase().trim()) return;
+            (it2.brandRows||[]).forEach(function(br2){
+              if((br2.brand||'').toLowerCase().trim()===(br.brand||'').toLowerCase().trim()&&parseFloat(br2.purchasePrice)>0){
+                pastPrices.push(parseFloat(br2.purchasePrice));
+              }
+            });
+          });
+        });
+        if(pastPrices.length){
+          var avgPast=pastPrices.reduce(function(s,x){return s+x;},0)/pastPrices.length;
+          var devPct=((pp-avgPast)/avgPast)*100;
+          if(Math.abs(devPct)>=20){
+            priceDeviations.push({desc:item.description,brand:br.brand,pp:pp,avgPast:avgPast,devPct:devPct});
+          }
+        }
+      });
+    });
+  }catch(_e){}
+  if(priceDeviations.length>0) issues.push('📈 '+priceDeviations.length+' items-ஓட cost price, முந்தைய purchase average-ஐ விட 20%+ வித்யாசமா இருக்கு');
+
+  // ── #3 WIN/LOSS PATTERN for this entity ──
+  var entityHistory=null;
+  if(entity){
+    var pastForEntity=getHist().filter(function(e){return (e.entity||'').toLowerCase().trim()===entity.toLowerCase().trim()&&['awarded','rejected'].indexOf(e.status)>=0;});
+    if(pastForEntity.length){
+      var won=pastForEntity.filter(function(e){return e.status==='awarded';}).length;
+      var lost=pastForEntity.filter(function(e){return e.status==='rejected';}).length;
+      var lossReasons=pastForEntity.filter(function(e){return e.lossReason;}).map(function(e){return e.lossReason;});
+      entityHistory={total:pastForEntity.length,won:won,lost:lost,reasons:lossReasons};
+    }
+  }
+
   var popup=document.createElement('div');
   popup.id='ai-review-popup';
   popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:92vw;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3);';
@@ -3599,11 +3658,23 @@ async function aiReviewQuotation(){
     +'<div style="font-weight:700;font-size:14px;">🤖 AI Quotation Review</div>'
     +'<span onclick="document.getElementById(\'ai-review-popup\').remove()" style="cursor:pointer;font-size:20px;opacity:.8;">✕</span></div>';
   body+='<div style="padding:16px;" id="ai-review-body">';
+  body+='<div id="ai-review-risk"></div>';
   body+='<div style="font-size:12px;font-weight:700;color:#7B3FA0;margin-bottom:8px;">🔍 Quick Checks</div>';
   if(!issues.length){
     body+='<div style="padding:10px;background:#F0FDF4;border:1px solid #86EFAC;border-radius:6px;color:#15803D;font-size:13px;font-weight:600;">✅ Local checks-ல எந்த problem-உம் இல்ல!</div>';
   } else {
     body+=issues.map(function(i){return '<div style="padding:8px 10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:5px;margin-bottom:6px;font-size:12px;color:#B22222;font-weight:600;">'+i+'</div>';}).join('');
+  }
+  if(priceDeviations.length){
+    body+='<div style="font-size:12px;font-weight:700;color:#7B3FA0;margin:12px 0 6px;">📈 Price History Comparison</div>';
+    body+=priceDeviations.slice(0,6).map(function(d){
+      return '<div style="font-size:11px;padding:6px 8px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:5px;margin-bottom:4px;">'+(d.desc||'')+' ('+(d.brand||'')+'): இப்போ '+lkr(d.pp)+' — முன்னாடி average '+lkr(d.avgPast)+' ('+(d.devPct>0?'+':'')+d.devPct.toFixed(0)+'%)</div>';
+    }).join('');
+  }
+  if(entityHistory){
+    body+='<div style="font-size:12px;font-weight:700;color:#7B3FA0;margin:12px 0 6px;">🏆 '+entity+' — முந்தைய Track Record</div>';
+    body+='<div style="font-size:11px;padding:8px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:5px;">Total: '+entityHistory.total+' &nbsp;|&nbsp; Won: '+entityHistory.won+' &nbsp;|&nbsp; Lost: '+entityHistory.lost
+      +(entityHistory.reasons.length?('<br>Loss Reasons: '+entityHistory.reasons.slice(0,3).join(', ')):'')+'</div>';
   }
   body+='<div id="ai-review-llm" style="margin-top:14px;font-size:12px;color:#888;">🤖 AI Analysis load ஆகுது...</div>';
   body+='</div>';
@@ -3612,16 +3683,33 @@ async function aiReviewQuotation(){
 
   var akey=(typeof getAPIKey==='function')?getAPIKey():'';
   var llmEl=document.getElementById('ai-review-llm');
+  var riskEl=document.getElementById('ai-review-risk');
+  function showRiskBadge(level){
+    if(!riskEl) return;
+    var map={LOW:['#F0FDF4','#15803D','#86EFAC','🟢 LOW RISK'],MEDIUM:['#FFFBEB','#B45309','#FCD34D','🟡 MEDIUM RISK'],HIGH:['#FEF2F2','#B22222','#FECACA','🔴 HIGH RISK']};
+    var m=map[level]||null;if(!m)return;
+    riskEl.innerHTML='<div style="text-align:center;padding:10px;background:'+m[0]+';color:'+m[1]+';border:1.5px solid '+m[2]+';border-radius:8px;font-weight:800;font-size:15px;margin-bottom:12px;">'+m[3]+'</div>';
+  }
+  // Fallback local risk score (used if AI unavailable, or as a floor under the AI's own assessment)
+  var localRisk=(issues.some(function(i){return i.indexOf('⛔')>=0;})||priceDeviations.length>2)?'HIGH':(issues.length>0||priceDeviations.length>0)?'MEDIUM':'LOW';
+  showRiskBadge(localRisk);
+
   if(!akey){ if(llmEl) llmEl.innerHTML='<div style="color:#888;">ℹ️ AI Analysis-க்கு API key வேணும் (Backup/Restore page-ல set பண்ணுங்க). Local checks மேலேயே இருக்கு.</div>'; return; }
   var itemSummary=curItems.slice(0,40).map(function(it,i){
     var br=(it.brandRows&&it.brandRows[0])||{};
     return (i+1)+'. '+(it.description||'')+' | Qty:'+it.qty+' | Brand:'+(br.brand||'-')+' | Cost:'+(br.purchasePrice||0)+' | Sell:'+(br.price||0);
   }).join('\n');
-  var prompt='You are reviewing a Sri Lankan government tender spare-parts quotation before submission. Vehicle: '+vehicle+' '+vNo+', Entity: '+entity+', Closing: '+closingDate+' '+closingTime+'.\n\nITEMS:\n'+itemSummary+'\n\nGive a SHORT risk review (max 4 bullet points), focused on: unusual price patterns (e.g. one item priced very differently from similar items), obviously wrong brand/vehicle mismatches, or anything that looks like a data-entry mistake. If everything looks fine, just say so briefly. Do NOT repeat generic advice.\n\nIMPORTANT: Write your response in proper Tamil script (தமிழ் எழுத்துக்களில்) — full Tamil sentences, not romanized/Tanglish. Part names, brand names, and numbers can stay in English since they are technical terms, but all sentence structure and explanation must be in Tamil. Respond in plain text, no markdown, no JSON.';
+  var extraContext='';
+  if(missingItems.length) extraContext+='\nPOSSIBLY MISSING ITEMS (were in original PDF, not in current list): '+missingItems.map(function(m){return m.description;}).join('; ')+'.';
+  if(priceDeviations.length) extraContext+='\nPRICE DEVIATIONS from past purchase average: '+priceDeviations.map(function(d){return d.desc+' now '+d.pp+' vs avg '+d.avgPast.toFixed(0);}).join('; ')+'.';
+  if(entityHistory) extraContext+='\nENTITY TRACK RECORD for '+entity+': '+entityHistory.won+' won, '+entityHistory.lost+' lost out of '+entityHistory.total+' past tenders. Loss reasons: '+(entityHistory.reasons.join(', ')||'none recorded')+'.';
+  var prompt='You are reviewing a Sri Lankan government tender spare-parts quotation before submission. Vehicle: '+vehicle+' '+vNo+', Entity: '+entity+', Closing: '+closingDate+' '+closingTime+'.\n\nITEMS:\n'+itemSummary+extraContext+'\n\nFirst line of your response MUST be exactly one of: "RISK: LOW", "RISK: MEDIUM", or "RISK: HIGH" — based on how risky this quotation looks before submission (missing items, price deviations, past loss patterns, low margins all raise risk).\n\nThen give a SHORT risk review (max 4 bullet points), focused on: unusual price patterns, missing items, entity loss-history relevance, obviously wrong brand/vehicle mismatches, or data-entry mistakes. If everything looks fine, just say so briefly. Do NOT repeat generic advice.\n\nIMPORTANT: Write your response (after the RISK line) in proper Tamil script (தமிழ் எழுத்துக்களில்) — full Tamil sentences, not romanized/Tanglish. Part names, brand names, and numbers can stay in English since they are technical terms, but all sentence structure and explanation must be in Tamil. Respond in plain text, no markdown, no JSON.';
   try{
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:prompt}]})});
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:prompt}]})});
     var data=await resp.json();
     var txt=(data.content||[]).filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join('').trim();
+    var riskMatch=txt.match(/^RISK:\s*(LOW|MEDIUM|HIGH)/i);
+    if(riskMatch){ showRiskBadge(riskMatch[1].toUpperCase()); txt=txt.replace(/^RISK:\s*(LOW|MEDIUM|HIGH)\s*/i,'').trim(); }
     if(llmEl) llmEl.innerHTML='<div style="font-size:12px;font-weight:700;color:#7B3FA0;margin-bottom:6px;">🤖 AI Analysis</div><div style="font-size:12px;color:#333;white-space:pre-line;background:#F5F3FF;padding:10px;border-radius:6px;border:1px solid #DDD6FE;">'+txt.replace(/</g,'&lt;')+'</div>';
   }catch(e){
     if(llmEl) llmEl.innerHTML='<div style="color:#B22222;font-size:12px;">AI error: '+(e.message||e)+'</div>';
@@ -4143,7 +4231,33 @@ function submitToPromise(){
   if(!curItems.length){showToast('Nothing to save','t-e');return;}
   var hasPrices=curItems.some(function(item){return item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;});});
   if(!hasPrices){showToast('⚠️ Prices enter பண்ணிட்டு Submit பண்ணுங்கள்!','t-e');return;}
-  if(!confirm('Promise.lk-ல் Submit பண்ணிவிட்டீர்களா? Submit ஆனதும் Staff edit பண்ண முடியாது!')) return;
+  // ── AUTO PRE-SUBMIT CHECK (fast, local, no API call) — catches obvious problems before they go out ──
+  var _g=function(id){return(document.getElementById(id)||{value:''}).value||'';};
+  var _closingDate=_g('f-close'),_closingTime=_g('f-close-time');
+  var _preIssues=[];
+  if(_closingDate){
+    var _cd=parseClosingDate(_closingDate);
+    if(_cd){
+      if(_closingTime){var _tp=_closingTime.split(':');_cd.setHours(parseInt(_tp[0])||0,parseInt(_tp[1])||0,0,0);}else{_cd.setHours(23,59,59,999);}
+      if(new Date()>_cd) _preIssues.push('⛔ Closing date/time ஏற்கனவே கழிஞ்சு போச்சு!');
+    }
+  }
+  var _noPriceCount=0,_descSeen={},_dupCount=0;
+  curItems.forEach(function(item){
+    var k=(item.description||'').toLowerCase().trim();
+    if(k){if(_descSeen[k])_dupCount++;_descSeen[k]=(_descSeen[k]||0)+1;}
+    if(!(item.brandRows&&item.brandRows.some(function(br){return parseFloat(br.price)>0;}))) _noPriceCount++;
+  });
+  if(_noPriceCount>0) _preIssues.push('💰 '+_noPriceCount+' items-க்கு price இல்ல');
+  if(_dupCount>0) _preIssues.push('🔁 '+_dupCount+' duplicate item(s) இருக்கு');
+  if(window._originalItemList&&window._originalItemList.length){
+    var _curSet={};curItems.forEach(function(it){var k=(it.description||'').toLowerCase().trim();if(k)_curSet[k]=true;});
+    var _missCount=window._originalItemList.filter(function(o){var k=(o.description||'').toLowerCase().trim();return k&&!_curSet[k];}).length;
+    if(_missCount>0) _preIssues.push('📋 PDF-ல இருந்த '+_missCount+' item(s) இப்போ இல்ல');
+  }
+  var _confirmMsg='Promise.lk-ல் Submit பண்ணிவிட்டீர்களா? Submit ஆனதும் Staff edit பண்ண முடியாது!';
+  if(_preIssues.length) _confirmMsg='⚠️ CHECK பண்ணுங்க இதுக்கு முன்னாடி:\n\n'+_preIssues.join('\n')+'\n\n---\n\n'+_confirmMsg;
+  if(!confirm(_confirmMsg)) return;
   curStatus='submitted';
   var qsEl=document.getElementById('quot-status');if(qsEl) qsEl.value='submitted';
   saveToHistory();
