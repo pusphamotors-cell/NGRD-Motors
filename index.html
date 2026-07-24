@@ -390,6 +390,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       <span id="top-vehicle" class="veh-badge" style="display:none;"></span>
       <span class="session-timer" id="session-timer"></span>
       <span id="server-time-badge" style="font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap;" title="Firebase server time — spoof பண்ண முடியாத real time">🕐 --:--:--</span>
+      <button onclick="manualRefreshSync()" id="manual-refresh-btn" title="மற்ற devices-ல update ஆனதை உடனே pull பண்ணு" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;">🔄</button>
       <div class="user-pill">
         <div class="uav" id="top-av">A</div>
         <span class="unm" id="top-nm">Admin</span>
@@ -1670,6 +1671,14 @@ function initApp(){
       // Run autoFixStatus after Firebase loads
       if(typeof autoFixStatus==='function'){var hh=getHist();autoFixStatus(hh);if(typeof renderDashboard==='function')renderDashboard();}
     },2500);
+    // PERIODIC RE-SYNC — pulls fresh data from other devices every 45s so counts/dashboard
+    // don't go stale while the app stays open (previously only synced once at login).
+    if(!window._periodicSyncStarted){
+      window._periodicSyncStarted=true;
+      setInterval(function(){
+        if(typeof initFirebaseSync==='function'&&typeof FB_READY!=='undefined'&&FB_READY) initFirebaseSync();
+      },45000);
+    }
   },1500);
   setTimeout(migrateOwnerField,3000);
   setTimeout(applyViewOnlyMode,600);
@@ -2685,6 +2694,24 @@ function markAllMissed(){
   renderDashboard();
 }
 
+function manualRefreshSync(){
+  var btn=document.getElementById('manual-refresh-btn');
+  if(btn){btn.textContent='⏳';btn.style.pointerEvents='none';}
+  if(typeof FB_READY==='undefined'||!FB_READY){
+    showToast('⚠️ Firebase connect ஆகல, சிறிது நேரம் கழிச்சு try பண்ணுங்க','t-e');
+    if(btn){btn.textContent='🔄';btn.style.pointerEvents='';}
+    return;
+  }
+  if(typeof initFirebaseSync==='function') initFirebaseSync();
+  setTimeout(function(){
+    if(typeof renderDashboard==='function') renderDashboard();
+    if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none') renderHistory();
+    updatePendingBadge();
+    showToast('✅ Latest data pull ஆச்சு!','t-s');
+    if(btn){btn.textContent='🔄';btn.style.pointerEvents='';}
+  },1200);
+}
+
 function checkWeeklyDigestReminder(){
   var banner=document.getElementById('db-digest-banner');if(!banner)return;
   var todayStr=new Date().toLocaleDateString('en-LK');
@@ -2917,6 +2944,7 @@ function initFirebaseSync(){
       // Auto fix submitted status before saving
       merged.forEach(function(e){if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){e.status='submitted';}});
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+      window.__fapmVer=(window.__fapmVer||0)+1; // invalidate getHist() cache — otherwise synced data doesn't show until reload
       fbWrite('history',merged);updatePendingBadge();
       if(typeof renderDashboard==='function')renderDashboard();
       if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none')renderHistory();
