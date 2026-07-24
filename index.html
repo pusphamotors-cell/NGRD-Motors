@@ -762,12 +762,13 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:#7A5800;">💡 <b>CSV Format:</b> A=Description, B=PartNo, C=Brand, D=Country, E=Price (Row 1 header)</div>
             <input type="text" id="price-search" placeholder="Search parts..." oninput="renderPriceList()"
               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;outline:none;margin-bottom:14px;">
-            <div style="display:flex;gap:8px;margin-top:8px;"><select id="price-vehicle-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-size:12px;outline:none;"><option value="">🚗 All Vehicles</option></select><select id="price-brand-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-size:12px;outline:none;"><option value="">🏷️ All Brands</option></select></div>
+            <div style="display:flex;gap:8px;margin-top:8px;"><select id="price-vehicle-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-size:12px;outline:none;"><option value="">🚗 All Vehicles</option></select><select id="price-brand-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-size:12px;outline:none;"><option value="">🏷️ All Brands</option></select><select id="price-category-filter" onchange="renderPriceList()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:3px;font-size:12px;outline:none;"><option value="">📂 All Categories</option></select></div>
             <div class="tbl-wrap">
               <table>
                 <thead><tr>
                   <th>Part Description</th>
                   <th style="width:90px">Vehicle</th>
+                  <th style="width:80px">Category</th>
                   <th style="width:90px">Part No.</th>
                   <th style="width:70px">Brand</th>
                   <th style="width:75px;background:#2a1a0a;color:#f0a050;">Purchase</th>
@@ -1281,6 +1282,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="form-field"><label>RH Part Number <span style="font-size:10px;color:#888;">(different from LH only)</span></label><input id="mp-partno-rh" placeholder="e.g. 51370-M55K00 (optional)"></div>
         <div class="form-field"><label>Brand</label><input id="mp-brand"></div>
         <div class="form-field"><label>Country</label><select id="mp-country"></select></div>
+        <div class="form-field"><label>📂 Category</label><select id="mp-category" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;"><option value="">— Auto-detect —</option><option>Engine</option><option>Brakes</option><option>Suspension</option><option>Transmission</option><option>Electrical</option><option>Electrical - AC</option><option>Cooling</option><option>Fuel System</option><option>Filters</option><option>Steering</option><option>Body</option><option>Belts & Hoses</option><option>Wheels & Tyres</option><option>Lighting</option><option>Others</option></select></div>
         <div class="form-field"><label>Purchase Price (LKR)</label><input id="mp-purchase" type="number" min="0" placeholder="Cost price" style="border-color:#c47020;background:#fff9f0;"></div>
         <div class="form-field"><label>Margin %</label><input id="mp-margin" type="number" min="0" max="999" placeholder="%" oninput="autoCalcPriceModal()" style="border-color:#2060a0;background:#f0f5ff;"></div>
         <div class="form-field"><label>Selling Price (LKR) *</label><input id="mp-price" type="number" min="0" oninput="autoCalcMarginModal()"></div>
@@ -5394,6 +5396,30 @@ function cleanDuplicatePrices(){
   if(typeof renderPriceList==='function') renderPriceList();
   showToast('🧹 '+removed+' duplicate price(s) removed!','t-s');
 }
+function categorizeItem(desc){
+  var d=(desc||'').toLowerCase();
+  var rules=[
+    ['Engine',['engine','piston','gasket','crank','camshaft','cylinder','valve','timing','head bolt','oil seal','ring set','bearing','flywheel']],
+    ['Brakes',['brake','disc','drum','caliper','master cylinder']],
+    ['Suspension',['shock','strut','spring','stabilizer','bush','ball joint','tie rod','arm assy','leaf spring','absorber']],
+    ['Transmission',['clutch','gearbox','propeller shaft','drive shaft','cv joint','universal joint','gear','differential']],
+    ['Electrical',['battery','alternator','starter','wire','switch','sensor','relay','fuse','bulb','horn','wiper motor','solenoid']],
+    ['Cooling',['radiator','water pump','fan','thermostat','coolant','hose']],
+    ['Fuel System',['fuel pump','fuel filter','injector','carburetor','fuel tank']],
+    ['Filters',['air filter','oil filter','fuel filter','filter element']],
+    ['Steering',['steering','power steering','rack','pitman']],
+    ['Body',['bumper','mirror','door','glass','windshield','panel','bonnet','fender','grille','handle']],
+    ['Electrical - AC',['ac compressor','condenser','evaporator','a/c','air con']],
+    ['Belts & Hoses',['belt','hose','v-belt','fan belt','timing belt']],
+    ['Wheels & Tyres',['tyre','tire','wheel','rim','hub']],
+    ['Lighting',['headlight','headlamp','tail light','indicator','fog lamp']]
+  ];
+  for(var i=0;i<rules.length;i++){
+    var cat=rules[i][0],kws=rules[i][1];
+    for(var j=0;j<kws.length;j++){ if(d.indexOf(kws[j])>=0) return cat; }
+  }
+  return 'Others';
+}
 function autoSavePrices(items){
   var vehicle=document.getElementById('f-vname')?document.getElementById('f-vname').value||'':'';
   var prices=getPrices();
@@ -5428,6 +5454,7 @@ function autoSavePrices(items){
         country:country,
         price:price,
         purchasePrice:purchasePrice,
+        category:(idx>=0&&prices[idx].category)?prices[idx].category:categorizeItem(item.description),
         date:new Date().toLocaleDateString('en-LK')
       };
 
@@ -5459,7 +5486,7 @@ function renderPriceList(){
   document.querySelectorAll('[data-admin-only="updated"],[data-admin-only="actions"]').forEach(function(el){el.style.display=canEdit?'':'none';});
   document.querySelectorAll('[data-admin-only="by"]').forEach(function(el){el.style.display=_isAdmin?'':'none';});
   const q=(document.getElementById('price-search')?.value||'').toLowerCase();
-  const vf_price=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();const bf_price=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();var pvSel=document.getElementById('price-vehicle-filter');if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}var pbSel=document.getElementById('price-brand-filter');if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}const filtered=prices.filter(function(p){var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;return tMatch&&pvMatch&&pbMatch;});
+  const vf_price=(document.getElementById('price-vehicle-filter')?.value||'').toLowerCase();const bf_price=(document.getElementById('price-brand-filter')?.value||'').toLowerCase();const cf_price=(document.getElementById('price-category-filter')?.value||'').toLowerCase();var pvSel=document.getElementById('price-vehicle-filter');if(pvSel&&pvSel.options.length<=1){[...new Set(prices.map(p=>p.vehicle||'').filter(v=>v))].sort().forEach(function(v){var o=document.createElement('option');o.value=v.toLowerCase();o.textContent='🚗 '+v;pvSel.appendChild(o);});}var pbSel=document.getElementById('price-brand-filter');if(pbSel&&pbSel.options.length<=1){[...new Set(prices.map(p=>p.brand||'').filter(b=>b))].sort().forEach(function(b){var o=document.createElement('option');o.value=b.toLowerCase();o.textContent='🏷️ '+b;pbSel.appendChild(o);});}var pcSel=document.getElementById('price-category-filter');if(pcSel&&pcSel.options.length<=1){[...new Set(prices.map(p=>p.category||categorizeItem(p.description)).filter(c=>c))].sort().forEach(function(c){var o=document.createElement('option');o.value=c.toLowerCase();o.textContent='📂 '+c;pcSel.appendChild(o);});}const filtered=prices.filter(function(p){var tMatch=!q||(p.description+p.partNo+p.brand+(p.vehicle||'')).toLowerCase().includes(q);var pvMatch=!vf_price||(p.vehicle||'').toLowerCase()===vf_price;var pbMatch=!bf_price||(p.brand||'').toLowerCase()===bf_price;var pcMatch=!cf_price||((p.category||categorizeItem(p.description))||'').toLowerCase()===cf_price;return tMatch&&pvMatch&&pbMatch&&pcMatch;});
   // Hide admin-only buttons
   var addBtn=document.querySelector('[onclick="openAddPrice()"]');
   if(addBtn) addBtn.style.display=canEdit?'':'none';
@@ -5493,6 +5520,7 @@ function renderPriceList(){
     var row='<tr'+(_sameGroup?' style="background:#fafbfd;"':'')+'>';
     row+='<td style="font-weight:600;font-size:12px;">'+(_sameGroup?'<span style="color:#ccc;padding-left:12px;">↳</span>':(p.description||'—'))+'</td>';
     row+='<td style="font-size:10px;color:var(--navy);">'+(p.vehicle||'<span style="color:var(--muted);">All</span>')+'</td>';
+    row+='<td>'+(_sameGroup?'':'<span style="background:#F0F4FA;color:#1A3A6B;padding:2px 6px;border-radius:8px;font-size:9px;font-weight:700;">'+(p.category||categorizeItem(p.description))+'</span>')+'</td>';
     row+='<td style="font-family:monospace;font-size:10px;">'+(p.partNo||'—')+'</td>';
     row+='<td><span class="brand-badge" style="font-size:10px;">'+(p.brand||'—')+'</span></td>';
     if(canSeePu) row+='<td style="text-align:right;font-size:11px;color:#c47020;font-weight:700;">'+(purchase>0?lkr(purchase):'—')+'</td>';
@@ -5516,6 +5544,7 @@ function openAddPrice(){
   document.getElementById('mp-id').value='';
   if(document.getElementById('mp-purchase'))document.getElementById('mp-purchase').value='';
   if(document.getElementById('mp-margin'))document.getElementById('mp-margin').value='';
+  if(document.getElementById('mp-category'))document.getElementById('mp-category').value='';
   const sel=document.getElementById('mp-country');
   if(!sel.options.length) COUNTRIES.forEach(c=>{sel.appendChild(new Option(c,c));});
   document.getElementById('modal-price').classList.add('open');
@@ -5530,6 +5559,7 @@ function openEditPrice(id){
   document.getElementById('mp-price').value=p.price||'';
   document.getElementById('mp-id').value=id;
   if(document.getElementById('mp-veh'))document.getElementById('mp-veh').value=p.vehicle||'';
+  if(document.getElementById('mp-category'))document.getElementById('mp-category').value=p.category||'';
   const sel=document.getElementById('mp-country');
   if(!sel.options.length) COUNTRIES.forEach(c=>{sel.appendChild(new Option(c,c));});
   sel.value=p.country||'Japan';
@@ -5549,6 +5579,8 @@ function savePartPrice(){
   const country=document.getElementById('mp-country').value;
   const purchasePrice=parseFloat(document.getElementById('mp-purchase')?.value)||0;
   const marginPct=parseFloat(document.getElementById('mp-margin')?.value)||0;
+  const categoryPicked=(document.getElementById('mp-category')||{value:''}).value;
+  const category=categoryPicked||categorizeItem(desc);
   const dateStr=new Date().toLocaleDateString('en-LK');
 
   // Check if LH/RH in description AND different RH part no
@@ -5562,6 +5594,7 @@ function savePartPrice(){
     brand:brand,
     purchasePrice:purchasePrice,
     marginPct:marginPct,
+    category:category,
     price,date:dateStr,
     by:CU?CU.name:'',
     updatedAt:new Date().toLocaleString('en-LK')};
