@@ -1135,6 +1135,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="form-field"><label>Document Name *</label><input id="doc-name" placeholder="e.g. Business Registration Certificate"></div>
           <div class="form-field"><label>Expiry Date *</label><input id="doc-expiry" type="date"></div>
           <div class="form-field"><label>Notes</label><input id="doc-notes" placeholder="e.g. Renew at Divisional Secretariat"></div>
+          <div class="form-field"><label>📎 File Upload (PDF/Photo — Copy)</label><input id="doc-file" type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleDocFileSelect(this)"><div id="doc-file-status" style="font-size:11px;color:var(--muted);margin-top:4px;"></div></div>
           <div style="display:flex;gap:8px;margin-top:14px;">
             <button class="btn btn-green" onclick="saveDoc()" style="flex:1;">💾 Save</button>
             <button class="btn btn-outline" onclick="closeDocModal()" style="flex:1;">Cancel</button>
@@ -2876,9 +2877,31 @@ function renderSuppliers(){
 // ═══════════════════════════════════════════════════
 function getDocs(){ var s=LS.get('ngrd_docs'); return Array.isArray(s)?s:[]; }
 function setDocs(list){ LS.set('ngrd_docs',list); if(typeof fbWrite==='function') fbWrite('docs',list); }
+var _pendingDocFile=null; // {name, type, dataUrl, size} — set when user picks a file, read at Save time
+function handleDocFileSelect(input){
+  var statusEl=document.getElementById('doc-file-status');
+  var file=input.files&&input.files[0];
+  if(!file){ _pendingDocFile=null; if(statusEl)statusEl.textContent=''; return; }
+  var MAX=3*1024*1024; // 3MB cap — keeps Firebase Realtime DB (base64 storage) fast & affordable
+  if(file.size>MAX){
+    if(statusEl) statusEl.innerHTML='<span style="color:#B22222;">⛔ File 3MB-க்கு மேல இருக்கு ('+(file.size/1024/1024).toFixed(1)+'MB). சின்னதா compress பண்ணி upload பண்ணுங்க.</span>';
+    input.value='';_pendingDocFile=null;return;
+  }
+  if(statusEl) statusEl.innerHTML='⏳ Reading file...';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    _pendingDocFile={name:file.name,type:file.type,dataUrl:e.target.result,size:file.size};
+    if(statusEl) statusEl.innerHTML='✅ '+file.name+' ('+(file.size/1024).toFixed(0)+'KB) ready — Save பண்ணும்போது சேமிக்கப்படும்';
+  };
+  reader.onerror=function(){ if(statusEl) statusEl.innerHTML='<span style="color:#B22222;">File read error, மறுபடியும் try பண்ணுங்க</span>'; };
+  reader.readAsDataURL(file);
+}
 function openAddDoc(){
   document.getElementById('doc-modal-title').textContent='➕ Add Document';
   ['doc-id','doc-name','doc-expiry','doc-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var fEl=document.getElementById('doc-file');if(fEl)fEl.value='';
+  var sEl=document.getElementById('doc-file-status');if(sEl)sEl.textContent='';
+  _pendingDocFile=null;
   document.getElementById('doc-modal-overlay').style.display='flex';
 }
 function openEditDoc(id){
@@ -2888,6 +2911,10 @@ function openEditDoc(id){
   document.getElementById('doc-name').value=d.name||'';
   document.getElementById('doc-expiry').value=d.expiry||'';
   document.getElementById('doc-notes').value=d.notes||'';
+  var fEl=document.getElementById('doc-file');if(fEl)fEl.value='';
+  var sEl=document.getElementById('doc-file-status');
+  if(sEl) sEl.innerHTML=d.fileData?('📎 <b>'+d.fileName+'</b> already attached — புது file select பண்ணா replace ஆகும்'):'';
+  _pendingDocFile=null;
   document.getElementById('doc-modal-overlay').style.display='flex';
 }
 function closeDocModal(){ document.getElementById('doc-modal-overlay').style.display='none'; }
@@ -2897,20 +2924,36 @@ function saveDoc(){
   if(!name||!expiry){showToast('Document name + Expiry Date வேணும்!','t-e');return;}
   var id=document.getElementById('doc-id').value;
   var list=getDocs();
-  var entry={id:id?parseFloat(id):Date.now(),name:name,expiry:expiry,notes:document.getElementById('doc-notes').value.trim()};
-  var idx=list.findIndex(function(x){return x.id===entry.id;});
+  var idx=list.findIndex(function(x){return x.id===(id?parseFloat(id):null);});
+  var existing=idx>=0?list[idx]:null;
+  var entry={
+    id:id?parseFloat(id):Date.now(),name:name,expiry:expiry,notes:document.getElementById('doc-notes').value.trim(),
+    // Keep the previously-saved file unless a new one was picked this time
+    fileData:_pendingDocFile?_pendingDocFile.dataUrl:(existing?existing.fileData:null),
+    fileName:_pendingDocFile?_pendingDocFile.name:(existing?existing.fileName:null),
+    fileType:_pendingDocFile?_pendingDocFile.type:(existing?existing.fileType:null)
+  };
   if(idx>=0) list[idx]=entry; else list.unshift(entry);
   setDocs(list);
   closeDocModal();
   renderDocs();
   showToast('✅ Document saved!','t-s');
   if(typeof addLog==='function') addLog('Document saved: '+name);
+  _pendingDocFile=null;
 }
 function deleteDoc(id){
   if(!confirm('இந்த document-ஐ delete பண்ணனுமா?')) return;
   setDocs(getDocs().filter(function(x){return x.id!==id;}));
   renderDocs();
   showToast('🗑️ Deleted','t-i');
+}
+function downloadDocFile(id){
+  var d=getDocs().find(function(x){return x.id===id;});
+  if(!d||!d.fileData){showToast('File இல்ல இந்த document-க்கு','t-e');return;}
+  var a=document.createElement('a');
+  a.href=d.fileData; // data: URL — browser handles the decode
+  a.download=d.fileName||(d.name+'.pdf');
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 function renderDocs(){
   var el=document.getElementById('doc-list');if(!el)return;
@@ -2926,8 +2969,9 @@ function renderDocs(){
     else if(days<=30){badge='⚠️ '+days+' நாள் மீதி';color='#E8800B';}
     else{badge='✅ '+days+' நாள் மீதி';color='#1A6B3C';}
     return '<div style="border:1px solid var(--border);border-left:4px solid '+color+';border-radius:6px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
-      +'<div><div style="font-weight:700;font-size:14px;">'+d.name+'</div><div style="font-size:12px;color:#666;">Expiry: '+d.expiry+(d.notes?(' · '+d.notes):'')+'</div></div>'
+      +'<div><div style="font-weight:700;font-size:14px;">'+d.name+(d.fileData?' <span title="File attached" style="font-size:12px;">📎</span>':'')+'</div><div style="font-size:12px;color:#666;">Expiry: '+d.expiry+(d.notes?(' · '+d.notes):'')+'</div></div>'
       +'<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;font-weight:700;color:'+color+';">'+badge+'</span>'
+      +(d.fileData?'<button onclick="downloadDocFile('+d.id+')" style="padding:7px 9px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;cursor:pointer;">📥</button>':'')
       +'<button onclick="openEditDoc('+d.id+')" style="padding:7px 9px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>'
       +'<button onclick="deleteDoc('+d.id+')" style="padding:7px 9px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button></div></div>';
   }).join('');
