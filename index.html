@@ -443,6 +443,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-search" onclick="showPage('search');closeSidebarMobile()"><span class="nav-icon">🔍</span>Quick Search</button>
         <button class="nav-item" id="nav-search" onclick="showPage('search');closeSidebarMobile()"><span class="nav-icon">🔍</span>Parts Search</button>
         <button class="nav-item" id="nav-docs" onclick="showPage('docs');closeSidebarMobile()"><span class="nav-icon">📑</span>Documents</button>
+        <button class="nav-item" id="nav-campcontacts" onclick="showPage('campcontacts');closeSidebarMobile()"><span class="nav-icon">☎️</span>Camp Contacts</button>
       </div>
       <div class="nav-div"></div>
       <div class="nav-sec" id="admin-nav">
@@ -1137,6 +1138,34 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div style="display:flex;gap:8px;margin-top:14px;">
             <button class="btn btn-green" onclick="saveSupplierDir()" style="flex:1;">💾 Save</button>
             <button class="btn btn-outline" onclick="closeSupplierModal()" style="flex:1;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-campcontacts" style="display:none;">
+        <div class="panel">
+          <div class="panel-hdr"><span class="panel-hdr-icon">☎️</span><span class="panel-hdr-title">Camp / Unit Contact Directory</span>
+            <div class="panel-hdr-right"><button class="btn btn-gold btn-sm" id="add-campcontact-btn" onclick="openAddCC()" style="display:none;">➕ Add Contact</button></div>
+          </div>
+          <div class="panel-body">
+            <input id="cc-search" type="text" oninput="renderCampContacts()" placeholder="🔍 Camp / Unit / POC name தேடு..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;margin-bottom:12px;outline:none;font-family:var(--fb);box-sizing:border-box;">
+            <div id="cc-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="cc-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:10px;padding:20px;width:92vw;max-width:420px;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:14px;" id="cc-modal-title">➕ Add Contact</div>
+          <input type="hidden" id="cc-id">
+          <div class="form-field"><label>Camp / Unit / Department *</label><input id="cc-camp" placeholder="e.g. Commodore Superintendent Logistics (West)"></div>
+          <div class="form-field"><label>POC Name</label><input id="cc-poc" placeholder="e.g. Lt. Cdr. Perera"></div>
+          <div class="form-field"><label>Designation / Role</label><input id="cc-role" placeholder="e.g. Stores Officer"></div>
+          <div class="form-field"><label>Phone / WhatsApp</label><input id="cc-phone" placeholder="e.g. 0771234567"></div>
+          <div class="form-field"><label>Notes</label><textarea id="cc-notes" rows="2" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;"></textarea></div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn btn-green" onclick="saveCC()" style="flex:1;">💾 Save</button>
+            <button class="btn btn-outline" onclick="closeCCModal()" style="flex:1;">Cancel</button>
           </div>
         </div>
       </div>
@@ -1921,7 +1950,7 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 function closeSidebarMobile(){if(isMobile())closeSidebar();}
 
 // ── NAVIGATION ──
-const PAGES=['dashboard','new','history','calendar','prices','search','analytics','users','vehicles','suppliers','docs','ratecontracts','log','backup'];
+const PAGES=['dashboard','new','history','calendar','prices','search','analytics','users','vehicles','suppliers','docs','ratecontracts','campcontacts','log','backup'];
 
 function goToHistory(statusFilter, dateFilter) {
   // Navigate to history page first
@@ -2027,6 +2056,10 @@ function showPage(pg){
   if(pg==='ratecontracts'&&typeof renderRateContracts==='function')renderRateContracts();
   if(pg==='docs'){
     var _adBtn=document.getElementById('add-doc-btn');if(_adBtn)_adBtn.style.display=(CU&&CU.role==='admin')?'inline-block':'none';
+  }
+  if(pg==='campcontacts'){
+    var _accBtn=document.getElementById('add-campcontact-btn');if(_accBtn)_accBtn.style.display=(CU&&CU.role==='admin')?'inline-block':'none';
+    if(typeof renderCampContacts==='function') renderCampContacts();
   }
   if(pg==='docs'&&typeof renderDocs==='function'){
     renderDocs();
@@ -3269,6 +3302,91 @@ function renderRateContracts(){
       +'<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;font-weight:700;color:'+color+';">'+badge+'</span>'
       +'<button onclick="openEditRC('+r.id+')" style="padding:7px 9px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>'
       +'<button onclick="deleteRC('+r.id+')" style="padding:7px 9px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button></div>'
+      +'</div></div>';
+  }).join('');
+}
+// ═══════════════════════════════════════════════════
+// CAMP / UNIT CONTACT DIRECTORY (view: all staff, edit/delete: admin)
+// ═══════════════════════════════════════════════════
+function getCCs(){ var s=LS.get('ngrd_campcontacts'); return Array.isArray(s)?s:[]; }
+function setCCs(list){
+  try{ LS.set('ngrd_campcontacts',list); }catch(e){ console.warn('ngrd_campcontacts localStorage write failed:',e); }
+  if(typeof fbWrite==='function') fbWrite('campcontacts',list);
+}
+function openAddCC(){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
+  document.getElementById('cc-modal-title').textContent='➕ Add Contact';
+  ['cc-id','cc-camp','cc-poc','cc-role','cc-phone','cc-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('cc-modal-overlay').style.display='flex';
+}
+function openEditCC(id){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
+  var c=getCCs().find(function(x){return x.id===id;});if(!c)return;
+  document.getElementById('cc-modal-title').textContent='✏️ Edit Contact';
+  document.getElementById('cc-id').value=c.id;
+  document.getElementById('cc-camp').value=c.camp||'';
+  document.getElementById('cc-poc').value=c.poc||'';
+  document.getElementById('cc-role').value=c.role||'';
+  document.getElementById('cc-phone').value=c.phone||'';
+  document.getElementById('cc-notes').value=c.notes||'';
+  document.getElementById('cc-modal-overlay').style.display='flex';
+}
+function closeCCModal(){ document.getElementById('cc-modal-overlay').style.display='none'; }
+function saveCC(){
+ try{
+  var camp=document.getElementById('cc-camp').value.trim();
+  if(!camp){showToast('Camp / Unit name வேணும்!','t-e');return;}
+  var id=document.getElementById('cc-id').value;
+  var list=getCCs();
+  var entry={
+    id:id?parseFloat(id):Date.now(),camp:camp,
+    poc:document.getElementById('cc-poc').value.trim(),
+    role:document.getElementById('cc-role').value.trim(),
+    phone:document.getElementById('cc-phone').value.trim(),
+    notes:document.getElementById('cc-notes').value.trim(),
+    updatedBy:CU?CU.name:'',updatedAt:new Date().toLocaleString('en-LK')
+  };
+  var idx=list.findIndex(function(x){return x.id===entry.id;});
+  if(idx>=0) list[idx]=entry; else list.unshift(entry);
+  setCCs(list);
+  closeCCModal();
+  renderCampContacts();
+  showToast('✅ Contact saved!','t-s');
+  if(typeof addLog==='function') addLog('Camp contact saved: '+camp);
+ }catch(err){
+  console.error('saveCC error:',err);
+  showToast('⛔ Save fail ஆனது: '+(err&&err.message?err.message:'Unknown error'),'t-e');
+ }
+}
+function deleteCC(id){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
+  if(!confirm('இந்த contact-ஐ delete பண்ணனுமா?')) return;
+  setCCs(getCCs().filter(function(x){return x.id!==id;}));
+  renderCampContacts();
+  showToast('🗑️ Deleted','t-i');
+}
+function renderCampContacts(){
+  var el=document.getElementById('cc-list');if(!el)return;
+  var isAdmin=CU&&CU.role==='admin';
+  var q=(document.getElementById('cc-search')?.value||'').toLowerCase();
+  var list=getCCs().filter(function(c){
+    if(!q) return true;
+    return ((c.camp||'')+' '+(c.poc||'')+' '+(c.role||'')).toLowerCase().includes(q);
+  });
+  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">☎️ Contact இல்ல இன்னும்.'+(isAdmin?' "➕ Add Contact" click பண்ணி சேருங்க.':'')+'</div>'; return; }
+  el.innerHTML=list.map(function(c){
+    var nameEsc=c.id;
+    return '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">'
+      +'<div style="flex:1;min-width:220px;">'
+      +'<div style="font-weight:700;font-size:14px;color:var(--navy);">'+c.camp+'</div>'
+      +(c.poc?'<div style="font-size:12px;color:#666;margin-top:2px;">👤 '+c.poc+(c.role?(' — '+c.role):'')+'</div>':'')
+      +(c.phone?'<div style="font-size:12px;color:#666;">📱 '+c.phone+'</div>':'')
+      +(c.notes?'<div style="font-size:11px;color:#888;margin-top:4px;">📝 '+c.notes+'</div>':'')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;">'
+      +(c.phone?'<button onclick="window.open(\'https://wa.me/'+c.phone.replace(/[^0-9]/g,'')+'\',\'_blank\')" style="padding:8px 10px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;cursor:pointer;">📲</button>':'')
+      +(isAdmin?'<button onclick="openEditCC('+nameEsc+')" style="padding:8px 10px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>':'')
+      +(isAdmin?'<button onclick="deleteCC('+nameEsc+')" style="padding:8px 10px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button>':'')
       +'</div></div>';
   }).join('');
 }
