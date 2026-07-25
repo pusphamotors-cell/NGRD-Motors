@@ -5184,7 +5184,7 @@ function duplicateHist(id){
   }catch(_e){window._dupFilled=0;}
   fillForm({refNo:e.refNo,eqNo:e.eqNo,entity:e.entity,title:e.title,
     vehicleName:e.vehicle,vehicleNo:e.vNo,engineNo:e.engineNo,chassisNo:e.chassisNo,
-    closingDate:e.closingDate,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});
+    closingDate:e.closingDate,closingTime:e.closingTime,validityPeriod:e.validityPeriod,deliveryPeriod:e.deliveryPeriod,destination:e.destination});
   renderItems(itemsCopy);
   var qs=document.getElementById('quot-status');if(qs)qs.value='draft';
   curStatus='draft';
