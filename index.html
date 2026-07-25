@@ -433,6 +433,8 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-analytics" onclick="showPage('analytics');closeSidebarMobile()"><span class="nav-icon">📊</span>Analytics</button>
         <button class="nav-item" id="nav-users" onclick="showPage('users');closeSidebarMobile()"><span class="nav-icon">👥</span>Users</button>
         <button class="nav-item" id="nav-vehicles" onclick="showPage('vehicles');closeSidebarMobile()"><span class="nav-icon">🚗</span>Vehicles</button>
+        <button class="nav-item" id="nav-suppliers" onclick="showPage('suppliers');closeSidebarMobile()"><span class="nav-icon">🏭</span>Suppliers</button>
+        <button class="nav-item" id="nav-docs" onclick="showPage('docs');closeSidebarMobile()"><span class="nav-icon">📑</span>Documents</button>
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
@@ -877,6 +879,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div id="db-digest-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-followup-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-missed-banner" style="display:none;margin-bottom:14px;"></div>
+        <div id="db-docexpiry-banner" style="display:none;margin-bottom:14px;"></div>
         <!-- LETTERS HUB (permission-gated) -->
         <div id="db-letters-hub" style="display:none;margin-bottom:18px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -1082,6 +1085,63 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
       <!-- ═ USERS ═ -->
       <div id="page-vehicles" style="display:none;"><div class="panel"><div class="panel-hdr"><span class="panel-hdr-icon">🚗</span><span class="panel-hdr-title">Vehicle Master List</span><div class="panel-hdr-right" id="vehicle-admin-btns-v" style="display:none;gap:6px;"><button class="btn btn-gold btn-sm" onclick="addVehicle()">➕ Add</button><button class="btn btn-sm" onclick="cleanDuplicateVehicles()" style="background:#1A3A6B;color:#fff;">🧹 Clean Duplicates</button></div></div><div class="panel-body"><div id="vehicle-settings-list"></div></div></div></div>
+
+      <div id="page-suppliers" style="display:none;">
+        <div class="panel">
+          <div class="panel-hdr"><span class="panel-hdr-icon">🏭</span><span class="panel-hdr-title">Supplier Directory</span>
+            <div class="panel-hdr-right"><button class="btn btn-gold btn-sm" onclick="openAddSupplier()">➕ Add Supplier</button></div>
+          </div>
+          <div class="panel-body">
+            <input id="supplier-search" type="text" oninput="renderSuppliers()" placeholder="🔍 Supplier name / Brand / Part தேடு..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;margin-bottom:12px;outline:none;font-family:var(--fb);box-sizing:border-box;">
+            <div id="supplier-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="supplier-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:10px;padding:20px;width:92vw;max-width:460px;max-height:85vh;overflow-y:auto;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:14px;" id="supplier-modal-title">➕ Add Supplier</div>
+          <input type="hidden" id="sup-orig-name">
+          <div class="form-field"><label>Supplier / Company Name *</label><input id="sup-name" placeholder="e.g. Holts Auto Parts"></div>
+          <div class="form-field"><label>Contact Person</label><input id="sup-contact" placeholder="e.g. Kumar"></div>
+          <div class="form-field"><label>WhatsApp / Phone</label><input id="sup-phone" placeholder="e.g. 0771234567"></div>
+          <div class="form-field"><label>Address</label><input id="sup-address" placeholder="e.g. Colombo 10"></div>
+          <div class="form-field"><label>Brands Supplied (comma separated)</label><input id="sup-brands" placeholder="e.g. FBK, NOK, OEM"></div>
+          <div class="form-field"><label>Vehicles / Specialty</label><input id="sup-vehicles" placeholder="e.g. L200, SX4 parts"></div>
+          <div class="form-field"><label>Lead Time (days to deliver)</label><input id="sup-leadtime" type="number" placeholder="e.g. 3"></div>
+          <div class="form-field"><label>Notes</label><textarea id="sup-notes" rows="2" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;"></textarea></div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn btn-green" onclick="saveSupplierDir()" style="flex:1;">💾 Save</button>
+            <button class="btn btn-outline" onclick="closeSupplierModal()" style="flex:1;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-docs" style="display:none;">
+        <div class="panel">
+          <div class="panel-hdr"><span class="panel-hdr-icon">📑</span><span class="panel-hdr-title">Business Document Expiry Tracker</span>
+            <div class="panel-hdr-right"><button class="btn btn-gold btn-sm" onclick="openAddDoc()">➕ Add Document</button></div>
+          </div>
+          <div class="panel-body">
+            <div id="doc-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="doc-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:10px;padding:20px;width:92vw;max-width:420px;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:14px;" id="doc-modal-title">➕ Add Document</div>
+          <input type="hidden" id="doc-id">
+          <div class="form-field"><label>Document Name *</label><input id="doc-name" placeholder="e.g. Business Registration Certificate"></div>
+          <div class="form-field"><label>Expiry Date *</label><input id="doc-expiry" type="date"></div>
+          <div class="form-field"><label>Notes</label><input id="doc-notes" placeholder="e.g. Renew at Divisional Secretariat"></div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn btn-green" onclick="saveDoc()" style="flex:1;">💾 Save</button>
+            <button class="btn btn-outline" onclick="closeDocModal()" style="flex:1;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
       <div id="page-users" style="display:none;">
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">👥</span><span class="panel-hdr-title">User Management</span></div>
@@ -1742,7 +1802,7 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 function closeSidebarMobile(){if(isMobile())closeSidebar();}
 
 // ── NAVIGATION ──
-const PAGES=['dashboard','new','history','calendar','prices','search','analytics','users','vehicles','log','backup'];
+const PAGES=['dashboard','new','history','calendar','prices','search','analytics','users','vehicles','suppliers','docs','log','backup'];
 
 function goToHistory(statusFilter, dateFilter) {
   // Navigate to history page first
@@ -1776,7 +1836,7 @@ function goToHistory(statusFilter, dateFilter) {
 }
 
 function showPage(pg){
-  if(['analytics','users','log','backup'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
+  if(['analytics','users','log','backup','suppliers','docs'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
   PAGES.forEach(p=>{
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
@@ -1844,6 +1904,8 @@ function showPage(pg){
   if(pg==='log')renderLog();
   if(pg==='backup'){renderBackupPage();loadSubmitterSettings();setTimeout(function(){loadSubmitterSettings();},1500);}
   if(pg==='prices')renderPriceList();
+  if(pg==='suppliers'&&typeof renderSuppliers==='function')renderSuppliers();
+  if(pg==='docs'&&typeof renderDocs==='function')renderDocs();
   if(pg==='vehicles')renderVehicleSettings();
   if(pg==='new'){if(typeof refreshAllVehicleDropdowns==='function')refreshAllVehicleDropdowns();if(typeof _loadMargin==='function')_loadMargin();}
   if(pg==='search')runQuickSearch();
@@ -2723,6 +2785,173 @@ function manualRefreshSync(){
     showToast('✅ Latest data pull ஆச்சு!','t-s');
     if(btn){btn.textContent='🔄';btn.style.pointerEvents='';}
   },1200);
+}
+
+// ═══════════════════════════════════════════════════
+// SUPPLIER DIRECTORY (shares data with Purchase Enquiry supplier picker — same getSuppliers()/setSuppliers())
+// ═══════════════════════════════════════════════════
+function openAddSupplier(){
+  document.getElementById('supplier-modal-title').textContent='➕ Add Supplier';
+  document.getElementById('sup-orig-name').value='';
+  ['sup-name','sup-contact','sup-phone','sup-address','sup-brands','sup-vehicles','sup-leadtime','sup-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('supplier-modal-overlay').style.display='flex';
+}
+function openEditSupplierDir(name){
+  var s=getSuppliers().find(function(x){return (x.name||'')===name;});if(!s)return;
+  document.getElementById('supplier-modal-title').textContent='✏️ Edit Supplier';
+  document.getElementById('sup-orig-name').value=s.name;
+  document.getElementById('sup-name').value=s.name||'';
+  document.getElementById('sup-contact').value=s.contact||'';
+  document.getElementById('sup-phone').value=s.phone||'';
+  document.getElementById('sup-address').value=s.address||'';
+  document.getElementById('sup-brands').value=s.brands||'';
+  document.getElementById('sup-vehicles').value=s.vehicles||'';
+  document.getElementById('sup-leadtime').value=s.leadtime||'';
+  document.getElementById('sup-notes').value=s.notes||'';
+  document.getElementById('supplier-modal-overlay').style.display='flex';
+}
+function closeSupplierModal(){ document.getElementById('supplier-modal-overlay').style.display='none'; }
+function saveSupplierDir(){
+  var name=document.getElementById('sup-name').value.trim();
+  if(!name){showToast('Supplier name வேணும்!','t-e');return;}
+  var origName=document.getElementById('sup-orig-name').value;
+  var list=getSuppliers();
+  var entry={
+    name:name,
+    contact:document.getElementById('sup-contact').value.trim(),
+    phone:document.getElementById('sup-phone').value.trim(),
+    address:document.getElementById('sup-address').value.trim(),
+    brands:document.getElementById('sup-brands').value.trim(),
+    vehicles:document.getElementById('sup-vehicles').value.trim(),
+    leadtime:document.getElementById('sup-leadtime').value.trim(),
+    notes:document.getElementById('sup-notes').value.trim(),
+    updatedBy:CU?CU.name:'',updatedAt:new Date().toLocaleString('en-LK')
+  };
+  var idx=list.findIndex(function(x){return (x.name||'')===(origName||name);});
+  if(idx>=0) list[idx]=entry; else list.unshift(entry);
+  setSuppliers(list);
+  closeSupplierModal();
+  renderSuppliers();
+  showToast('✅ Supplier saved!','t-s');
+  if(typeof addLog==='function') addLog('Supplier saved: '+name);
+}
+function deleteSupplierDir(name){
+  if(!confirm('இந்த supplier-ஐ delete பண்ணனுமா?')) return;
+  var list=getSuppliers().filter(function(x){return (x.name||'')!==name;});
+  setSuppliers(list);
+  renderSuppliers();
+  showToast('🗑️ Deleted','t-i');
+}
+function renderSuppliers(){
+  var el=document.getElementById('supplier-list');if(!el)return;
+  var q=(document.getElementById('supplier-search')?.value||'').toLowerCase();
+  var list=getSuppliers().filter(function(s){
+    if(!q) return true;
+    return ((s.name||'')+' '+(s.brands||'')+' '+(s.vehicles||'')+' '+(s.contact||'')).toLowerCase().includes(q);
+  });
+  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">🏭 Supplier இல்ல இன்னும். "➕ Add Supplier" click பண்ணி சேருங்க.</div>'; return; }
+  el.innerHTML=list.map(function(s){
+    var nameEsc=(s.name||'').replace(/'/g,"\\'");
+    return '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">'
+      +'<div style="flex:1;min-width:220px;">'
+      +'<div style="font-weight:700;font-size:14px;color:var(--navy);">'+(s.name||'')+'</div>'
+      +(s.contact?'<div style="font-size:12px;color:#666;margin-top:2px;">👤 '+s.contact+'</div>':'')
+      +(s.phone?'<div style="font-size:12px;color:#666;">📱 '+s.phone+'</div>':'')
+      +(s.address?'<div style="font-size:12px;color:#666;">📍 '+s.address+'</div>':'')
+      +(s.brands?'<div style="font-size:12px;margin-top:5px;"><b>Brands:</b> '+s.brands+'</div>':'')
+      +(s.vehicles?'<div style="font-size:12px;"><b>Vehicles:</b> '+s.vehicles+'</div>':'')
+      +(s.leadtime?'<div style="font-size:12px;"><b>Lead Time:</b> '+s.leadtime+' days</div>':'')
+      +(s.notes?'<div style="font-size:11px;color:#888;margin-top:4px;">📝 '+s.notes+'</div>':'')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;">'
+      +(s.phone?'<button onclick="window.open(\'https://wa.me/'+s.phone.replace(/[^0-9]/g,'')+'\',\'_blank\')" style="padding:8px 10px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;cursor:pointer;">📲</button>':'')
+      +'<button onclick="openEditSupplierDir(\''+nameEsc+'\')" style="padding:8px 10px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>'
+      +'<button onclick="deleteSupplierDir(\''+nameEsc+'\')" style="padding:8px 10px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button>'
+      +'</div></div>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// DOCUMENT EXPIRY TRACKER
+// ═══════════════════════════════════════════════════
+function getDocs(){ var s=LS.get('ngrd_docs'); return Array.isArray(s)?s:[]; }
+function setDocs(list){ LS.set('ngrd_docs',list); if(typeof fbWrite==='function') fbWrite('docs',list); }
+function openAddDoc(){
+  document.getElementById('doc-modal-title').textContent='➕ Add Document';
+  ['doc-id','doc-name','doc-expiry','doc-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('doc-modal-overlay').style.display='flex';
+}
+function openEditDoc(id){
+  var d=getDocs().find(function(x){return x.id===id;});if(!d)return;
+  document.getElementById('doc-modal-title').textContent='✏️ Edit Document';
+  document.getElementById('doc-id').value=d.id;
+  document.getElementById('doc-name').value=d.name||'';
+  document.getElementById('doc-expiry').value=d.expiry||'';
+  document.getElementById('doc-notes').value=d.notes||'';
+  document.getElementById('doc-modal-overlay').style.display='flex';
+}
+function closeDocModal(){ document.getElementById('doc-modal-overlay').style.display='none'; }
+function saveDoc(){
+  var name=document.getElementById('doc-name').value.trim();
+  var expiry=document.getElementById('doc-expiry').value;
+  if(!name||!expiry){showToast('Document name + Expiry Date வேணும்!','t-e');return;}
+  var id=document.getElementById('doc-id').value;
+  var list=getDocs();
+  var entry={id:id?parseFloat(id):Date.now(),name:name,expiry:expiry,notes:document.getElementById('doc-notes').value.trim()};
+  var idx=list.findIndex(function(x){return x.id===entry.id;});
+  if(idx>=0) list[idx]=entry; else list.unshift(entry);
+  setDocs(list);
+  closeDocModal();
+  renderDocs();
+  showToast('✅ Document saved!','t-s');
+  if(typeof addLog==='function') addLog('Document saved: '+name);
+}
+function deleteDoc(id){
+  if(!confirm('இந்த document-ஐ delete பண்ணனுமா?')) return;
+  setDocs(getDocs().filter(function(x){return x.id!==id;}));
+  renderDocs();
+  showToast('🗑️ Deleted','t-i');
+}
+function renderDocs(){
+  var el=document.getElementById('doc-list');if(!el)return;
+  var list=getDocs();
+  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">📑 Document இல்ல இன்னும். "➕ Add Document" click பண்ணி சேருங்க (Business Registration, VAT Certificate etc).</div>'; return; }
+  var today=new Date();today.setHours(0,0,0,0);
+  list.sort(function(a,b){return new Date(a.expiry)-new Date(b.expiry);});
+  el.innerHTML=list.map(function(d){
+    var exp=new Date(d.expiry);exp.setHours(0,0,0,0);
+    var days=Math.floor((exp-today)/86400000);
+    var badge,color;
+    if(days<0){badge='⛔ EXPIRED ('+Math.abs(days)+' நாள் முன்பு)';color='#B22222';}
+    else if(days<=30){badge='⚠️ '+days+' நாள் மீதி';color='#E8800B';}
+    else{badge='✅ '+days+' நாள் மீதி';color='#1A6B3C';}
+    return '<div style="border:1px solid var(--border);border-left:4px solid '+color+';border-radius:6px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+      +'<div><div style="font-weight:700;font-size:14px;">'+d.name+'</div><div style="font-size:12px;color:#666;">Expiry: '+d.expiry+(d.notes?(' · '+d.notes):'')+'</div></div>'
+      +'<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;font-weight:700;color:'+color+';">'+badge+'</span>'
+      +'<button onclick="openEditDoc('+d.id+')" style="padding:7px 9px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>'
+      +'<button onclick="deleteDoc('+d.id+')" style="padding:7px 9px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button></div></div>';
+  }).join('');
+}
+function checkDocExpiryReminder(){
+  var banner=document.getElementById('db-docexpiry-banner');if(!banner)return;
+  if(!CU||CU.role!=='admin'){banner.style.display='none';return;}
+  var todayStr=new Date().toLocaleDateString('en-LK');
+  var lastShown=localStorage.getItem('ngrd_docexpiry_lastshown');
+  if(lastShown===todayStr){banner.style.display='none';return;}
+  var today=new Date();today.setHours(0,0,0,0);
+  var expiring=getDocs().filter(function(d){
+    var exp=new Date(d.expiry);exp.setHours(0,0,0,0);
+    var days=Math.floor((exp-today)/86400000);
+    return days<=30;
+  });
+  if(!expiring.length){banner.style.display='none';return;}
+  banner.style.display='block';
+  banner.innerHTML='<div style="background:linear-gradient(135deg,#8B4513,#5A2A0A);color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+    +'<div><div style="font-size:14px;font-weight:700;">📑 '+expiring.length+' business document(s) — expire ஆகப்போகுது / ஆயிடுச்சு!</div><div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">'+expiring.map(function(d){return d.name;}).join(', ')+'</div></div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="showPage(\'docs\')" style="padding:9px 16px;background:#fff;color:#5A2A0A;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">📑 பாருங்க</button>'
+    +'<button onclick="localStorage.setItem(\'ngrd_docexpiry_lastshown\',new Date().toLocaleDateString(\'en-LK\'));document.getElementById(\'db-docexpiry-banner\').style.display=\'none\';" style="padding:9px 12px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">✕ Later</button>'
+    +'</div></div>';
 }
 
 function checkWeeklyDigestReminder(){
@@ -6415,6 +6644,7 @@ function renderDashboard(){
   if(typeof checkResultFollowupReminder==='function') checkResultFollowupReminder();
   if(typeof checkUrgent24hReminder==='function') checkUrgent24hReminder();
   if(typeof checkMissedApprovedReminder==='function') checkMissedApprovedReminder();
+  if(typeof checkDocExpiryReminder==='function') checkDocExpiryReminder();
 }
 
 function viewQuot(id){
@@ -8204,7 +8434,7 @@ function getSuppliers(){
   try { return JSON.parse(localStorage.getItem('ngrd_suppliers')||'[]'); } catch(e){ return []; }
 }
 function setSuppliers(list){
-  setSuppliers(list);
+  localStorage.setItem('ngrd_suppliers',JSON.stringify(list));
   if(typeof fbWrite==='function') fbWrite('suppliers', list);
 }
 function saveSupplier(name, phone, addr){
