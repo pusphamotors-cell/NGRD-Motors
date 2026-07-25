@@ -901,6 +901,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div id="db-missed-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-docexpiry-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-backupreminder-banner" style="display:none;margin-bottom:14px;"></div>
+        <div id="db-presence-panel" style="display:none;margin-bottom:14px;"></div>
         <!-- LETTERS HUB (permission-gated) -->
         <div id="db-letters-hub" style="display:none;margin-bottom:18px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -1101,6 +1102,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel" style="margin-top:14px;">
           <div class="panel-hdr"><span class="panel-hdr-icon">🕐</span><span class="panel-hdr-title">Recent Activity Log</span></div>
           <div class="panel-body" id="login-activity-body"></div>
+        </div>
+        <div class="panel" style="margin-top:14px;">
+          <div class="panel-hdr"><span class="panel-hdr-icon">🔐</span><span class="panel-hdr-title">Session Security Log — யார் எப்போ Login பண்ணாங்க</span></div>
+          <div class="panel-body" id="security-log-body"></div>
         </div>
         <div class="panel" style="margin-top:14px;">
           <div class="panel-hdr"><span class="panel-hdr-icon">ℹ️</span><span class="panel-hdr-title">System Info</span></div>
@@ -1555,6 +1560,21 @@ function checkAfterSave(){
 }
 
 
+function getDeviceInfo(){
+  var ua=navigator.userAgent||'';
+  var os='Unknown OS';
+  if(/Windows/i.test(ua)) os='Windows';
+  else if(/Android/i.test(ua)) os='Android';
+  else if(/iPhone|iPad|iOS/i.test(ua)) os='iOS';
+  else if(/Mac OS X/i.test(ua)) os='Mac';
+  else if(/Linux/i.test(ua)) os='Linux';
+  var browser='Browser';
+  if(/Edg\//i.test(ua)) browser='Edge';
+  else if(/Chrome\//i.test(ua)) browser='Chrome';
+  else if(/Firefox\//i.test(ua)) browser='Firefox';
+  else if(/Safari\//i.test(ua)) browser='Safari';
+  return browser+' on '+os;
+}
 function getUsers(){
   var s=LS.get('ngrd_users');
   if(!s||!Array.isArray(s)||s.length===0){
@@ -1746,7 +1766,7 @@ function _completeLogin(found){
       });
     }
     initApp();
-    addLog('Logged in: '+CU.name);
+    addLog('Logged in: '+CU.name+' — '+getDeviceInfo());
     // Track online presence
     if(typeof fbWrite==='function'){
       fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
@@ -5567,6 +5587,39 @@ function getPresenceStatus(lastSeen,online){
   return {icon:'🔴',label:Math.floor(diff/1440)+'d ago',color:'#B22222'};
 }
 
+function renderPresencePanel(){
+  var el=document.getElementById('db-presence-panel');if(!el)return;
+  if(!CU||CU.role!=='admin'){el.style.display='none';return;}
+  function paint(){
+    var users=getUsers().filter(function(u){return u.active;});
+    var chips=users.map(function(u){
+      var pres=window._presenceData&&window._presenceData[u.id]?window._presenceData[u.id]:null;
+      var st=getPresenceStatus(pres?pres.lastSeen:null,pres?pres.online:false);
+      return {name:u.name||u.username,role:u.role,st:st};
+    });
+    chips.sort(function(a,b){
+      var order={'🟢':0,'🟡':1,'🔴':2};
+      return (order[a.st.icon]||3)-(order[b.st.icon]||3);
+    });
+    var onlineCount=chips.filter(function(c){return c.st.icon==='🟢';}).length;
+    el.style.display='block';
+    el.innerHTML='<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;">'
+      +'<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px;">🟢 Live Staff Presence — '+onlineCount+' online இப்போ</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+      +chips.map(function(c){
+        return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#f7fafd;border:1px solid var(--border);border-radius:20px;font-size:12px;">'
+          +'<span>'+c.st.icon+'</span><span style="font-weight:600;">'+c.name+'</span>'
+          +'<span style="color:#999;font-size:10px;">'+c.st.label+'</span></div>';
+      }).join('')
+      +'</div></div>';
+  }
+  if(typeof fbRead==='function'&&typeof FB_READY!=='undefined'&&FB_READY){
+    fbRead('presence',function(data){ window._presenceData=data||{}; paint(); });
+  } else {
+    paint();
+  }
+}
+
 function renderUsers(){
   // Load presence data from Firebase — Admin only
   var _isAdminRU=CU&&CU.role==='admin';
@@ -6663,6 +6716,19 @@ function renderLoginActivity(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #eee;"><div><span style="font-weight:700;font-size:12px;">👤 '+l.user+'</span><span style="font-size:11px;color:var(--muted);margin-left:8px;">'+l.msg+'</span></div><div style="font-size:10px;color:var(--muted);white-space:nowrap;">'+l.time+'</div></div>';
   }).join('');
 }
+function renderSecurityLog(){
+  var body=document.getElementById('security-log-body');if(!body)return;
+  var logins=getLog().filter(function(l){return (l.msg||'').indexOf('Logged in:')===0;}).slice(0,20);
+  if(!logins.length){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Login history இல்லை இன்னும்</div>';return;}
+  body.innerHTML=logins.map(function(l){
+    var parts=l.msg.replace('Logged in: ','').split(' — ');
+    var who=parts[0]||l.user;
+    var device=parts[1]||'Unknown device';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #eee;">'
+      +'<div><span style="font-weight:700;font-size:12px;">🔓 '+who+'</span><span style="font-size:11px;color:var(--muted);margin-left:8px;">💻 '+device+'</span></div>'
+      +'<div style="font-size:10px;color:var(--muted);white-space:nowrap;">'+l.time+'</div></div>';
+  }).join('');
+}
 function renderSystemInfo(){
   var body=document.getElementById('system-info-body');if(!body)return;
   var hist=getHist();var prices=getPrices();var users=getUsers();
@@ -6676,7 +6742,7 @@ function renderSystemInfo(){
 }
 function renderAnalytics(){
   setTimeout(populateStaffSelect,100);
-  renderAllStaffSummary();renderLoginActivity();renderSystemInfo();renderTodayActivity();
+  renderAllStaffSummary();renderLoginActivity();renderSecurityLog();renderSystemInfo();renderTodayActivity();
   var h=getHist();
   var total=h.length,awarded=h.filter(function(x){return x.status==='awarded';}).length,submitted=h.filter(function(x){return x.status==='submitted';}).length;
   var totalVal=h.reduce(function(s,x){return s+(x.grandTotal||0);},0);
@@ -7319,6 +7385,7 @@ function renderDashboard(){
   if(typeof checkMissedApprovedReminder==='function') checkMissedApprovedReminder();
   if(typeof checkDocExpiryReminder==='function') checkDocExpiryReminder();
   if(typeof checkBackupReminder==='function') checkBackupReminder();
+  if(typeof renderPresencePanel==='function') renderPresencePanel();
 }
 
 function viewQuot(id){
