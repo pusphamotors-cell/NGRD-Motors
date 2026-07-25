@@ -1771,12 +1771,13 @@ function _completeLogin(found){
     if(typeof fbWrite==='function'){
       fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
     }
-    // Update presence every 3 minutes (heartbeat)
+    // Update presence every 90 seconds (heartbeat) — fresher than before, so
+    // "Online" status doesn't lag behind actual activity.
     window._presenceInterval=setInterval(function(){
       if(CU&&typeof fbWrite==='function'){
         fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
       }
-    },180000);
+    },90000);
     // Set offline on page unload
     window.addEventListener('beforeunload',function(){
       if(CU&&typeof fbWrite==='function'){
@@ -5617,6 +5618,18 @@ function renderPresencePanel(){
     fbRead('presence',function(data){ window._presenceData=data||{}; paint(); });
   } else {
     paint();
+  }
+  // Auto-refresh every 30s while Dashboard is open — otherwise this panel only
+  // updates when the page re-renders, showing stale "Offline" even if the
+  // staff member is actively using the app right now.
+  if(!window._presencePanelInterval){
+    window._presencePanelInterval=setInterval(function(){
+      var pgEl=document.getElementById('page-dashboard');
+      if(!pgEl||pgEl.style.display==='none'||!CU||CU.role!=='admin'){return;}
+      if(typeof fbRead==='function'&&typeof FB_READY!=='undefined'&&FB_READY){
+        fbRead('presence',function(data){ window._presenceData=data||{}; paint(); });
+      }
+    },30000);
   }
 }
 
