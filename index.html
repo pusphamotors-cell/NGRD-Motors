@@ -8628,8 +8628,6 @@ function _printWithIframe(html){
       <div style="color:#aaa;font-size:11px;max-width:200px;line-height:1.4;">Print dialog-ல் <b style="color:#C9952A;">Save as PDF</b> select பண்ணுங்கள்</div>
       <button onclick="['_pf','_po'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});if(window._pdfOrigTitle)document.title=window._pdfOrigTitle;" style="padding:9px 14px;background:#333;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">✕ Close</button>
     </div>`;
-  window._applyPdfTitle=_applySuggestedTitle;
-  window._restorePdfTitle=_restoreTitle;
   document.body.appendChild(overlay);
 }
 
