@@ -451,6 +451,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-users" onclick="showPage('users');closeSidebarMobile()"><span class="nav-icon">👥</span>Users</button>
         <button class="nav-item" id="nav-vehicles" onclick="showPage('vehicles');closeSidebarMobile()"><span class="nav-icon">🚗</span>Vehicles</button>
         <button class="nav-item" id="nav-suppliers" onclick="showPage('suppliers');closeSidebarMobile()"><span class="nav-icon">🏭</span>Suppliers</button>
+        <button class="nav-item" id="nav-ratecontracts" onclick="showPage('ratecontracts');closeSidebarMobile()"><span class="nav-icon">📜</span>Rate Contracts</button>
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
@@ -785,7 +786,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">💰</span><span class="panel-hdr-title">Parts Price Master List</span>
             <div class="panel-hdr-right" style="display:flex;gap:5px;flex-wrap:wrap;"><button class="btn btn-gold btn-sm" onclick="openAddPrice()">➕ Add</button><button class="btn btn-navy btn-sm" onclick="expCSV()">📥 Export</button><label class="btn btn-navy btn-sm" style="cursor:pointer;margin:0;">📤 Import<input type="file" id="imp-file" accept=".csv" onchange="impCSV(this)" style="display:none;"></label><button class="btn btn-green btn-sm" onclick="loadSX4()">🚗 SX4 (452)</button><button class="btn btn-green btn-sm" onclick="loadL200K34()">🚚 L200 K34 (254)</button>
-            <button class="btn btn-sm" onclick="extractPricesFromHistory()" style="background:#1A3A6B;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">📊 History-லிருந்து Extract</button><button class="btn btn-sm" onclick="cleanDuplicatePrices()" style="background:#7B3FA0;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🧹 Clean Duplicates</button><button onclick="hardReset()" style="padding:5px 11px;background:rgba(178,34,34,.1);color:var(--red);border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear</button></div>
+            <button class="btn btn-sm" onclick="extractPricesFromHistory()" style="background:#1A3A6B;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">📊 History-லிருந்து Extract</button><button class="btn btn-sm" onclick="cleanDuplicatePrices()" style="background:#7B3FA0;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🧹 Clean Duplicates</button><button class="btn btn-sm" onclick="findNearDuplicatePrices()" style="background:#9333EA;color:#fff;border:none;padding:5px 11px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🤖 AI Near-Duplicates</button><button onclick="hardReset()" style="padding:5px 11px;background:rgba(178,34,34,.1);color:var(--red);border:1px solid rgba(178,34,34,.3);border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Clear</button></div>
           </div>
           <div class="panel-body">
             <div style="background:rgba(201,149,42,.08);border:1px solid rgba(201,149,42,.3);border-radius:3px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:#7A5800;">💡 <b>CSV Format:</b> A=Description, B=PartNo, C=Brand, D=Country, E=Price (Row 1 header)</div>
@@ -883,6 +884,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;background:#B22222;border-radius:3px;display:inline-block;"></span> Today / Overdue</span>
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;background:#E8800B;border-radius:3px;display:inline-block;"></span> Within 3 days</span>
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;background:#1A6B3C;border-radius:3px;display:inline-block;"></span> Upcoming</span>
+          <button onclick="exportCalendarICS()" style="margin-left:auto;padding:7px 14px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">📲 Phone Calendar-க்கு Export (.ics)</button>
         </div>
         <div id="cal-week-summary"></div>
         <div id="cal-grid" style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow-x:auto;"></div>
@@ -897,6 +899,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <div id="db-followup-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-missed-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-docexpiry-banner" style="display:none;margin-bottom:14px;"></div>
+        <div id="db-backupreminder-banner" style="display:none;margin-bottom:14px;"></div>
         <!-- LETTERS HUB (permission-gated) -->
         <div id="db-letters-hub" style="display:none;margin-bottom:18px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -1083,6 +1086,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="panel-body" id="chart-lossreasons"></div>
         </div>
         <div class="panel" style="margin-top:14px;">
+          <div class="panel-hdr"><span class="panel-hdr-icon">🏆</span><span class="panel-hdr-title">Entity Business Value — யார் top client</span></div>
+          <div class="panel-body" id="chart-entity-value"></div>
+        </div>
+        <div class="panel" style="margin-top:14px;">
           <div class="panel-hdr"><span class="panel-hdr-icon">⚡</span><span class="panel-hdr-title">Today's Activity</span></div>
           <div class="panel-body" id="today-activity-body"><div style="text-align:center;padding:16px;color:var(--muted);font-size:13px;">Loading...</div></div>
         </div>
@@ -1130,6 +1137,34 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div style="display:flex;gap:8px;margin-top:14px;">
             <button class="btn btn-green" onclick="saveSupplierDir()" style="flex:1;">💾 Save</button>
             <button class="btn btn-outline" onclick="closeSupplierModal()" style="flex:1;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-ratecontracts" style="display:none;">
+        <div class="panel">
+          <div class="panel-hdr"><span class="panel-hdr-icon">📜</span><span class="panel-hdr-title">Rate Contract Tracker</span>
+            <div class="panel-hdr-right"><button class="btn btn-gold btn-sm" onclick="openAddRC()">➕ Add Rate Contract</button></div>
+          </div>
+          <div class="panel-body">
+            <div id="rc-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="rc-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:10px;padding:20px;width:92vw;max-width:460px;max-height:85vh;overflow-y:auto;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:14px;" id="rc-modal-title">➕ Add Rate Contract</div>
+          <input type="hidden" id="rc-id">
+          <div class="form-field"><label>Entity / Department *</label><input id="rc-entity" placeholder="e.g. Sri Lanka Navy - Commodore Superintendent Logistics (West)"></div>
+          <div class="form-field"><label>Start Date *</label><input id="rc-start" type="date"></div>
+          <div class="form-field"><label>End Date *</label><input id="rc-end" type="date"></div>
+          <div class="form-field"><label>Items / Categories Covered</label><input id="rc-items" placeholder="e.g. Brake pads, filters, all L200 parts"></div>
+          <div class="form-field"><label>Contract Ref No.</label><input id="rc-refno" placeholder="e.g. RC/2026/045"></div>
+          <div class="form-field"><label>Notes</label><textarea id="rc-notes" rows="2" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;"></textarea></div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn btn-green" onclick="saveRC()" style="flex:1;">💾 Save</button>
+            <button class="btn btn-outline" onclick="closeRCModal()" style="flex:1;">Cancel</button>
           </div>
         </div>
       </div>
@@ -1886,7 +1921,7 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 function closeSidebarMobile(){if(isMobile())closeSidebar();}
 
 // ── NAVIGATION ──
-const PAGES=['dashboard','new','history','calendar','prices','search','analytics','users','vehicles','suppliers','docs','log','backup'];
+const PAGES=['dashboard','new','history','calendar','prices','search','analytics','users','vehicles','suppliers','docs','ratecontracts','log','backup'];
 
 function goToHistory(statusFilter, dateFilter) {
   // Navigate to history page first
@@ -1920,7 +1955,7 @@ function goToHistory(statusFilter, dateFilter) {
 }
 
 function showPage(pg){
-  if(['analytics','users','log','backup','suppliers'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
+  if(['analytics','users','log','backup','suppliers','ratecontracts'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
   PAGES.forEach(p=>{
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
@@ -1989,6 +2024,7 @@ function showPage(pg){
   if(pg==='backup'){renderBackupPage();loadSubmitterSettings();setTimeout(function(){loadSubmitterSettings();},1500);}
   if(pg==='prices')renderPriceList();
   if(pg==='suppliers'&&typeof renderSuppliers==='function')renderSuppliers();
+  if(pg==='ratecontracts'&&typeof renderRateContracts==='function')renderRateContracts();
   if(pg==='docs'){
     var _adBtn=document.getElementById('add-doc-btn');if(_adBtn)_adBtn.style.display=(CU&&CU.role==='admin')?'inline-block':'none';
   }
@@ -2706,6 +2742,49 @@ function calMove(delta){
   renderCalendar();
 }
 function calToday(){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();renderCalendar();}
+function exportCalendarICS(){
+  var h=getHist();
+  var ACTIVE=['draft','pending','approved','assigned'];
+  var events=h.filter(function(e){
+    return ACTIVE.indexOf(e.status||'draft')>=0 && e.closingDate && !e.notSubmittedInfo;
+  });
+  if(!events.length){showToast('Export பண்ண closing dates இல்ல','t-e');return;}
+  function fmtICSDate(dateStr,timeStr){
+    var d=parseClosingDate(dateStr);
+    if(!d) return null;
+    if(timeStr){ var tp=timeStr.split(':'); d.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0); }
+    else { d.setHours(9,0,0,0); } // default 9 AM reminder if no time specified
+    var pad=function(n){return String(n).padStart(2,'0');};
+    return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+  }
+  function escICS(s){ return (s||'').replace(/[\\,;]/g,function(c){return '\\'+c;}).replace(/\n/g,'\\n'); }
+  var lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//NGRD Motors//Quotation System V3//EN','CALSCALE:GREGORIAN'];
+  events.forEach(function(e){
+    var dt=fmtICSDate(e.closingDate,e.closingTime);
+    if(!dt) return;
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:ngrd-'+e.id+'@ngrd-motors.vercel.app');
+    lines.push('DTSTAMP:'+fmtICSDate(new Date().toISOString().split('T')[0])+'Z');
+    lines.push('DTSTART:'+dt);
+    lines.push('SUMMARY:'+escICS('⏰ Tender Closing: '+(e.vehicle||'Quotation')+' — '+(e.eqNo||e.refNo||'')));
+    lines.push('DESCRIPTION:'+escICS((e.entity||'')+'\n'+(e.eqNo||e.refNo||'')+'\nStatus: '+(e.status||'')));
+    lines.push('BEGIN:VALARM');
+    lines.push('TRIGGER:-PT2H'); // 2-hour-before reminder
+    lines.push('ACTION:DISPLAY');
+    lines.push('DESCRIPTION:Tender closing soon!');
+    lines.push('END:VALARM');
+    lines.push('END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  var blob=new Blob([lines.join('\r\n')],{type:'text/calendar;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='NGRD_Tender_Closings_'+new Date().toLocaleDateString('en-LK').replace(/\//g,'-')+'.ics';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📲 '+events.length+' events export ஆச்சு! இந்த .ics file-ஐ phone-ல open பண்ணா Calendar app-க்கு add ஆகும்','t-s');
+  if(typeof addLog==='function') addLog('Calendar ICS exported ('+events.length+' events) by '+(CU?CU.name:'?'));
+}
 function calClosingMap(){
   var h=(typeof getHist==='function')?getHist():[];
   var ACTIVE=['draft','pending','approved','assigned'];
@@ -3106,6 +3185,110 @@ function renderDocs(){
       +(isAdmin?'<button onclick="openEditDoc('+d.id+')" style="padding:7px 9px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>':'')
       +(isAdmin?'<button onclick="deleteDoc('+d.id+')" style="padding:7px 9px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button>':'')+'</div></div>';
   }).join('');
+}
+// ═══════════════════════════════════════════════════
+// RATE CONTRACT TRACKER
+// ═══════════════════════════════════════════════════
+function getRCs(){ var s=LS.get('ngrd_ratecontracts'); return Array.isArray(s)?s:[]; }
+function setRCs(list){
+  try{ LS.set('ngrd_ratecontracts',list); }catch(e){ console.warn('ngrd_ratecontracts localStorage write failed:',e); }
+  if(typeof fbWrite==='function') fbWrite('ratecontracts',list);
+}
+function openAddRC(){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
+  document.getElementById('rc-modal-title').textContent='➕ Add Rate Contract';
+  ['rc-id','rc-entity','rc-start','rc-end','rc-items','rc-refno','rc-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('rc-modal-overlay').style.display='flex';
+}
+function openEditRC(id){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
+  var r=getRCs().find(function(x){return x.id===id;});if(!r)return;
+  document.getElementById('rc-modal-title').textContent='✏️ Edit Rate Contract';
+  document.getElementById('rc-id').value=r.id;
+  document.getElementById('rc-entity').value=r.entity||'';
+  document.getElementById('rc-start').value=r.start||'';
+  document.getElementById('rc-end').value=r.end||'';
+  document.getElementById('rc-items').value=r.items||'';
+  document.getElementById('rc-refno').value=r.refno||'';
+  document.getElementById('rc-notes').value=r.notes||'';
+  document.getElementById('rc-modal-overlay').style.display='flex';
+}
+function closeRCModal(){ document.getElementById('rc-modal-overlay').style.display='none'; }
+function saveRC(){
+ try{
+  var entity=document.getElementById('rc-entity').value.trim();
+  var start=document.getElementById('rc-start').value;
+  var end=document.getElementById('rc-end').value;
+  if(!entity||!start||!end){showToast('Entity, Start Date, End Date வேணும்!','t-e');return;}
+  var id=document.getElementById('rc-id').value;
+  var list=getRCs();
+  var entry={
+    id:id?parseFloat(id):Date.now(),entity:entity,start:start,end:end,
+    items:document.getElementById('rc-items').value.trim(),
+    refno:document.getElementById('rc-refno').value.trim(),
+    notes:document.getElementById('rc-notes').value.trim(),
+    updatedBy:CU?CU.name:'',updatedAt:new Date().toLocaleString('en-LK')
+  };
+  var idx=list.findIndex(function(x){return x.id===entry.id;});
+  if(idx>=0) list[idx]=entry; else list.unshift(entry);
+  setRCs(list);
+  closeRCModal();
+  renderRateContracts();
+  showToast('✅ Rate Contract saved!','t-s');
+  if(typeof addLog==='function') addLog('Rate Contract saved: '+entity);
+ }catch(err){
+  console.error('saveRC error:',err);
+  showToast('⛔ Save fail ஆனது: '+(err&&err.message?err.message:'Unknown error'),'t-e');
+ }
+}
+function deleteRC(id){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
+  if(!confirm('இந்த rate contract-ஐ delete பண்ணனுமா?')) return;
+  setRCs(getRCs().filter(function(x){return x.id!==id;}));
+  renderRateContracts();
+  showToast('🗑️ Deleted','t-i');
+}
+function renderRateContracts(){
+  var el=document.getElementById('rc-list');if(!el)return;
+  var list=getRCs();
+  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">📜 Rate Contract இல்ல இன்னும். "➕ Add Rate Contract" click பண்ணி சேருங்க.</div>'; return; }
+  var today=new Date();today.setHours(0,0,0,0);
+  list.sort(function(a,b){return new Date(a.end)-new Date(b.end);});
+  el.innerHTML=list.map(function(r){
+    var end=new Date(r.end);end.setHours(0,0,0,0);
+    var days=Math.floor((end-today)/86400000);
+    var badge,color;
+    if(days<0){badge='⛔ EXPIRED ('+Math.abs(days)+' நாள் முன்பு)';color='#B22222';}
+    else if(days<=30){badge='⚠️ '+days+' நாள் மீதி';color='#E8800B';}
+    else{badge='✅ '+days+' நாள் மீதி';color='#1A6B3C';}
+    return '<div style="border:1px solid var(--border);border-left:4px solid '+color+';border-radius:6px;padding:12px 14px;margin-bottom:8px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
+      +'<div><div style="font-weight:700;font-size:14px;">'+r.entity+(r.refno?' <span style="font-size:11px;color:#888;">('+r.refno+')</span>':'')+'</div>'
+      +'<div style="font-size:12px;color:#666;margin-top:2px;">'+r.start+' → '+r.end+(r.items?(' · '+r.items):'')+'</div>'
+      +(r.notes?'<div style="font-size:11px;color:#888;margin-top:3px;">📝 '+r.notes+'</div>':'')+'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;font-weight:700;color:'+color+';">'+badge+'</span>'
+      +'<button onclick="openEditRC('+r.id+')" style="padding:7px 9px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>'
+      +'<button onclick="deleteRC('+r.id+')" style="padding:7px 9px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button></div>'
+      +'</div></div>';
+  }).join('');
+}
+function checkBackupReminder(){
+  var banner=document.getElementById('db-backupreminder-banner');if(!banner)return;
+  if(!CU||CU.role!=='admin'){banner.style.display='none';return;}
+  var todayStr=new Date().toLocaleDateString('en-LK');
+  var lastShown=localStorage.getItem('ngrd_backupreminder_lastshown');
+  if(lastShown===todayStr){banner.style.display='none';return;}
+  var lb=LS.get('ngrd_last_backup');
+  var daysSince=lb&&lb.ts?Math.floor((Date.now()-lb.ts)/86400000):999;
+  if(daysSince<7){banner.style.display='none';return;}
+  banner.style.display='block';
+  var lastText=lb&&lb.date?('கடைசி backup: '+lb.date+' ('+daysSince+' நாள் முன்பு)'):'இதுவரை backup எடுக்கல!';
+  banner.innerHTML='<div style="background:linear-gradient(135deg,#2A5A8B,#1A3A5B);color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+    +'<div><div style="font-size:14px;font-weight:700;">💾 Weekly Backup Reminder</div><div style="font-size:12px;color:rgba(255,255,255,.85);margin-top:2px;">'+lastText+' — இப்போ ஒரு backup எடுங்க</div></div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="showPage(\'backup\')" style="padding:9px 16px;background:#fff;color:#1A3A5B;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">💾 Backup பண்ணு</button>'
+    +'<button onclick="localStorage.setItem(\'ngrd_backupreminder_lastshown\',new Date().toLocaleDateString(\'en-LK\'));document.getElementById(\'db-backupreminder-banner\').style.display=\'none\';" style="padding:9px 12px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">✕ Later</button>'
+    +'</div></div>';
 }
 function checkDocExpiryReminder(){
   var banner=document.getElementById('db-docexpiry-banner');if(!banner)return;
@@ -5825,11 +6008,80 @@ function cleanDuplicatePrices(){
     seen[key]=1; out.push(p);
   });
   var removed=before-out.length;
-  if(removed<=0){showToast('✅ Duplicate price ஒண்ணும் இல்ல','t-s');return;}
+  if(removed<=0){showToast('✅ Exact duplicate price ஒண்ணும் இல்ல','t-s');return;}
   if(!confirm(removed+' duplicate price(s) கண்டுபிடிச்சேன் (same item + brand + model). Clean பண்ணணுமா?')) return;
   setPrices(out);
   if(typeof renderPriceList==='function') renderPriceList();
   showToast('🧹 '+removed+' duplicate price(s) removed!','t-s');
+}
+// ── NEAR-DUPLICATE FINDER — catches things like "BRAKE PAD SET" vs "BRAKE PAD SET-" ──
+function _normalizeDescForDupe(s){
+  return (s||'').toLowerCase().trim()
+    .replace(/[-–—_.,;:]+$/,'')      // strip trailing punctuation
+    .replace(/\s+/g,' ')             // collapse multiple spaces
+    .trim();
+}
+function findNearDuplicatePrices(){
+  if(!CU||CU.role!=='admin'){showToast('Admin only!','t-e');return;}
+  var prices=getPrices();
+  var groups={};
+  prices.forEach(function(p,idx){
+    var normKey=_normalizeDescForDupe(p.description)+'|'+(p.brand||'').trim().toLowerCase()+'|'+(p.vehicle||'').trim().toLowerCase();
+    (groups[normKey]=groups[normKey]||[]).push(Object.assign({_idx:idx},p));
+  });
+  // Only groups where the RAW descriptions actually differ (otherwise it's an exact dup, already handled above)
+  var candidateGroups=Object.keys(groups).map(function(k){return groups[k];}).filter(function(g){
+    if(g.length<2) return false;
+    var rawSet={};g.forEach(function(p){rawSet[(p.description||'')]=1;});
+    return Object.keys(rawSet).length>1;
+  });
+  if(!candidateGroups.length){showToast('✅ Near-duplicate ஒண்ணும் இல்ல — Price Master clean-ஆ இருக்கு!','t-s');return;}
+  var popup=document.createElement('div');
+  popup.id='near-dupe-popup';
+  popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;z-index:99999;width:92vw;max-width:560px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3);';
+  var body='<div style="background:#7B3FA0;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">'
+    +'<div style="font-weight:700;font-size:14px;">🤖 Near-Duplicate Finder — '+candidateGroups.length+' group(s)</div>'
+    +'<span onclick="document.getElementById(\'near-dupe-popup\').remove()" style="cursor:pointer;font-size:20px;">✕</span></div>';
+  body+='<div style="padding:14px;font-size:11px;color:#888;">ஒவ்வொரு group-லயும், எதை Keep பண்ணணும்-ன்னு select பண்ணுங்க — மீதி automatic-ஆ delete ஆகும்.</div>';
+  candidateGroups.forEach(function(g,gi){
+    body+='<div style="margin:0 14px 14px;border:1px solid #DDD6FE;border-radius:8px;padding:10px;">';
+    g.forEach(function(p,pi){
+      body+='<label style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<input type="radio" name="dupe-grp-'+gi+'" value="'+p._idx+'" '+(pi===0?'checked':'')+'>'
+        +'<div style="flex:1;"><div style="font-weight:700;font-size:12px;">"'+(p.description||'')+'"</div>'
+        +'<div style="font-size:10px;color:#888;">Brand: '+(p.brand||'-')+' | Sell: '+lkr(p.price||0)+' | Updated: '+(p.date||'-')+'</div></div></label>';
+    });
+    body+='</div>';
+  });
+  body+='<div style="padding:14px;"><button onclick="applyNearDupeMerge()" style="width:100%;padding:12px;background:#7B3FA0;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">✅ Merge Selected — Delete Rest</button></div>';
+  popup.innerHTML=body;
+  popup.dataset.groups=JSON.stringify(candidateGroups.map(function(g){return g.map(function(p){return p._idx;});}));
+  document.body.appendChild(popup);
+}
+function applyNearDupeMerge(){
+  var popup=document.getElementById('near-dupe-popup');if(!popup)return;
+  var groupIdxs=JSON.parse(popup.dataset.groups);
+  var keepIdxs={};
+  groupIdxs.forEach(function(idxs,gi){
+    var radios=popup.querySelectorAll('input[name="dupe-grp-'+gi+'"]');
+    var chosen=null;
+    radios.forEach(function(r){if(r.checked)chosen=parseInt(r.value);});
+    keepIdxs[chosen]=true;
+    idxs.forEach(function(i){}); // idxs available if needed
+  });
+  var allRemoveIdxs=[];
+  groupIdxs.forEach(function(idxs){
+    idxs.forEach(function(i){ if(!keepIdxs[i]) allRemoveIdxs.push(i); });
+  });
+  if(!allRemoveIdxs.length){showToast('எதுவும் தேர்வு செய்யப்படல்','t-i');popup.remove();return;}
+  var prices=getPrices();
+  var removeSet={};allRemoveIdxs.forEach(function(i){removeSet[i]=true;});
+  var out=prices.filter(function(p,i){return !removeSet[i];});
+  setPrices(out);
+  if(typeof renderPriceList==='function') renderPriceList();
+  showToast('🧹 '+allRemoveIdxs.length+' near-duplicate(s) merged!','t-s');
+  if(typeof addLog==='function') addLog('Near-duplicate price merge: '+allRemoveIdxs.length+' removed by '+(CU?CU.name:'?'));
+  popup.remove();
 }
 function categorizeItem(desc){
   var d=(desc||'').toLowerCase();
@@ -6322,6 +6574,36 @@ function renderAnalytics(){
         }).join('');
       }
       lossEl.innerHTML=lHtml;
+    }
+  }
+  // ── ENTITY BUSINESS VALUE ──
+  var entEl=document.getElementById('chart-entity-value');
+  if(entEl){
+    var entMap={};
+    h.forEach(function(e){
+      var ent=(e.entity||'').trim();if(!ent) return;
+      if(!entMap[ent]) entMap[ent]={total:0,won:0,lost:0,value:0,quotations:0};
+      entMap[ent].quotations++;
+      entMap[ent].value+=(e.grandTotal||0);
+      if(e.status==='awarded'){entMap[ent].won++;entMap[ent].total++;}
+      else if(e.status==='rejected'){entMap[ent].lost++;entMap[ent].total++;}
+    });
+    var entList=Object.keys(entMap).map(function(k){return Object.assign({name:k},entMap[k]);});
+    entList.sort(function(a,b){return b.value-a.value;});
+    entList=entList.slice(0,10); // top 10
+    if(!entList.length){
+      entEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);">Entity data இல்லை இன்னும்</div>';
+    } else {
+      var maxVal=Math.max.apply(null,entList.map(function(x){return x.value;}).concat([1]));
+      entEl.innerHTML=entList.map(function(x){
+        var winRate=x.total>0?Math.round((x.won/x.total)*100):null;
+        var winRateHtml=winRate!==null?('<span style="font-size:10px;font-weight:700;color:'+(winRate>=50?'#1A6B3C':'#B22222')+';margin-left:6px;">'+winRate+'% win rate</span>'):'';
+        return '<div style="margin-bottom:10px;">'
+          +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><div><b>'+x.name+'</b>'+winRateHtml+'</div><div style="font-weight:700;color:#1A6B3C;">'+lkr(x.value)+'</div></div>'
+          +'<div style="height:8px;background:#eee;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+((x.value/maxVal)*100).toFixed(1)+'%;background:linear-gradient(90deg,#1A3A6B,#2060a0);"></div></div>'
+          +'<div style="font-size:10px;color:#888;margin-top:2px;">'+x.quotations+' quotations'+(x.total>0?(' · '+x.won+' won, '+x.lost+' lost'):'')+'</div>'
+          +'</div>';
+      }).join('');
     }
   }
 }
@@ -6840,6 +7122,7 @@ function renderDashboard(){
   if(typeof checkUrgent24hReminder==='function') checkUrgent24hReminder();
   if(typeof checkMissedApprovedReminder==='function') checkMissedApprovedReminder();
   if(typeof checkDocExpiryReminder==='function') checkDocExpiryReminder();
+  if(typeof checkBackupReminder==='function') checkBackupReminder();
 }
 
 function viewQuot(id){
