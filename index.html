@@ -7604,15 +7604,32 @@ function _printWithIframe(html){
   document.body.appendChild(iframe);
   const doc=iframe.contentDocument||iframe.contentWindow.document;
   doc.open();doc.write(html);doc.close();
-  // FIX: Chrome's "Save as PDF" filename suggestion comes from the TOP window's document.title,
-  // not the iframe's <title> — even though we print the iframe's content. Extract the title we
-  // already embed in the generated HTML (e.g. "Quotation WNA/APO/FO/MT/2026/2565") and apply it
-  // to the main page temporarily, so the suggested filename matches the e-Q No / Ref No.
+  // FIX: Chrome's "Save as PDF" filename suggestion is unreliable when printing an iframe —
+  // it sometimes reads the TOP window's title, sometimes needs a moment to register a title
+  // change before print() locks the document. We set BOTH titles and add a short delay before
+  // calling print(), which is the standard workaround for this exact Chrome quirk.
   var _origTitle=document.title;
   var _titleMatch=html.match(/<title>([^<]*)<\/title>/i);
   var _suggestedTitle=_titleMatch?_titleMatch[1].replace(/[\/\\:*?"<>|]/g,'-').trim():'';
-  function _applySuggestedTitle(){ if(_suggestedTitle) document.title=_suggestedTitle; }
-  function _restoreTitle(){ setTimeout(function(){document.title=_origTitle;},1000); }
+  window._pdfSuggestedTitle=_suggestedTitle;
+  window._pdfOrigTitle=_origTitle;
+  window._pdfIframeDoc=doc;
+  window._doPrintPdf=function(useIframe){
+    if(window._pdfSuggestedTitle){
+      document.title=window._pdfSuggestedTitle;
+      try{ if(window._pdfIframeDoc) window._pdfIframeDoc.title=window._pdfSuggestedTitle; }catch(_e){}
+    }
+    setTimeout(function(){
+      if(useIframe){
+        var ifr=document.getElementById('_pf');
+        if(ifr){ ifr.contentWindow.focus(); ifr.contentWindow.print(); }
+      } else {
+        var frm=window.frames['_pf'];
+        if(frm) frm.print(); else window.print();
+      }
+      setTimeout(function(){ document.title=window._pdfOrigTitle; },1200);
+    },150);
+  };
   const overlay=document.createElement('div');
   overlay.id='_po';
   overlay.id='_po';
@@ -7620,17 +7637,8 @@ function _printWithIframe(html){
   overlay.innerHTML=`
     <style>@media print{#_po{display:none!important;}}</style>
     <div style="background:#0D1B2A;padding:10px 14px;border-radius:4px;display:flex;gap:8px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,.5);">
-      <button onclick="var _t=document.title;var _m=arguments;window._applyPdfTitle&&window._applyPdfTitle();window.frames['_pf']?window.frames['_pf'].print():window.print();window._restorePdfTitle&&window._restorePdfTitle();" style="padding:9px 18px;background:#C9952A;color:#0D1B2A;border:none;border-radius:4px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">🖨️ Print</button>
-      <button onclick="
-        window._applyPdfTitle&&window._applyPdfTitle();
-        var iframe=document.getElementById('_pf');
-        if(iframe){
-          var w=iframe.contentWindow;
-          w.focus();
-          w.print();
-        }
-        window._restorePdfTitle&&window._restorePdfTitle();
-      " style="padding:9px 18px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">💾 Save as PDF</button>
+      <button onclick="window._doPrintPdf(false)" style="padding:9px 18px;background:#C9952A;color:#0D1B2A;border:none;border-radius:4px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">🖨️ Print</button>
+      <button onclick="window._doPrintPdf(true)" style="padding:9px 18px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">💾 Save as PDF</button>
       <div style="color:#aaa;font-size:11px;max-width:200px;line-height:1.4;">Print dialog-ல் <b style="color:#C9952A;">Save as PDF</b> select பண்ணுங்கள்</div>
       <button onclick="['_pf','_po'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();})" style="padding:9px 14px;background:#333;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">✕ Close</button>
     </div>`;
