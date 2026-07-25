@@ -102,7 +102,9 @@ body{font-family:var(--fb);background:var(--light);color:var(--text);min-height:
 /* ── LAYOUT ── */
 .app-body{display:flex;flex:1;min-height:calc(100vh - 62px);}
 .sidebar{width:220px;background:#0D1B2A;border-right:none;
-  display:flex;flex-direction:column;padding:16px 0;flex-shrink:0;transition:transform .25s;}
+  display:flex;flex-direction:column;padding:16px 0;flex-shrink:0;transition:width .25s ease,padding .25s ease,transform .25s ease;overflow:hidden;}
+.sidebar.collapsed{width:0;padding:16px 0;}
+.sidebar.collapsed .nav-item,.sidebar.collapsed .nav-sec-lbl,.sidebar.collapsed .sidebar-footer{white-space:nowrap;}
 .sidebar-overlay{display:none;position:fixed;inset:0;top:60px;background:rgba(0,0,0,.5);z-index:140;}
 @media(max-width:700px){
   .sidebar{position:fixed;top:60px;left:0;bottom:0;z-index:150;transform:translateX(-215px);}
