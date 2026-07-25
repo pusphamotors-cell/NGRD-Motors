@@ -535,21 +535,32 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               <div class="form-field full"><label>Procurement Title</label><input id="f-title"></div>
               <div class="form-field"><label>Vehicle Name</label><select id="f-vname" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;background:#fff;outline:none;"><option value=""></option>
 <option value="Suzuki SX4">Suzuki SX4</option>
+<optgroup label="── Mitsubishi L200 (K34 group) ──">
 <option value="Mitsubishi L200 K34 Japan Cab">Mitsubishi L200 K34 Japan Cab</option>
 <option value="Mitsubishi L200 K14 Japan Cab">Mitsubishi L200 K14 Japan Cab</option>
+<option value="Mitsubishi Thailand Cab">Mitsubishi Thailand Cab</option>
+</optgroup>
+<optgroup label="── Mitsubishi Other ──">
 <option value="Mitsubishi KB40">Mitsubishi KB40</option>
 <option value="Mitsubishi KB70">Mitsubishi KB70</option>
-<option value="Mitsubishi Thailand Cab">Mitsubishi Thailand Cab</option>
 <option value="Mitsubishi Van">Mitsubishi Van</option>
 <option value="Mitsubishi Pajero Jeep V36">Mitsubishi Pajero Jeep V36</option>
 <option value="Mitsubishi Pajero Palathsabha Jeep">Mitsubishi Pajero Palathsabha Jeep</option>
+</optgroup>
+<optgroup label="── Mahindra ──">
+<option value="Mahindra Bolero">Mahindra Bolero</option>
+</optgroup>
+<optgroup label="── Isuzu ──">
 <option value="Isuzu TFR Cab">Isuzu TFR Cab</option>
+</optgroup>
+<optgroup label="── Toyota ──">
 <option value="Toyota LH113 Dolphin Van">Toyota LH113 Dolphin Van</option>
 <option value="Toyota KDH Van">Toyota KDH Van</option>
 <option value="Toyota Cab LN85">Toyota Cab LN85</option>
 <option value="Toyota Cab LN166">Toyota Cab LN166</option>
 <option value="Toyota Cab LN106">Toyota Cab LN106</option>
-<option value="Toyota Cab LN107">Toyota Cab LN107</option></select></div>
+<option value="Toyota Cab LN107">Toyota Cab LN107</option>
+</optgroup></select></div>
               <div class="form-field"><label>Vehicle No.</label><input id="f-vno"></div>
               <div class="form-field"><label>Engine No.</label><input id="f-eng"></div>
               <div class="form-field"><label>Chassis No.</label><input id="f-chas"></div>
@@ -1913,7 +1924,7 @@ async function extractBatchFrom(apiKey,fullPdfB64,fromItemNo,passNum){
 async function extractBatch(apiKey,fullPdfB64,fromPage,toPage,batchNum,totalBatches){
   var rangeHint=fromPage?('\nNOTE: Focus on pages '+fromPage+' to '+toPage+' only.'):'';
   var batchHint=totalBatches>1?('\nBatch '+batchNum+'/'+totalBatches+'.'+(batchNum===1?' Extract header AND items.':' Extract items only.')):'';
-  var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+'\n\nThis PDF has TWO sections:\n1. Schedule Of Requirements — Item No, Item Name, Qty, Unit\n2. Specifications — Required Brand per item\n\nBRAND EXTRACTION RULES (VERY IMPORTANT):\nIn the Specifications section, each item has rows like:\n  Row 1: Part description | 6 MONTHS WARRANTY | Mandatory\n  Row 2: BrandName | Mandatory  <-- THIS IS THE BRAND ROW\nThe brand name is a SHORT WORD appearing as its OWN ROW (not warranty text). Examples: Tenacity, Genuine, RBI, Denso, Bando, Mitsuboshi, KYB, NSK, NTN, Bosch, OMX, FBL, MK, Subros, Sakura, NGK, Gates, SKF, Aisin.\nRULES:\n- Extract the brand name from the brand-only row\n- DO NOT use warranty text (6 MONTHS WARRANTY) as brand\n- DO NOT skip items — check every item in Specifications\n- If no brand row exists for item, use empty string\n- Brand is always a manufacturer name, never a description\n\nHEADER: vehicleName (e.g. Suzuki SX4, Mitsubishi L200), vehicleNo (reg no like UHA-16097), engineNo (EN- prefix), chassisNo (CH- or MA3 prefix), closingDate (date only e.g. 2026-08-15), closingTime (24-hour HH:MM e.g. 14:00 -- extract from wording like Closing Time: 2.00 PM or closes at 14:00; if a time is embedded inside the closing date text split it out here and keep closingDate as date-only; leave empty if no time mentioned anywhere), validityPeriod, deliveryPeriod, destination.\n\nReturn ONLY valid JSON (no markdown):\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","closingTime":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"GEAR BOX UNDER FRONT MOUNT","qty":1,"unit":"Unit","brand":"Tenacity"},{"itemNo":2,"description":"LOWER ARM BUSH","qty":2,"unit":"Unit","brand":"RBI"},{"itemNo":3,"description":"FILTER HOUSING O RING","qty":1,"unit":"Unit","brand":""}]}\nCRITICAL: brand = manufacturer brand name from Specifications. Empty string if none. Never use warranty as brand.';
+  var prompt='Extract spare parts from this Sri Lanka Government Promise.lk / e-GP quotation PDF.'+rangeHint+batchHint+'\n\nThis PDF has TWO sections:\n1. Schedule Of Requirements — Item No, Item Name, Qty, Unit\n2. Specifications — Required Brand per item\n\nBRAND EXTRACTION RULES (VERY IMPORTANT):\nIn the Specifications section, each item has rows like:\n  Row 1: Part description | 6 MONTHS WARRANTY | Mandatory\n  Row 2: BrandName | Mandatory  <-- THIS IS THE BRAND ROW\nThe brand name is a SHORT WORD appearing as its OWN ROW (not warranty text). Examples: Tenacity, Genuine, RBI, Denso, Bando, Mitsuboshi, KYB, NSK, NTN, Bosch, OMX, FBL, MK, Subros, Sakura, NGK, Gates, SKF, Aisin.\nRULES:\n- Extract the brand name from the brand-only row\n- DO NOT use warranty text (6 MONTHS WARRANTY) as brand\n- DO NOT skip items — check every item in Specifications\n- If no brand row exists for item, use empty string\n- Brand is always a manufacturer name, never a description\n\nHEADER: vehicleName -- determine the EXACT vehicle variant, not just the chassis code, because codes like K34 are shared across multiple L200 sub-variants. Pick the closest match from this exact list based on ALL available cues in the PDF (chassis no, engine no, and wording like Japan Cab / Double Cab / Thailand Cab / 4WD / Jeep / Van): Suzuki SX4 | Mitsubishi L200 K34 Japan Cab | Mitsubishi L200 K14 Japan Cab | Mitsubishi KB40 | Mitsubishi KB70 | Mitsubishi Thailand Cab | Mitsubishi Van | Mitsubishi Pajero Jeep V36 | Mitsubishi Pajero Palathsabha Jeep | Isuzu TFR Cab | Toyota LH113 Dolphin Van | Toyota KDH Van | Toyota Cab LN85 | Toyota Cab LN166 | Toyota Cab LN106 | Toyota Cab LN107 | Mahindra Bolero. If nothing in the list fits well, output your best plain-text guess instead (e.g. the make + model as written in the PDF) rather than forcing a wrong match. vehicleNo (reg no like UHA-16097), engineNo (EN- prefix), chassisNo (CH- or MA3 prefix), closingDate (date only e.g. 2026-08-15), closingTime (24-hour HH:MM e.g. 14:00 -- extract from wording like Closing Time: 2.00 PM or closes at 14:00; if a time is embedded inside the closing date text split it out here and keep closingDate as date-only; leave empty if no time mentioned anywhere), validityPeriod, deliveryPeriod, destination.\n\nReturn ONLY valid JSON (no markdown):\n{"refNo":"","eqNo":"","entity":"","title":"","vehicleName":"","vehicleNo":"","engineNo":"","chassisNo":"","closingDate":"","closingTime":"","validityPeriod":"","deliveryPeriod":"","destination":"","items":[{"itemNo":1,"description":"GEAR BOX UNDER FRONT MOUNT","qty":1,"unit":"Unit","brand":"Tenacity"},{"itemNo":2,"description":"LOWER ARM BUSH","qty":2,"unit":"Unit","brand":"RBI"},{"itemNo":3,"description":"FILTER HOUSING O RING","qty":1,"unit":"Unit","brand":""}]}\nCRITICAL: brand = manufacturer brand name from Specifications. Empty string if none. Never use warranty as brand.';
 
   var resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
@@ -4381,10 +4392,10 @@ function saveToHistory(){
         if(_priceHist.length>10) _priceHist=_priceHist.slice(_priceHist.length-10);
       }
       hist[idx]=Object.assign({},orig,{
-        refNo:refNo,eqNo:eqNo,vehicle:g('f-vname'),vNo:g('f-vno'),
-        entity:g('f-entity'),title:g('f-title'),closingDate:g('f-close'),closingTime:g('f-close-time'),
-        validityPeriod:g('f-valid'),deliveryPeriod:g('f-deliv'),destination:g('f-dest'),
-        engineNo:g('f-eng'),chassisNo:g('f-chas'),
+        refNo:refNo||orig.refNo,eqNo:eqNo||orig.eqNo,vehicle:g('f-vname')||orig.vehicle,vNo:g('f-vno')||orig.vNo,
+        entity:g('f-entity')||orig.entity,title:g('f-title')||orig.title,closingDate:g('f-close')||orig.closingDate,closingTime:g('f-close-time')||orig.closingTime,
+        validityPeriod:g('f-valid')||orig.validityPeriod,deliveryPeriod:g('f-deliv')||orig.deliveryPeriod,destination:g('f-dest')||orig.destination,
+        engineNo:g('f-eng')||orig.engineNo,chassisNo:g('f-chas')||orig.chassisNo,
         items:JSON.parse(JSON.stringify(curItems)),
         grandTotal:_newTotal,
         status:quotStatus,priceHistory:_priceHist,editLock:null,
