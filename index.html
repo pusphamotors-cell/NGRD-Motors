@@ -1162,6 +1162,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="form-field"><label>POC Name</label><input id="cc-poc" placeholder="e.g. Lt. Cdr. Perera"></div>
           <div class="form-field"><label>Designation / Role</label><input id="cc-role" placeholder="e.g. Stores Officer"></div>
           <div class="form-field"><label>Phone / WhatsApp</label><input id="cc-phone" placeholder="e.g. 0771234567"></div>
+          <div class="form-field"><label>Payment Status</label><select id="cc-paystatus" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;">
+            <option value="normal">✅ Normal</option>
+            <option value="pending">⚠️ Payment Pending</option>
+          </select></div>
           <div class="form-field"><label>Notes</label><textarea id="cc-notes" rows="2" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;"></textarea></div>
           <div style="display:flex;gap:8px;margin-top:14px;">
             <button class="btn btn-green" onclick="saveCC()" style="flex:1;">💾 Save</button>
@@ -3317,6 +3321,7 @@ function openAddCC(){
   if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
   document.getElementById('cc-modal-title').textContent='➕ Add Contact';
   ['cc-id','cc-camp','cc-poc','cc-role','cc-phone','cc-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var _psEl=document.getElementById('cc-paystatus');if(_psEl)_psEl.value='normal';
   document.getElementById('cc-modal-overlay').style.display='flex';
 }
 function openEditCC(id){
@@ -3329,6 +3334,7 @@ function openEditCC(id){
   document.getElementById('cc-role').value=c.role||'';
   document.getElementById('cc-phone').value=c.phone||'';
   document.getElementById('cc-notes').value=c.notes||'';
+  var _psEl2=document.getElementById('cc-paystatus');if(_psEl2)_psEl2.value=c.payStatus||'normal';
   document.getElementById('cc-modal-overlay').style.display='flex';
 }
 function closeCCModal(){ document.getElementById('cc-modal-overlay').style.display='none'; }
@@ -3343,6 +3349,7 @@ function saveCC(){
     poc:document.getElementById('cc-poc').value.trim(),
     role:document.getElementById('cc-role').value.trim(),
     phone:document.getElementById('cc-phone').value.trim(),
+    payStatus:(document.getElementById('cc-paystatus')||{value:'normal'}).value,
     notes:document.getElementById('cc-notes').value.trim(),
     updatedBy:CU?CU.name:'',updatedAt:new Date().toLocaleString('en-LK')
   };
@@ -3373,12 +3380,16 @@ function renderCampContacts(){
     if(!q) return true;
     return ((c.camp||'')+' '+(c.poc||'')+' '+(c.role||'')).toLowerCase().includes(q);
   });
+  list.sort(function(a,b){return (b.payStatus==='pending'?1:0)-(a.payStatus==='pending'?1:0);});
   if(!list.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">☎️ Contact இல்ல இன்னும்.'+(isAdmin?' "➕ Add Contact" click பண்ணி சேருங்க.':'')+'</div>'; return; }
-  el.innerHTML=list.map(function(c){
+  var pendingCount=list.filter(function(c){return c.payStatus==='pending';}).length;
+  var html=pendingCount>0?('<div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:700;color:#92400E;">⚠️ '+pendingCount+' camp(s) — Payment Pending</div>'):'';
+  el.innerHTML=html+list.map(function(c){
     var nameEsc=c.id;
-    return '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">'
+    var isPending=c.payStatus==='pending';
+    return '<div style="border:1px solid var(--border);border-left:4px solid '+(isPending?'#E8800B':'#1A6B3C')+';border-radius:8px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">'
       +'<div style="flex:1;min-width:220px;">'
-      +'<div style="font-weight:700;font-size:14px;color:var(--navy);">'+c.camp+'</div>'
+      +'<div style="font-weight:700;font-size:14px;color:var(--navy);">'+c.camp+(isPending?' <span style="background:#FFFBEB;color:#92400E;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;border:1px solid #FCD34D;">⚠️ Payment Pending</span>':'')+'</div>'
       +(c.poc?'<div style="font-size:12px;color:#666;margin-top:2px;">👤 '+c.poc+(c.role?(' — '+c.role):'')+'</div>':'')
       +(c.phone?'<div style="font-size:12px;color:#666;">📱 '+c.phone+'</div>':'')
       +(c.notes?'<div style="font-size:11px;color:#888;margin-top:4px;">📝 '+c.notes+'</div>':'')
