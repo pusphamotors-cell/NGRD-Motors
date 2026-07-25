@@ -1767,6 +1767,10 @@ function _completeLogin(found){
     }
     initApp();
     addLog('Logged in: '+CU.name+' — '+getDeviceInfo());
+    startPresenceTracking();
+}
+function startPresenceTracking(){
+    if(window._presenceInterval) clearInterval(window._presenceInterval); // avoid double-heartbeat on repeated calls
     // Track online presence
     if(typeof fbWrite==='function'){
       fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
@@ -1779,11 +1783,14 @@ function _completeLogin(found){
       }
     },90000);
     // Set offline on page unload
-    window.addEventListener('beforeunload',function(){
-      if(CU&&typeof fbWrite==='function'){
-        fbWrite('presence/'+CU.id,{online:false,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
-      }
-    });
+    if(!window._presenceUnloadBound){
+      window._presenceUnloadBound=true;
+      window.addEventListener('beforeunload',function(){
+        if(CU&&typeof fbWrite==='function'){
+          fbWrite('presence/'+CU.id,{online:false,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+        }
+      });
+    }
 }
 
 // ═══════════════════════════════════════════════════
@@ -11135,7 +11142,10 @@ window.onload=()=>{
   const s=LS.get('ngrd_s');
   if(s){
     const valid=getUsers().find(u=>u.id===s.id&&u.active);
-    if(valid){CU=valid;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='flex';initApp();}
+    if(valid){
+      CU=valid;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='flex';initApp();
+      if(typeof startPresenceTracking==='function') startPresenceTracking();
+    }
     else LS.del('ngrd_s');
   }
   setInterval(()=>{
