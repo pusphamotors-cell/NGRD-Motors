@@ -2058,13 +2058,33 @@ function showPage(pg){
   if(pg==='backup'){renderBackupPage();loadSubmitterSettings();setTimeout(function(){loadSubmitterSettings();},1500);}
   if(pg==='prices')renderPriceList();
   if(pg==='suppliers'&&typeof renderSuppliers==='function')renderSuppliers();
-  if(pg==='ratecontracts'&&typeof renderRateContracts==='function')renderRateContracts();
+  if(pg==='ratecontracts'&&typeof renderRateContracts==='function'){
+    renderRateContracts();
+    if(typeof fbRead==='function'){
+      fbRead('ratecontracts',function(data){
+        try{
+          var remote=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data):[]);
+          remote=remote.filter(function(x){return x&&x.entity;});
+          if(remote.length){ _rcMemCache=remote; try{localStorage.setItem('ngrd_ratecontracts',JSON.stringify(remote));}catch(e3){} renderRateContracts(); }
+        }catch(e){}
+      });
+    }
+  }
   if(pg==='docs'){
     var _adBtn=document.getElementById('add-doc-btn');if(_adBtn)_adBtn.style.display=(CU&&CU.role==='admin')?'inline-block':'none';
   }
   if(pg==='campcontacts'){
     var _accBtn=document.getElementById('add-campcontact-btn');if(_accBtn)_accBtn.style.display=(CU&&CU.role==='admin')?'inline-block':'none';
     if(typeof renderCampContacts==='function') renderCampContacts();
+    if(typeof fbRead==='function'){
+      fbRead('campcontacts',function(data){
+        try{
+          var remote=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data):[]);
+          remote=remote.filter(function(x){return x&&x.camp;});
+          if(remote.length){ _ccMemCache=remote; try{localStorage.setItem('ngrd_campcontacts',JSON.stringify(remote));}catch(e3){} renderCampContacts(); }
+        }catch(e){}
+      });
+    }
   }
   if(pg==='docs'&&typeof renderDocs==='function'){
     renderDocs();
@@ -3227,8 +3247,14 @@ function renderDocs(){
 // ═══════════════════════════════════════════════════
 // RATE CONTRACT TRACKER
 // ═══════════════════════════════════════════════════
-function getRCs(){ var s=LS.get('ngrd_ratecontracts'); return Array.isArray(s)?s:[]; }
+var _rcMemCache=null;
+function getRCs(){
+  if(_rcMemCache!==null) return _rcMemCache;
+  var s=LS.get('ngrd_ratecontracts');
+  return Array.isArray(s)?s:[];
+}
 function setRCs(list){
+  _rcMemCache=list;
   try{ LS.set('ngrd_ratecontracts',list); }catch(e){ console.warn('ngrd_ratecontracts localStorage write failed:',e); }
   if(typeof fbWrite==='function') fbWrite('ratecontracts',list);
 }
@@ -3313,8 +3339,14 @@ function renderRateContracts(){
 // ═══════════════════════════════════════════════════
 // CAMP / UNIT CONTACT DIRECTORY (view: all staff, edit/delete: admin)
 // ═══════════════════════════════════════════════════
-function getCCs(){ var s=LS.get('ngrd_campcontacts'); return Array.isArray(s)?s:[]; }
+var _ccMemCache=null;
+function getCCs(){
+  if(_ccMemCache!==null) return _ccMemCache;
+  var s=LS.get('ngrd_campcontacts');
+  return Array.isArray(s)?s:[];
+}
 function setCCs(list){
+  _ccMemCache=list;
   try{ LS.set('ngrd_campcontacts',list); }catch(e){ console.warn('ngrd_campcontacts localStorage write failed:',e); }
   if(typeof fbWrite==='function') fbWrite('campcontacts',list);
 }
@@ -3645,6 +3677,36 @@ function initFirebaseSync(){
       var merged=Object.keys(map).map(function(k){return map[k];});
       _docsMemCache=merged; try{ localStorage.setItem('ngrd_docs',JSON.stringify(merged)); }catch(e2){}
       if(document.getElementById('page-docs')&&document.getElementById('page-docs').style.display!=='none'&&typeof renderDocs==='function') renderDocs();
+    }catch(e){}
+  });
+  // Sync rate contracts across all devices/users (merge by id)
+  fbRead('ratecontracts',function(data){
+    try{
+      var remote=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data):[]);
+      remote=remote.filter(function(x){return x&&x.entity;});
+      var local=getRCs();
+      if(!remote.length){ if(local.length>0)fbWrite('ratecontracts',local); return; }
+      var map={};
+      local.forEach(function(d){if(d&&d.id!=null)map[d.id]=d;});
+      remote.forEach(function(d){ if(d==null||d.id==null)return; map[d.id]=Object.assign({},map[d.id]||{},d); });
+      var merged=Object.keys(map).map(function(k){return map[k];});
+      _rcMemCache=merged; try{ localStorage.setItem('ngrd_ratecontracts',JSON.stringify(merged)); }catch(e2){}
+      if(document.getElementById('page-ratecontracts')&&document.getElementById('page-ratecontracts').style.display!=='none'&&typeof renderRateContracts==='function') renderRateContracts();
+    }catch(e){}
+  });
+  // Sync camp contacts across all devices/users (merge by id)
+  fbRead('campcontacts',function(data){
+    try{
+      var remote=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data):[]);
+      remote=remote.filter(function(x){return x&&x.camp;});
+      var local=getCCs();
+      if(!remote.length){ if(local.length>0)fbWrite('campcontacts',local); return; }
+      var map={};
+      local.forEach(function(d){if(d&&d.id!=null)map[d.id]=d;});
+      remote.forEach(function(d){ if(d==null||d.id==null)return; map[d.id]=Object.assign({},map[d.id]||{},d); });
+      var merged=Object.keys(map).map(function(k){return map[k];});
+      _ccMemCache=merged; try{ localStorage.setItem('ngrd_campcontacts',JSON.stringify(merged)); }catch(e2){}
+      if(document.getElementById('page-campcontacts')&&document.getElementById('page-campcontacts').style.display!=='none'&&typeof renderCampContacts==='function') renderCampContacts();
     }catch(e){}
   });
   // Sync suppliers across all devices/users (merge, dedupe by name)
