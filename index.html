@@ -378,6 +378,22 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
   </div>
 </div>
 
+<div id="otp-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,27,42,.96);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px 24px;width:90vw;max-width:360px;text-align:center;">
+    <div style="font-size:34px;margin-bottom:6px;">🔐</div>
+    <div style="font-weight:800;font-size:16px;color:#0D1B2A;">Admin 2-Step Verification</div>
+    <div style="font-size:12px;color:#666;margin:8px 0 16px;">WhatsApp-க்கு 6-digit code அனுப்பிருக்கோம். அதை இங்க type பண்ணுங்க.</div>
+    <input id="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="• • • • • •" style="width:100%;box-sizing:border-box;padding:14px;font-size:22px;letter-spacing:8px;text-align:center;border:2px solid var(--border);border-radius:8px;font-family:var(--fb);outline:none;" onkeydown="if(event.key==='Enter')verifyOtp()">
+    <div id="otp-err" style="display:none;color:#B22222;font-size:12px;margin-top:8px;font-weight:600;">❌ Code தப்பா இருக்கு, மறுபடியும் try பண்ணுங்க</div>
+    <div id="otp-timer" style="font-size:11px;color:#888;margin-top:10px;"></div>
+    <button class="lb" onclick="verifyOtp()" style="margin-top:14px;">✅ VERIFY</button>
+    <div style="display:flex;justify-content:space-between;margin-top:12px;">
+      <button onclick="resendOtp()" style="background:none;border:none;color:#2060a0;font-size:12px;cursor:pointer;font-weight:700;font-family:var(--fb);">🔄 Resend Code</button>
+      <button onclick="cancelOtpLogin()" style="background:none;border:none;color:#B22222;font-size:12px;cursor:pointer;font-weight:700;font-family:var(--fb);">✕ Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ APP ══ -->
 <div id="app" style="display:none;flex-direction:column;">
 
@@ -875,6 +891,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
 
       <!-- ═ DASHBOARD ═ -->
       <div id="page-dashboard" style="display:none;">
+        <div id="db-offline-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-urgent24-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-digest-banner" style="display:none;margin-bottom:14px;"></div>
         <div id="db-followup-banner" style="display:none;margin-bottom:14px;"></div>
@@ -1616,6 +1633,20 @@ function _doLoginCheck(u,p){
   // Check if user exists but expired
   const expiredUser=!found&&getUsers().find(x=>x.username===u&&x.password===p&&x.validUntil&&x.validUntil<today);
   if(found){
+    if(found.role==='admin'){
+      startOtpLogin(found); // 2FA — completes login only after correct OTP
+      return;
+    }
+    _completeLogin(found);
+  }else{
+    var errEl=document.getElementById('login-err');
+    if(errEl){
+      errEl.style.display='block';
+      errEl.textContent=expiredUser?'⏰ Account expired! Admin-ஐ contact பண்ணுங்கள்':'❌ Wrong username or password';
+    }
+  }
+}
+function _completeLogin(found){
     CU=found;
     // Save lastLogin time to user record
     var now=new Date().toLocaleString('en-LK');
@@ -1663,13 +1694,65 @@ function _doLoginCheck(u,p){
         fbWrite('presence/'+CU.id,{online:false,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
       }
     });
-  }else{
-    var errEl=document.getElementById('login-err');
-    if(errEl){
-      errEl.style.display='block';
-      errEl.textContent=expiredUser?'⏰ Account expired! Admin-ஐ contact பண்ணுங்கள்':'❌ Wrong username or password';
+}
+
+// ═══════════════════════════════════════════════════
+// ADMIN 2-STEP VERIFICATION (OTP via WhatsApp)
+// ═══════════════════════════════════════════════════
+var _otpPendingUser=null,_otpCode=null,_otpExpiresAt=0,_otpTimerInt=null;
+function startOtpLogin(found){
+  _otpPendingUser=found;
+  _otpCode=String(Math.floor(100000+Math.random()*900000));
+  _otpExpiresAt=Date.now()+5*60*1000; // 5 minutes
+  var msg='🔐 *NGRD Motors — Admin Login Code*\n\nYour verification code: *'+_otpCode+'*\n\nஇது 5 நிமிஷம் மட்டும் valid. நீங்க இப்போ login பண்ணல-ன்னா, இந்த message-ஐ ignore பண்ணுங்க.';
+  var waNum=(typeof ADMIN_WA!=='undefined'&&ADMIN_WA)?ADMIN_WA:'';
+  if(waNum) window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
+  document.getElementById('otp-overlay').style.display='flex';
+  document.getElementById('otp-input').value='';
+  document.getElementById('otp-err').style.display='none';
+  setTimeout(function(){var el=document.getElementById('otp-input');if(el)el.focus();},200);
+  _startOtpTimer();
+}
+function _startOtpTimer(){
+  var el=document.getElementById('otp-timer');
+  if(_otpTimerInt) clearInterval(_otpTimerInt);
+  _otpTimerInt=setInterval(function(){
+    var remain=Math.max(0,Math.floor((_otpExpiresAt-Date.now())/1000));
+    if(el) el.textContent='⏳ '+Math.floor(remain/60)+':'+String(remain%60).padStart(2,'0')+' மீதி';
+    if(remain<=0){
+      clearInterval(_otpTimerInt);
+      if(el) el.textContent='⏰ Code expire ஆயிடுச்சு — Resend பண்ணுங்க';
     }
+  },1000);
+}
+function verifyOtp(){
+  var entered=(document.getElementById('otp-input').value||'').trim();
+  var errEl=document.getElementById('otp-err');
+  if(Date.now()>_otpExpiresAt){
+    if(errEl){errEl.style.display='block';errEl.textContent='⏰ Code expire ஆயிடுச்சு — Resend Code click பண்ணுங்க';}
+    return;
   }
+  if(entered!==_otpCode){
+    if(errEl){errEl.style.display='block';errEl.textContent='❌ Code தப்பா இருக்கு, மறுபடியும் try பண்ணுங்க';}
+    return;
+  }
+  // Correct — complete the login
+  document.getElementById('otp-overlay').style.display='none';
+  if(_otpTimerInt) clearInterval(_otpTimerInt);
+  var user=_otpPendingUser;
+  _otpPendingUser=null;_otpCode=null;
+  _completeLogin(user);
+}
+function resendOtp(){
+  if(!_otpPendingUser) return;
+  var user=_otpPendingUser;
+  startOtpLogin(user);
+  showToast('📲 புது code அனுப்பப்பட்டது!','t-i');
+}
+function cancelOtpLogin(){
+  document.getElementById('otp-overlay').style.display='none';
+  if(_otpTimerInt) clearInterval(_otpTimerInt);
+  _otpPendingUser=null;_otpCode=null;
 }
 
 function doLogout(){
@@ -10516,9 +10599,12 @@ function initFirebase(){
   xhr.open('GET','https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/ping.json',true);
   xhr.timeout=8000;
   xhr.onload=function(){
-    FB_READY=true;_fbRetry=0;
+    var wasOffline=window._ngrdWasOffline===true;
+    FB_READY=true;_fbRetry=0;window._ngrdWasOffline=false;
     var badge=document.getElementById('fb-badge');
     if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
+    hideOfflineBanner();
+    if(wasOffline&&typeof showToast==='function') showToast('✅ Net திரும்ப வந்துச்சு — data sync ஆகுது!','t-s');
     _flushQueue();
     if(typeof initFirebaseSync==='function') initFirebaseSync();
     if(typeof loadAPIKeyFromFirebase==='function') loadAPIKeyFromFirebase();
@@ -10551,11 +10637,41 @@ function initFirebase(){
   xhr.send();
 }
 function onFbFail(){
-  FB_READY=false;_fbRetry++;
+  FB_READY=false;_fbRetry++;window._ngrdWasOffline=true;
   var badge=document.getElementById('fb-badge');
-  if(_fbRetry<=8){if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}setTimeout(initFirebase,3000);}
-  else{if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}}
+  if(_fbRetry<=8){
+    if(badge){badge.textContent='🟡 Connecting...';badge.style.color='#8B6000';}
+    setTimeout(initFirebase,3000);
+  }else{
+    if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}
+    showOfflineBanner();
+  }
 }
+function showOfflineBanner(){
+  var b=document.getElementById('db-offline-banner');if(!b)return;
+  b.style.display='block';
+  b.innerHTML='<div style="background:linear-gradient(135deg,#B22222,#7A1010);color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+    +'<div><div style="font-size:14px;font-weight:700;">🔴 Net இல்ல — Offline Mode</div><div style="font-size:12px;color:rgba(255,255,255,.85);margin-top:2px;">கவலைப்படாதீங்க — Save/Submit எல்லாம் local-ஆ வேலை செய்யும். Net திரும்ப வந்ததும், தானா cloud-க்கு sync ஆகும்.</div></div>'
+    +'<button onclick="manualRefreshSync()" style="padding:9px 16px;background:#fff;color:#B22222;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">🔄 மறுபடியும் Try பண்ணு</button>'
+    +'</div>';
+}
+function hideOfflineBanner(){
+  var b=document.getElementById('db-offline-banner');if(b){b.style.display='none';b.innerHTML='';}
+}
+// Browser-level online/offline events — reconnect the instant network is restored,
+// instead of waiting for the next 3-second retry cycle.
+window.addEventListener('online',function(){
+  _fbRetry=0;
+  var badge=document.getElementById('fb-badge');
+  if(badge){badge.textContent='🔄 Reconnecting...';badge.style.color='#2060a0';}
+  initFirebase();
+});
+window.addEventListener('offline',function(){
+  FB_READY=false;window._ngrdWasOffline=true;
+  var badge=document.getElementById('fb-badge');
+  if(badge){badge.textContent='🔴 Offline';badge.style.color='#B22222';}
+  showOfflineBanner();
+});
 var _histSyncSnap={}; // id -> last-synced JSON string, used to diff and send ONLY changed records
 function _histMapFromArr(val){
   var arr=Array.isArray(val)?val:(val&&typeof val==='object'?Object.values(val):[]);
