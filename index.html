@@ -426,6 +426,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-prices" onclick="showPage('prices');closeSidebarMobile()"><span class="nav-icon">💰</span>Parts Price List</button>
         <button class="nav-item" id="nav-search" onclick="showPage('search');closeSidebarMobile()"><span class="nav-icon">🔍</span>Quick Search</button>
         <button class="nav-item" id="nav-search" onclick="showPage('search');closeSidebarMobile()"><span class="nav-icon">🔍</span>Parts Search</button>
+        <button class="nav-item" id="nav-docs" onclick="showPage('docs');closeSidebarMobile()"><span class="nav-icon">📑</span>Documents</button>
       </div>
       <div class="nav-div"></div>
       <div class="nav-sec" id="admin-nav">
@@ -434,7 +435,6 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-users" onclick="showPage('users');closeSidebarMobile()"><span class="nav-icon">👥</span>Users</button>
         <button class="nav-item" id="nav-vehicles" onclick="showPage('vehicles');closeSidebarMobile()"><span class="nav-icon">🚗</span>Vehicles</button>
         <button class="nav-item" id="nav-suppliers" onclick="showPage('suppliers');closeSidebarMobile()"><span class="nav-icon">🏭</span>Suppliers</button>
-        <button class="nav-item" id="nav-docs" onclick="showPage('docs');closeSidebarMobile()"><span class="nav-icon">📑</span>Documents</button>
         <button class="nav-item" id="nav-log" onclick="showPage('log');closeSidebarMobile()" style="display:none;"><span class="nav-icon">📋</span>Activity Log</button>
         <button class="nav-item" id="nav-backup" onclick="showPage('backup');closeSidebarMobile()"><span class="nav-icon">💾</span>Backup / Restore</button>
       </div>
@@ -1120,7 +1120,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       <div id="page-docs" style="display:none;">
         <div class="panel">
           <div class="panel-hdr"><span class="panel-hdr-icon">📑</span><span class="panel-hdr-title">Business Document Expiry Tracker</span>
-            <div class="panel-hdr-right"><button class="btn btn-gold btn-sm" onclick="openAddDoc()">➕ Add Document</button></div>
+            <div class="panel-hdr-right"><button class="btn btn-gold btn-sm" id="add-doc-btn" onclick="openAddDoc()" style="display:none;">➕ Add Document</button></div>
           </div>
           <div class="panel-body">
             <div id="doc-list"></div>
@@ -1837,7 +1837,7 @@ function goToHistory(statusFilter, dateFilter) {
 }
 
 function showPage(pg){
-  if(['analytics','users','log','backup','suppliers','docs'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
+  if(['analytics','users','log','backup','suppliers'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
   PAGES.forEach(p=>{
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
@@ -1906,6 +1906,9 @@ function showPage(pg){
   if(pg==='backup'){renderBackupPage();loadSubmitterSettings();setTimeout(function(){loadSubmitterSettings();},1500);}
   if(pg==='prices')renderPriceList();
   if(pg==='suppliers'&&typeof renderSuppliers==='function')renderSuppliers();
+  if(pg==='docs'){
+    var _adBtn=document.getElementById('add-doc-btn');if(_adBtn)_adBtn.style.display=(CU&&CU.role==='admin')?'inline-block':'none';
+  }
   if(pg==='docs'&&typeof renderDocs==='function'){
     renderDocs();
     if(typeof fbRead==='function'){
@@ -2923,6 +2926,7 @@ function handleDocFileSelect(input){
   reader.readAsDataURL(file);
 }
 function openAddDoc(){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும் document add பண்ண முடியும்!','t-e');return;}
   document.getElementById('doc-modal-title').textContent='➕ Add Document';
   ['doc-id','doc-name','doc-expiry','doc-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   var fEl=document.getElementById('doc-file');if(fEl)fEl.value='';
@@ -2931,6 +2935,7 @@ function openAddDoc(){
   document.getElementById('doc-modal-overlay').style.display='flex';
 }
 function openEditDoc(id){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும் document edit பண்ண முடியும்!','t-e');return;}
   var d=getDocs().find(function(x){return x.id===id;});if(!d)return;
   document.getElementById('doc-modal-title').textContent='✏️ Edit Document';
   document.getElementById('doc-id').value=d.id;
@@ -2973,6 +2978,7 @@ function saveDoc(){
  }
 }
 function deleteDoc(id){
+  if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும் document delete பண்ண முடியும்!','t-e');return;}
   if(!confirm('இந்த document-ஐ delete பண்ணனுமா?')) return;
   setDocs(getDocs().filter(function(x){return x.id!==id;}));
   renderDocs();
@@ -2989,7 +2995,8 @@ function downloadDocFile(id){
 function renderDocs(){
   var el=document.getElementById('doc-list');if(!el)return;
   var list=getDocs();
-  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">📑 Document இல்ல இன்னும். "➕ Add Document" click பண்ணி சேருங்க (Business Registration, VAT Certificate etc).</div>'; return; }
+  var isAdmin=CU&&CU.role==='admin';
+  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">📑 Document இல்ல இன்னும்.'+(isAdmin?' "➕ Add Document" click பண்ணி சேருங்க (Business Registration, VAT Certificate etc).':'')+'</div>'; return; }
   var today=new Date();today.setHours(0,0,0,0);
   list.sort(function(a,b){
     if(!a.expiry&&!b.expiry) return 0;
@@ -3012,9 +3019,9 @@ function renderDocs(){
     return '<div style="border:1px solid var(--border);border-left:4px solid '+color+';border-radius:6px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
       +'<div><div style="font-weight:700;font-size:14px;">'+d.name+(d.fileData?' <span title="File attached" style="font-size:12px;">📎</span>':'')+'</div><div style="font-size:12px;color:#666;">'+expiryLine+(d.notes?(' · '+d.notes):'')+'</div></div>'
       +'<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;font-weight:700;color:'+color+';">'+badge+'</span>'
-      +(d.fileData?'<button onclick="downloadDocFile('+d.id+')" style="padding:7px 9px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;cursor:pointer;">📥</button>':'')
-      +'<button onclick="openEditDoc('+d.id+')" style="padding:7px 9px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>'
-      +'<button onclick="deleteDoc('+d.id+')" style="padding:7px 9px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button></div></div>';
+      +(d.fileData?'<button onclick="downloadDocFile('+d.id+')" style="padding:7px 9px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;cursor:pointer;">📥</button>':(isAdmin?'':'<span style="font-size:11px;color:#aaa;">No file</span>'))
+      +(isAdmin?'<button onclick="openEditDoc('+d.id+')" style="padding:7px 9px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>':'')
+      +(isAdmin?'<button onclick="deleteDoc('+d.id+')" style="padding:7px 9px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button>':'')+'</div></div>';
   }).join('');
 }
 function checkDocExpiryReminder(){
