@@ -1161,7 +1161,8 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div class="form-field"><label>Camp / Unit / Department *</label><input id="cc-camp" placeholder="e.g. Commodore Superintendent Logistics (West)"></div>
           <div class="form-field"><label>POC Name</label><input id="cc-poc" placeholder="e.g. Lt. Cdr. Perera"></div>
           <div class="form-field"><label>Designation / Role</label><input id="cc-role" placeholder="e.g. Stores Officer"></div>
-          <div class="form-field"><label>Phone / WhatsApp</label><input id="cc-phone" placeholder="e.g. 0771234567"></div>
+          <div class="form-field"><label>Phone Number (Call)</label><input id="cc-phone" placeholder="e.g. 0771234567"></div>
+          <div class="form-field"><label>WhatsApp Number (வேற இருந்தா மட்டும் போடுங்க)</label><input id="cc-wa" placeholder="e.g. 0759876543 — காலியா விட்டா Phone-ஐயே WhatsApp-க்கும் use பண்ணும்"></div>
           <div class="form-field"><label>Payment Status</label><select id="cc-paystatus" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:3px;font-family:var(--fb);font-size:13px;">
             <option value="normal">✅ Normal</option>
             <option value="pending">⚠️ Payment Pending</option>
@@ -3320,7 +3321,7 @@ function setCCs(list){
 function openAddCC(){
   if(!CU||CU.role!=='admin'){showToast('⛔ Admin மட்டும்!','t-e');return;}
   document.getElementById('cc-modal-title').textContent='➕ Add Contact';
-  ['cc-id','cc-camp','cc-poc','cc-role','cc-phone','cc-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['cc-id','cc-camp','cc-poc','cc-role','cc-phone','cc-wa','cc-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   var _psEl=document.getElementById('cc-paystatus');if(_psEl)_psEl.value='normal';
   document.getElementById('cc-modal-overlay').style.display='flex';
 }
@@ -3333,6 +3334,7 @@ function openEditCC(id){
   document.getElementById('cc-poc').value=c.poc||'';
   document.getElementById('cc-role').value=c.role||'';
   document.getElementById('cc-phone').value=c.phone||'';
+  document.getElementById('cc-wa').value=c.whatsapp||'';
   document.getElementById('cc-notes').value=c.notes||'';
   var _psEl2=document.getElementById('cc-paystatus');if(_psEl2)_psEl2.value=c.payStatus||'normal';
   document.getElementById('cc-modal-overlay').style.display='flex';
@@ -3349,6 +3351,7 @@ function saveCC(){
     poc:document.getElementById('cc-poc').value.trim(),
     role:document.getElementById('cc-role').value.trim(),
     phone:document.getElementById('cc-phone').value.trim(),
+    whatsapp:document.getElementById('cc-wa').value.trim(),
     payStatus:(document.getElementById('cc-paystatus')||{value:'normal'}).value,
     notes:document.getElementById('cc-notes').value.trim(),
     updatedBy:CU?CU.name:'',updatedAt:new Date().toLocaleString('en-LK')
@@ -3391,11 +3394,13 @@ function renderCampContacts(){
       +'<div style="flex:1;min-width:220px;">'
       +'<div style="font-weight:700;font-size:14px;color:var(--navy);">'+c.camp+(isPending?' <span style="background:#FFFBEB;color:#92400E;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;border:1px solid #FCD34D;">⚠️ Payment Pending</span>':'')+'</div>'
       +(c.poc?'<div style="font-size:12px;color:#666;margin-top:2px;">👤 '+c.poc+(c.role?(' — '+c.role):'')+'</div>':'')
-      +(c.phone?'<div style="font-size:12px;color:#666;">📱 '+c.phone+'</div>':'')
+      +(c.phone?'<div style="font-size:12px;color:#666;">📞 '+c.phone+'</div>':'')
+      +(c.whatsapp&&c.whatsapp!==c.phone?'<div style="font-size:12px;color:#666;">💬 '+c.whatsapp+' (WhatsApp)</div>':'')
       +(c.notes?'<div style="font-size:11px;color:#888;margin-top:4px;">📝 '+c.notes+'</div>':'')
       +'</div>'
       +'<div style="display:flex;gap:6px;">'
-      +(c.phone?'<button onclick="window.open(\'https://wa.me/'+c.phone.replace(/[^0-9]/g,'')+'\',\'_blank\')" style="padding:8px 10px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;cursor:pointer;">📲</button>':'')
+      +((c.whatsapp||c.phone)?'<button onclick="window.open(\'https://wa.me/'+(c.whatsapp||c.phone).replace(/[^0-9]/g,'')+'\',\'_blank\')" style="padding:8px 10px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;cursor:pointer;" title="WhatsApp">📲</button>':'')
+      +(c.phone?'<button onclick="window.open(\'tel:'+c.phone.replace(/[^0-9]/g,'')+'\')" style="padding:8px 10px;background:#2060a0;color:#fff;border:none;border-radius:5px;cursor:pointer;" title="Call">📞</button>':'')
       +(isAdmin?'<button onclick="openEditCC('+nameEsc+')" style="padding:8px 10px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>':'')
       +(isAdmin?'<button onclick="deleteCC('+nameEsc+')" style="padding:8px 10px;background:#B22222;color:#fff;border:none;border-radius:5px;cursor:pointer;">🗑️</button>':'')
       +'</div></div>';
