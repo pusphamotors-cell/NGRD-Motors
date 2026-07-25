@@ -1906,7 +1906,18 @@ function showPage(pg){
   if(pg==='backup'){renderBackupPage();loadSubmitterSettings();setTimeout(function(){loadSubmitterSettings();},1500);}
   if(pg==='prices')renderPriceList();
   if(pg==='suppliers'&&typeof renderSuppliers==='function')renderSuppliers();
-  if(pg==='docs'&&typeof renderDocs==='function')renderDocs();
+  if(pg==='docs'&&typeof renderDocs==='function'){
+    renderDocs();
+    if(typeof fbRead==='function'){
+      fbRead('docs',function(data){
+        try{
+          var remote=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data):[]);
+          remote=remote.filter(function(x){return x&&x.name;});
+          if(remote.length){ localStorage.setItem('ngrd_docs',JSON.stringify(remote)); renderDocs(); }
+        }catch(e){}
+      });
+    }
+  }
   if(pg==='vehicles')renderVehicleSettings();
   if(pg==='new'){if(typeof refreshAllVehicleDropdowns==='function')refreshAllVehicleDropdowns();if(typeof _loadMargin==='function')_loadMargin();}
   if(pg==='search')runQuickSearch();
@@ -3202,6 +3213,25 @@ function initFirebaseSync(){
         var merged=[...new Set([...local,...delData.map(String)])];
         localStorage.setItem('ngrd_deleted',JSON.stringify(merged));
       }
+    }catch(e){}
+  });
+  // Sync business documents across all devices/users (merge by id, keep whichever copy has file data)
+  fbRead('docs',function(data){
+    try{
+      var remote=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data):[]);
+      remote=remote.filter(function(x){return x&&x.name;});
+      var local=getDocs();
+      if(!remote.length){ if(local.length>0)fbWrite('docs',local); return; }
+      var map={};
+      local.forEach(function(d){if(d&&d.id!=null)map[d.id]=d;});
+      remote.forEach(function(d){
+        if(d==null||d.id==null)return;
+        if(map[d.id]){ if(!map[d.id].fileData&&d.fileData)map[d.id]=d; }
+        else map[d.id]=d;
+      });
+      var merged=Object.keys(map).map(function(k){return map[k];});
+      try{ localStorage.setItem('ngrd_docs',JSON.stringify(merged)); }catch(e2){}
+      if(document.getElementById('page-docs')&&document.getElementById('page-docs').style.display!=='none'&&typeof renderDocs==='function') renderDocs();
     }catch(e){}
   });
   // Sync suppliers across all devices/users (merge, dedupe by name)
