@@ -1913,7 +1913,7 @@ function showPage(pg){
         try{
           var remote=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data):[]);
           remote=remote.filter(function(x){return x&&x.name;});
-          if(remote.length){ localStorage.setItem('ngrd_docs',JSON.stringify(remote)); renderDocs(); }
+          if(remote.length){ _docsMemCache=remote; try{localStorage.setItem('ngrd_docs',JSON.stringify(remote));}catch(e3){} renderDocs(); }
         }catch(e){}
       });
     }
@@ -2886,13 +2886,19 @@ function renderSuppliers(){
 // ═══════════════════════════════════════════════════
 // DOCUMENT EXPIRY TRACKER
 // ═══════════════════════════════════════════════════
-function getDocs(){ var s=LS.get('ngrd_docs'); return Array.isArray(s)?s:[]; }
+var _docsMemCache=null; // in-memory fallback — used when localStorage is full (base64 files can be large)
+function getDocs(){
+  if(_docsMemCache!==null) return _docsMemCache;
+  var s=LS.get('ngrd_docs');
+  return Array.isArray(s)?s:[];
+}
 function setDocs(list){
+  _docsMemCache=list; // always succeeds, regardless of localStorage quota — this is what the UI reads
   try{
     LS.set('ngrd_docs',list);
   }catch(e){
     // Local storage full (base64 file data is large) — don't let this crash the save.
-    // The Firebase write below still goes through, so the document isn't lost.
+    // The Firebase write below still goes through, and _docsMemCache keeps the UI in sync.
     console.warn('ngrd_docs localStorage write failed (quota?):',e);
   }
   if(typeof fbWrite==='function') fbWrite('docs',list);
@@ -3230,7 +3236,7 @@ function initFirebaseSync(){
         else map[d.id]=d;
       });
       var merged=Object.keys(map).map(function(k){return map[k];});
-      try{ localStorage.setItem('ngrd_docs',JSON.stringify(merged)); }catch(e2){}
+      _docsMemCache=merged; try{ localStorage.setItem('ngrd_docs',JSON.stringify(merged)); }catch(e2){}
       if(document.getElementById('page-docs')&&document.getElementById('page-docs').style.display!=='none'&&typeof renderDocs==='function') renderDocs();
     }catch(e){}
   });
