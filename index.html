@@ -1133,7 +1133,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
           <div style="font-weight:700;font-size:15px;margin-bottom:14px;" id="doc-modal-title">➕ Add Document</div>
           <input type="hidden" id="doc-id">
           <div class="form-field"><label>Document Name *</label><input id="doc-name" placeholder="e.g. Business Registration Certificate"></div>
-          <div class="form-field"><label>Expiry Date *</label><input id="doc-expiry" type="date"></div>
+          <div class="form-field"><label>Expiry Date (permanent documents-க்கு காலி விடலாம்)</label><input id="doc-expiry" type="date"></div>
           <div class="form-field"><label>Notes</label><input id="doc-notes" placeholder="e.g. Renew at Divisional Secretariat"></div>
           <div class="form-field"><label>📎 File Upload (PDF/Photo — Copy)</label><input id="doc-file" type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleDocFileSelect(this)"><div id="doc-file-status" style="font-size:11px;color:var(--muted);margin-top:4px;"></div></div>
           <div style="display:flex;gap:8px;margin-top:14px;">
@@ -2920,8 +2920,8 @@ function openEditDoc(id){
 function closeDocModal(){ document.getElementById('doc-modal-overlay').style.display='none'; }
 function saveDoc(){
   var name=document.getElementById('doc-name').value.trim();
-  var expiry=document.getElementById('doc-expiry').value;
-  if(!name||!expiry){showToast('Document name + Expiry Date வேணும்!','t-e');return;}
+  var expiry=document.getElementById('doc-expiry').value; // optional now — some docs (e.g. BR) never expire
+  if(!name){showToast('Document name வேணும்!','t-e');return;}
   var id=document.getElementById('doc-id').value;
   var list=getDocs();
   var idx=list.findIndex(function(x){return x.id===(id?parseFloat(id):null);});
@@ -2960,16 +2960,26 @@ function renderDocs(){
   var list=getDocs();
   if(!list.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">📑 Document இல்ல இன்னும். "➕ Add Document" click பண்ணி சேருங்க (Business Registration, VAT Certificate etc).</div>'; return; }
   var today=new Date();today.setHours(0,0,0,0);
-  list.sort(function(a,b){return new Date(a.expiry)-new Date(b.expiry);});
+  list.sort(function(a,b){
+    if(!a.expiry&&!b.expiry) return 0;
+    if(!a.expiry) return 1; // permanent docs sort to the bottom
+    if(!b.expiry) return -1;
+    return new Date(a.expiry)-new Date(b.expiry);
+  });
   el.innerHTML=list.map(function(d){
-    var exp=new Date(d.expiry);exp.setHours(0,0,0,0);
-    var days=Math.floor((exp-today)/86400000);
-    var badge,color;
-    if(days<0){badge='⛔ EXPIRED ('+Math.abs(days)+' நாள் முன்பு)';color='#B22222';}
-    else if(days<=30){badge='⚠️ '+days+' நாள் மீதி';color='#E8800B';}
-    else{badge='✅ '+days+' நாள் மீதி';color='#1A6B3C';}
+    var badge,color,expiryLine;
+    if(!d.expiry){
+      badge='♾️ PERMANENT';color='#1A3A6B';expiryLine='Permanent — expire ஆகாது';
+    } else {
+      var exp=new Date(d.expiry);exp.setHours(0,0,0,0);
+      var days=Math.floor((exp-today)/86400000);
+      if(days<0){badge='⛔ EXPIRED ('+Math.abs(days)+' நாள் முன்பு)';color='#B22222';}
+      else if(days<=30){badge='⚠️ '+days+' நாள் மீதி';color='#E8800B';}
+      else{badge='✅ '+days+' நாள் மீதி';color='#1A6B3C';}
+      expiryLine='Expiry: '+d.expiry;
+    }
     return '<div style="border:1px solid var(--border);border-left:4px solid '+color+';border-radius:6px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
-      +'<div><div style="font-weight:700;font-size:14px;">'+d.name+(d.fileData?' <span title="File attached" style="font-size:12px;">📎</span>':'')+'</div><div style="font-size:12px;color:#666;">Expiry: '+d.expiry+(d.notes?(' · '+d.notes):'')+'</div></div>'
+      +'<div><div style="font-weight:700;font-size:14px;">'+d.name+(d.fileData?' <span title="File attached" style="font-size:12px;">📎</span>':'')+'</div><div style="font-size:12px;color:#666;">'+expiryLine+(d.notes?(' · '+d.notes):'')+'</div></div>'
       +'<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;font-weight:700;color:'+color+';">'+badge+'</span>'
       +(d.fileData?'<button onclick="downloadDocFile('+d.id+')" style="padding:7px 9px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;cursor:pointer;">📥</button>':'')
       +'<button onclick="openEditDoc('+d.id+')" style="padding:7px 9px;background:#1A3A6B;color:#fff;border:none;border-radius:5px;cursor:pointer;">✏️</button>'
@@ -2984,6 +2994,7 @@ function checkDocExpiryReminder(){
   if(lastShown===todayStr){banner.style.display='none';return;}
   var today=new Date();today.setHours(0,0,0,0);
   var expiring=getDocs().filter(function(d){
+    if(!d.expiry) return false; // permanent document — never expires, skip
     var exp=new Date(d.expiry);exp.setHours(0,0,0,0);
     var days=Math.floor((exp-today)/86400000);
     return days<=30;
