@@ -6147,7 +6147,8 @@ function openQV(id){
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>e-Q No:</b> ${e.eqNo||'—'}</div>
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Vehicle:</b> ${e.vehicle||'—'} (${e.vNo||'—'})</div>
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Closing:</b> ${e.closingDate||'—'}${e.closingTime?' '+e.closingTime:''}</div>
-      <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Status:</b> ${getStatusBadge(e.status)}</div>
+      <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Status:</b> ${e.notSubmittedInfo?'<span class="status-badge sb-rejected">⚠️ '+((e.status||'draft').charAt(0).toUpperCase()+(e.status||'draft').slice(1))+' (Not Submitted)</span>':getStatusBadge(e.status)}</div>
+      ${e.notSubmittedInfo?'<div style="padding:8px;background:#FEF2F2;border:1px solid #FECACA;border-radius:3px;color:#B22222;font-size:12px;"><b>❌ Not Submitted Reason:</b> '+(e.notSubmittedInfo.reason||'')+' — '+(e.notSubmittedInfo.by||'')+' ('+(e.notSubmittedInfo.at||'')+')</div>':''}
       <div style="padding:8px;background:#f0f4f8;border-radius:3px;"><b>Total:</b> <span style="font-weight:700;color:#0D1B2A;">${lkr(e.grandTotal||0)}</span></div>
     </div>
     <div style="overflow-x:auto;">
