@@ -9330,8 +9330,8 @@ function generateSupplierEnquiry(){
       +'<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;">'+(item.qty||1)+'</td>'
       +'<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;">'+(item.unit||'Nos')+'</td>'
       +'<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;color:#1A3A6B;font-weight:700;">'+rb+'</td>'
-      +'<td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;min-width:100px;"></td>'
-      +'<td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;min-width:80px;"></td></tr>';
+      +'<td style="padding:16px 8px;border:1px solid #ccc;font-size:11px;min-width:100px;">&nbsp;</td>'
+      +'<td style="padding:16px 8px;border:1px solid #ccc;font-size:11px;min-width:80px;">&nbsp;</td></tr>';
   }).join('');
   var esc=function(s){return (s||'').replace(/</g,'&lt;');};
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Purchase Enquiry</title>'
@@ -9381,8 +9381,8 @@ function downloadPurchaseEnquiryPDF(){
       '<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;">'+(item.qty||1)+'</td>'+
       '<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;">'+(item.unit||'Nos')+'</td>'+
       '<td style="text-align:center;padding:6px 8px;border:1px solid #ccc;font-size:11px;color:#1A3A6B;font-weight:700;">'+reqBrand+'</td>'+
-      '<td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;min-width:100px;"></td>'+
-      '<td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;min-width:80px;"></td>'+
+      '<td style="padding:16px 8px;border:1px solid #ccc;font-size:11px;min-width:100px;">&nbsp;</td>'+
+      '<td style="padding:16px 8px;border:1px solid #ccc;font-size:11px;min-width:80px;">&nbsp;</td>'+
       '</tr>';
   }).join('');
 
