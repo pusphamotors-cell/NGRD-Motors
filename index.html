@@ -610,7 +610,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                   <th style="width:90px;background:#1a3a1a;color:#6fcf6f;">✅ Req.Brand</th>
                   <th style="width:100px">Our Brand <span onclick="fillDownColumn('b')" title="எல்லா rows-க்கும் row 1 brand-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
                   <th style="width:90px">Part No. <span onclick="fillDownColumn('p')" title="எல்லா rows-க்கும் row 1 part no.-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
-                  <th style="width:78px">Country</th>
+                  <th style="width:78px">Country <span onclick="fillDownColumn('c')" title="எல்லா rows-க்கும் row 1 country-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
                   <th id="th-purchase" style="width:95px;background:#2a1a0a;color:#f0a050;">🔒 Purchase <span onclick="fillDownColumn('pu')" title="எல்லா rows-க்கும் row 1 cost-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
                   <th style="width:65px;background:#1a2a3a;color:#70b8f0;">Margin% <span onclick="fillDownColumn('m')" title="எல்லா rows-க்கும் row 1 margin-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
                   <th style="width:100px">Selling (LKR) <span onclick="fillDownColumn('s')" title="எல்லா rows-க்கும் row 1 selling price-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
@@ -4278,10 +4278,11 @@ function fillDownColumn(col){
   var srcVal;
   if(col==='b') srcVal=firstBr.brand;
   else if(col==='p') srcVal=firstBr.partNo;
+  else if(col==='c') srcVal=firstBr.country;
   else if(col==='pu') srcVal=firstBr.purchasePrice;
   else if(col==='m') srcVal=firstBr.marginPct;
   else if(col==='s') srcVal=firstBr.price;
-  if(srcVal===undefined||srcVal===null||srcVal===''){showToast('Item No '+(startIdx+1)+'-ல் value போடுங்க முதல்ல!','t-e');return;}
+  if(srcVal===undefined||srcVal===null||srcVal===''){showToast('Item No '+(startIdx+1)+'-ல் value போடுங்க/select பண்ணுங்க முதல்ல!','t-e');return;}
   var count=endIdx-startIdx+1;
   if(!confirm('"'+srcVal+'" -ஐ Item No '+(startIdx+1)+' முதல் '+(endIdx+1)+' வரைக்கும் ('+count+' rows) copy பண்ணணுமா?')) return;
   for(var i=startIdx;i<=endIdx;i++){
@@ -4289,6 +4290,7 @@ function fillDownColumn(col){
     if(!item.brandRows||!item.brandRows[0]) continue;
     if(col==='b') item.brandRows[0].brand=srcVal;
     else if(col==='p') item.brandRows[0].partNo=srcVal;
+    else if(col==='c') item.brandRows[0].country=srcVal;
     else if(col==='pu') item.brandRows[0].purchasePrice=srcVal;
     else if(col==='m') item.brandRows[0].marginPct=srcVal;
     else if(col==='s') item.brandRows[0].price=srcVal;
