@@ -608,12 +608,12 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                   <th style="width:40px" class="tc">Qty</th>
                   <th style="width:50px">Unit</th>
                   <th style="width:90px;background:#1a3a1a;color:#6fcf6f;">✅ Req.Brand</th>
-                  <th style="width:100px">Our Brand</th>
-                  <th style="width:90px">Part No.</th>
+                  <th style="width:100px">Our Brand <span onclick="fillDownColumn('b')" title="எல்லா rows-க்கும் row 1 brand-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
+                  <th style="width:90px">Part No. <span onclick="fillDownColumn('p')" title="எல்லா rows-க்கும் row 1 part no.-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
                   <th style="width:78px">Country</th>
-                  <th id="th-purchase" style="width:95px;background:#2a1a0a;color:#f0a050;">🔒 Purchase</th>
-                  <th style="width:65px;background:#1a2a3a;color:#70b8f0;">Margin%</th>
-                  <th style="width:100px">Selling (LKR)</th>
+                  <th id="th-purchase" style="width:95px;background:#2a1a0a;color:#f0a050;">🔒 Purchase <span onclick="fillDownColumn('pu')" title="எல்லா rows-க்கும் row 1 cost-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
+                  <th style="width:65px;background:#1a2a3a;color:#70b8f0;">Margin% <span onclick="fillDownColumn('m')" title="எல்லா rows-க்கும் row 1 margin-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
+                  <th style="width:100px">Selling (LKR) <span onclick="fillDownColumn('s')" title="எல்லா rows-க்கும் row 1 selling price-ஐ fill பண்ணு" style="cursor:pointer;">⬇️</span></th>
                   <th style="width:82px" class="tr">Total</th>
                   <th style="width:48px" class="tc">±</th>
                 </tr></thead>
@@ -4242,6 +4242,43 @@ function autoFixGarbage(){
   }
 }
 
+function handleRowEnter(e,col,idx,bi){
+  if(e.key!=='Enter') return;
+  e.preventDefault();
+  var nextEl=document.getElementById('br-'+col+'-'+(idx+1)+'-'+bi);
+  if(nextEl){
+    nextEl.focus();
+    if(typeof nextEl.select==='function') nextEl.select();
+  } else {
+    // Last row — jump back to the FIRST row's same column, handy when you're about
+    // to fill-down the same brand/cost for the whole list.
+    var firstEl=document.getElementById('br-'+col+'-0-'+bi);
+    if(firstEl) firstEl.focus();
+  }
+}
+function fillDownColumn(col){
+  if(!curItems.length) return;
+  var firstBr=(curItems[0].brandRows&&curItems[0].brandRows[0])||{};
+  var srcVal;
+  if(col==='b') srcVal=firstBr.brand;
+  else if(col==='p') srcVal=firstBr.partNo;
+  else if(col==='pu') srcVal=firstBr.purchasePrice;
+  else if(col==='m') srcVal=firstBr.marginPct;
+  else if(col==='s') srcVal=firstBr.price;
+  if(srcVal===undefined||srcVal===null||srcVal===''){showToast('முதல் row-ல் value போடுங்க முதல்ல!','t-e');return;}
+  if(!confirm('"'+srcVal+'" -ஐ எல்லா '+curItems.length+' rows-க்கும் copy பண்ணணுமா?')) return;
+  curItems.forEach(function(item){
+    if(!item.brandRows||!item.brandRows[0]) return;
+    if(col==='b') item.brandRows[0].brand=srcVal;
+    else if(col==='p') item.brandRows[0].partNo=srcVal;
+    else if(col==='pu') item.brandRows[0].purchasePrice=srcVal;
+    else if(col==='m') item.brandRows[0].marginPct=srcVal;
+    else if(col==='s') item.brandRows[0].price=srcVal;
+  });
+  renderItems(curItems);
+  calcTotals();
+  showToast('⬇️ எல்லா rows-க்கும் fill ஆச்சு!','t-s');
+}
 function syncRow(idx,bi){
   var item=curItems[idx];if(!item||!item.brandRows||!item.brandRows[bi])return;
   var br=item.brandRows[bi];
@@ -4718,18 +4755,18 @@ function renderItems(items){
         var rb=reqBrand?'<span style="display:inline-block;padding:2px 7px;background:#1A3A1A;color:#6FCF6F;border-radius:3px;font-size:11px;font-weight:700;">'+reqBrand+'</span>':'<span style="color:var(--muted);font-size:11px;font-style:italic;">Any</span>';
         h+='<td rowspan="'+rc+'" style="vertical-align:middle;padding:4px 5px;background:rgba(26,58,26,.04);border-right:2px solid #ddd;">'+rb+'</td>';
       }
-      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"'+_nq+'></td>';
-      h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" onblur="setTimeout(function(){if(typeof showPartCrossRef===\'function\')showPartCrossRef('+idx+','+bi+')},150)" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"'+_nq+'></td>';
+      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" onkeydown="handleRowEnter(event,\'b\','+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"'+_nq+'></td>';
+      h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" onkeydown="handleRowEnter(event,\'p\','+idx+','+bi+')" onblur="setTimeout(function(){if(typeof showPartCrossRef===\'function\')showPartCrossRef('+idx+','+bi+')},150)" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"'+_nq+'></td>';
       h+='<td style="padding:3px 4px;"><select id="br-c-'+idx+'-'+bi+'" onchange="syncRow('+idx+','+bi+');calcTotals()" style="width:73px;padding:4px 3px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"><option value="">—</option>'+co+'</select></td>';
       if(role.seePurchase){
-        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for history" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;cursor:pointer;"'+_nq+'>'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
+        var puInp=role.canPurchase?('<input id="br-pu-'+idx+'-'+bi+'" value="'+(br.purchasePrice||'')+'" type="number" min="0" step="0.01" placeholder="Cost" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onkeydown="handleRowEnter(event,\'pu\','+idx+','+bi+')" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for history" style="width:88px;padding:4px 5px;border:1px solid #c47020;border-radius:2px;font-size:11px;background:#fff9f0;outline:none;cursor:pointer;"'+_nq+'>'):('<span style="font-size:11px;font-weight:700;color:#c47020;">'+(br.purchasePrice>0?lkr(br.purchasePrice):'—')+'</span>');
         h+='<td style="padding:3px 4px;background:rgba(42,26,10,.04);">'+puInp+'</td>';
       } else {
         h+='<td style="padding:3px 4px;text-align:center;background:rgba(42,26,10,.04);"><span title="Margin role only">🔒</span></td>';
       }
       h+='<td style="padding:3px 4px;background:rgba(26,42,58,.04);">';
       if(role.canMargin){
-        h+='<input id="br-m-'+idx+'-'+bi+'" value="'+(br.marginPct||'')+'" type="number" min="0" max="999" step="1" placeholder="%" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" style="width:58px;padding:4px 4px;border:1px solid #2060a0;border-radius:2px;font-size:11px;background:#f0f5ff;outline:none;text-align:center;"'+_nq+'>';
+        h+='<input id="br-m-'+idx+'-'+bi+'" value="'+(br.marginPct||'')+'" type="number" min="0" max="999" step="1" placeholder="%" oninput="syncRow('+idx+','+bi+');autoSell('+idx+','+bi+')" onkeydown="handleRowEnter(event,\'m\','+idx+','+bi+')" style="width:58px;padding:4px 4px;border:1px solid #2060a0;border-radius:2px;font-size:11px;background:#f0f5ff;outline:none;text-align:center;"'+_nq+'>';
       } else {h+='<span style="color:var(--muted);font-size:11px;">—</span>';}
       h+='</td>';
       var daysOld=hint?getPriceDaysOld(hint.date):null;
@@ -4752,7 +4789,7 @@ function renderItems(items){
           hintHtml='<div style="font-size:9px;color:var(--gold);margin-top:1px;">💡 '+lkr(hintPrice)+hintDate+matchLabel+'</div>';
         }
       }
-      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');autoMargin('+idx+','+bi+');calcTotals()" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for price history" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;cursor:pointer;"'+_nq+'>'+hintHtml+'</td>';
+      h+='<td style="padding:3px 4px;"><input id="br-s-'+idx+'-'+bi+'" value="'+(br.price||'')+'" type="number" min="0" step="0.01" placeholder="0.00" oninput="syncRow('+idx+','+bi+');autoMargin('+idx+','+bi+');calcTotals()" onkeydown="handleRowEnter(event,\'s\','+idx+','+bi+')" onfocus="showPurchaseHistory('+idx+','+bi+')" title="Click for price history" style="width:94px;padding:4px 5px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;cursor:pointer;"'+_nq+'>'+hintHtml+'</td>';
       h+='<td class="tr" id="rt-'+idx+'-'+bi+'" style="font-weight:700;color:var(--navy2);font-size:12px;padding:3px 6px;">—</td>';
       h+='<td class="tc" style="padding:3px 3px;white-space:nowrap;"><button onclick="addBR('+idx+')" style="width:22px;height:22px;background:var(--light);border:1px solid var(--border);border-radius:2px;cursor:pointer;font-size:12px;">➕</button>';
       if(rc>1) h+='<button onclick="remBR('+idx+','+bi+')" style="width:22px;height:22px;background:rgba(178,34,34,.07);border:1px solid rgba(178,34,34,.2);border-radius:2px;cursor:pointer;font-size:10px;color:var(--red);display:block;margin-top:2px;">✕</button>';
