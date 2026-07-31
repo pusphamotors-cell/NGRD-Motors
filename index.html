@@ -4294,6 +4294,12 @@ function fillDownColumn(col){
     else if(col==='pu') item.brandRows[0].purchasePrice=srcVal;
     else if(col==='m') item.brandRows[0].marginPct=srcVal;
     else if(col==='s') item.brandRows[0].price=srcVal;
+    // Cost/Margin changed → recompute THIS row's own Selling Price (same formula as autoSell)
+    if(col==='pu'||col==='m'){
+      var _pu=parseFloat(item.brandRows[0].purchasePrice)||0;
+      var _mg=parseFloat(item.brandRows[0].marginPct)||0;
+      if(_pu>0&&_mg>=0) item.brandRows[0].price=Math.round(_pu*(1+_mg/100));
+    }
   }
   renderItems(curItems);
   calcTotals();
