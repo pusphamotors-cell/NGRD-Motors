@@ -3803,6 +3803,15 @@ function initFirebaseSync(){
     }catch(e){}
   });
   syncHistoryFast();
+  fbRead('bidresults',function(bd){
+    if(bd&&typeof bd==='object'){
+      try{
+        var loc=getBidResults(),ch=false;
+        Object.keys(bd).forEach(function(k){ if(!loc[k]||JSON.stringify(loc[k])!==JSON.stringify(bd[k])){ loc[k]=bd[k]; ch=true; } });
+        if(ch) localStorage.setItem('ngrd_bidresults',JSON.stringify(loc));
+      }catch(e){}
+    }
+  });
   fbRead('users',function(udata){
     try{
       if(!udata||typeof udata!=='object') return;
@@ -8797,6 +8806,14 @@ function openEgpFillModal(){
         +'<button onclick="_egpDoCopy(\'details\')" style="padding:9px 15px;background:#7B1FA2;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#9989; Declarations + VAT no</button>'
         +'<button onclick="copyEgpGrabber()" style="padding:9px 15px;background:#334155;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#128229; Item grabber (eGP &#8594; V3)</button>'
       +'</div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">'
+        +'<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:.06em;width:100%;margin-bottom:2px;">5 &#8212; SUBMIT PANNITTU CHECK</div>'
+        +'<button onclick="_egpDoCopy(\'verify\')" style="padding:9px 15px;background:#B22222;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#128269; Verify eGP vs V3</button>'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">'
+        +'<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:.06em;width:100%;margin-bottom:2px;">6 &#8212; BID OPEN AANA PIRAGU</div>'
+        +'<button onclick="openBidResultsModal((_egpSrc&&_egpSrc.ref)||\'\','+grand+')" style="padding:9px 15px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#128202; Bid results + compare</button>'
+      +'</div>'
       +'<div style="margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:end;">'
         +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">VAT Reg. No</div>'
         +'<input id="egp-vatno" value="'+(isVatReg?'102101012 7000':'')+'" placeholder="VAT reg. illa na kaali" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:170px;"></label>'
@@ -8901,6 +8918,186 @@ function _egpSpecsScript(){
    +"})();";
 }
 
+// ── VERIFY: reads back what eGP actually holds and diffs it against V3 ──
+// A single mistyped digit is a lost tender or a loss-making win, and nobody
+// currently re-checks the portal after submitting.
+function _egpVerifyScript(prices,countries,vatMode,fallback,descs){
+  var pArr='['+prices.join(',')+']';
+  var cArr=JSON.stringify((countries||[]).map(_egpCountryName));
+  var dArr=JSON.stringify(descs||[]);
+  var expr=vatMode==='strip'?"(price[i]/1.18)":"price[i]";
+  return "(function(){\n"
+   +"  var price="+pArr+", CO="+cArr+", DS="+dArr+", FB="+JSON.stringify(_egpCountryName(fallback||''))+";\n"
+   +"  var R=[].slice.call(document.querySelectorAll('tr')).filter(function(r){return r.querySelector('input[value=\"Save\"],input[value=\"Edit\"]')});\n"
+   +"  if(!R.length){ alert('Price Schedule table kaanom.'); return; }\n"
+   +"  var num=function(t){ var m=String(t||'').replace(/,/g,'').match(/-?\\d+(\\.\\d+)?/); return m?parseFloat(m[0]):null; };\n"
+   +"  var bad=[], report=[];\n"
+   +"  if(R.length!==price.length) bad.push({row:'-',field:'ROW COUNT',v3:price.length,egp:R.length});\n"
+   +"  R.forEach(function(r,i){\n"
+   +"    if(price[i]===undefined) return;\n"
+   +"    var inp=r.querySelectorAll('input[type=text],input[type=number]')[0];\n"
+   +"    var shown=inp?inp.value:'';\n"
+   +"    if(!shown){ var tds=[].slice.call(r.children).map(function(c){return (c.innerText||c.textContent||'').trim();});\n"
+   +"      for(var k=0;k<tds.length;k++){ if(/^[\\d,]+\\.\\d{2}$/.test(tds[k])){ shown=tds[k]; break; } } }\n"
+   +"    var got=num(shown), want=Math.round(("+expr+")*100)/100;\n"
+   +"    var priceOk=(got!==null && Math.abs(got-want)<0.02);\n"
+   +"    if(!priceOk) bad.push({row:i+1,field:'PRICE',v3:want.toFixed(2),egp:(got===null?'(kaali)':got.toFixed(2))});\n"
+   +"    var want_c=(CO[i]||FB||'').trim(), cOk=true, gotc='';\n"
+   +"    var sels=r.querySelectorAll('select');\n"
+   +"    if(sels.length){\n"
+   +"      gotc=(sels[0].options[sels[0].selectedIndex]||{}).text||'';\n"
+   +"      gotc=gotc.trim();\n"
+   +"      if(want_c) cOk=(gotc.toLowerCase()===want_c.toLowerCase());\n"
+   +"      if(!cOk) bad.push({row:i+1,field:'COUNTRY',v3:want_c,egp:gotc||'(Select)'});\n"
+   +"    }\n"
+   +"    var cb=r.querySelector('input[type=checkbox]');\n"
+   +"    report.push({row:i+1,item:(DS[i]||'').slice(0,34),v3:want.toFixed(2),egp:(got===null?'-':got.toFixed(2)),\n"
+   +"                 country:gotc||'-',vat:cb?(cb.checked?'✓':'✗'):'-',ok:(priceOk&&cOk)?'OK':'❌'});\n"
+   +"  });\n"
+   +"  console.table(report);\n"
+   +"  if(bad.length){ console.table(bad);\n"
+   +"    alert('❌ '+bad.length+' THAPPU irukku!\\n\\n'+bad.slice(0,8).map(function(b){return 'Row '+b.row+' '+b.field+': V3='+b.v3+' | eGP='+b.egp;}).join('\\n')+(bad.length>8?'\\n...innum '+(bad.length-8):'')+'\\n\\nConsole-la full list irukku. Sari pannunga.');\n"
+   +"  } else { alert('✅ Ellaam sari — '+report.length+' item match aagudhu.\\nPrice, country, VAT ellaam correct.'); }\n"
+   +"})();";
+}
+
+// ── BID OPENING RESULTS: pull every vendor's quoted price off the results page ──
+function copyBidResultsGrabber(){
+  var s="(function(){\n"
+   +"  var out=[], seen={};\n"
+   +"  var num=function(t){ var m=String(t||'').replace(/,/g,'').match(/\\d+(\\.\\d+)?/); return m?m[0]:''; };\n"
+   +"  document.querySelectorAll('table').forEach(function(tb){\n"
+   +"    var hdr=[].slice.call(tb.querySelectorAll('th')).map(function(h){return (h.innerText||h.textContent||'').trim().toLowerCase();});\n"
+   +"    var hasV=hdr.some(function(h){return /bidder|vendor|supplier|company|name of/.test(h);});\n"
+   +"    var hasP=hdr.some(function(h){return /price|amount|rate|total|value/.test(h);});\n"
+   +"    if(!hasV&&!hasP) return;\n"
+   +"    var vi=hdr.findIndex(function(h){return /bidder|vendor|supplier|company|name of/.test(h);});\n"
+   +"    var pi=-1; for(var k=hdr.length-1;k>=0;k--){ if(/price|amount|rate|total|value/.test(hdr[k])){ pi=k; break; } }\n"
+   +"    tb.querySelectorAll('tr').forEach(function(r){\n"
+   +"      var td=[].slice.call(r.querySelectorAll('td')).map(function(c){return (c.innerText||c.textContent||'').replace(/\\s+/g,' ').trim();});\n"
+   +"      if(td.length<2) return;\n"
+   +"      var vendor=(vi>=0&&td[vi])?td[vi]:td[1];\n"
+   +"      var amt=(pi>=0&&td[pi])?num(td[pi]):'';\n"
+   +"      if(!amt) for(var z=td.length-1;z>=0;z--){ if(/^[\\d,]+(\\.\\d+)?$/.test(td[z])){ amt=num(td[z]); break; } }\n"
+   +"      if(!vendor||!amt||!/[A-Za-z]{3}/.test(vendor)) return;\n"
+   +"      var key=vendor+'|'+amt; if(seen[key]) return; seen[key]=1;\n"
+   +"      out.push(vendor+'\\t'+amt);\n"
+   +"    });\n"
+   +"  });\n"
+   +"  if(!out.length){ alert('Bid results table kaanom. Opening/Comparison page-la irukkeengala?'); return; }\n"
+   +"  var txt=out.join('\\n');\n"
+   +"  function done(){ console.log(txt); alert(out.length+' vendor prices copied.\\nV3 → Bid Results-la paste pannunga.'); }\n"
+   +"  if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(done,done); } else done();\n"
+   +"})();";
+  _egpCopy(s,'Bid results grabber');
+}
+
+// ══════════════════════════════════════════════════
+// BID RESULTS — competitor price memory
+// Once bids are opened, every rival's number is public on the portal. Captured
+// here it becomes a pricing history instead of living in someone's head.
+// ══════════════════════════════════════════════════
+function getBidResults(){ try{ return JSON.parse(localStorage.getItem('ngrd_bidresults')||'{}'); }catch(e){ return {}; } }
+function setBidResults(o){
+  try{ localStorage.setItem('ngrd_bidresults',JSON.stringify(o)); }catch(e){ showToast('Storage full','t-e'); return; }
+  if(typeof fbWrite==='function') fbWrite('bidresults',o);
+}
+
+function openBidResultsModal(ref,ourTotal){
+  ref=ref||(_egpSrc&&_egpSrc.ref)||'';
+  var old=document.getElementById('bid-res-modal'); if(old) old.remove();
+  var store=getBidResults(), rec=store[ref]||null;
+  var d=document.createElement('div');
+  d.id='bid-res-modal';
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px;';
+  d.innerHTML='<div style="background:#fff;border-radius:8px;max-width:680px;width:100%;max-height:90vh;overflow:auto;">'
+    +'<div style="background:#1A6B3C;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;">'
+      +'<div><div style="font-weight:700;font-size:16px;">📊 Bid Opening Results</div>'
+      +'<div style="font-size:11.5px;opacity:.85;">'+(ref||'e-Q number போடுங்க')+(ourTotal?' · நம்ம: LKR '+Number(ourTotal).toLocaleString():'')+'</div></div>'
+      +'<button onclick="document.getElementById(\'bid-res-modal\').remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;">×</button></div>'
+    +'<div style="padding:18px 20px;">'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:end;">'
+        +'<label style="font-size:12.5px;flex:1;min-width:180px;"><div style="color:#666;margin-bottom:4px;">e-Q No</div>'
+        +'<input id="br-ref" value="'+(ref||'')+'" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;"></label>'
+        +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">நம்ம price</div>'
+        +'<input id="br-our" value="'+(ourTotal||(rec&&rec.our)||'')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:130px;"></label>'
+        +'<button onclick="copyBidResultsGrabber()" style="padding:8px 14px;background:#334155;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">📋 Grabber script</button>'
+      +'</div>'
+      +'<div style="font-size:11.5px;color:#666;margin-bottom:5px;">eGP results page-la grabber run பண்ணி, இங்க paste பண்ணுங்க — <code>vendor &#8594; price</code></div>'
+      +'<textarea id="br-txt" rows="6" placeholder="ABC TRADERS&#9;98500&#10;XYZ MOTORS&#9;104200" style="width:100%;padding:8px;border:1px solid #bbb;border-radius:4px;font-family:var(--fb);font-size:12px;"></textarea>'
+      +'<div style="display:flex;gap:8px;margin-top:8px;"><button onclick="saveBidResults()" style="padding:8px 16px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">💾 Save + compare</button></div>'
+      +'<div id="br-view" style="margin-top:16px;"></div>'
+    +'</div></div>';
+  document.body.appendChild(d);
+  d.addEventListener('click',function(e){ if(e.target===d) d.remove(); });
+  renderBidResults(ref);
+}
+
+function saveBidResults(){
+  var ref=(document.getElementById('br-ref')||{}).value||'';
+  ref=ref.trim();
+  if(!ref){ showToast('e-Q No போடுங்க','t-e'); return; }
+  var our=parseFloat(String((document.getElementById('br-our')||{}).value||'').replace(/,/g,''))||0;
+  var txt=(document.getElementById('br-txt')||{}).value||'';
+  var rows=[];
+  txt.split(/\r?\n/).forEach(function(line){
+    var p=line.split(/\t|\s*\|\s*/).map(function(x){return x.trim();}).filter(Boolean);
+    if(p.length<2) return;
+    var amt=parseFloat(String(p[p.length-1]).replace(/,/g,''));
+    if(isNaN(amt)) return;
+    rows.push({vendor:p[0],amt:amt});
+  });
+  var store=getBidResults();
+  var prev=store[ref]&&store[ref].rows?store[ref].rows:[];
+  var merged=rows.length?rows:prev;
+  store[ref]={at:new Date().toLocaleString('en-LK'),our:our,rows:merged,by:(typeof CU!=='undefined'&&CU?CU.name:'')};
+  setBidResults(store);
+  var t=document.getElementById('br-txt'); if(t) t.value='';
+  showToast('✅ '+merged.length+' vendor சேமிச்சாச்சு','t-s');
+  renderBidResults(ref);
+}
+
+function renderBidResults(ref){
+  var el=document.getElementById('br-view'); if(!el) return;
+  var store=getBidResults();
+  ref=(document.getElementById('br-ref')||{}).value||ref||'';
+  var rec=store[ref.trim()];
+  if(!rec||!rec.rows||!rec.rows.length){
+    var keys=Object.keys(store);
+    el.innerHTML=keys.length
+      ?'<div style="font-size:12px;color:#666;">சேமிச்ச tenders: '+keys.slice(-8).map(function(k){
+          return '<a href="#" onclick="document.getElementById(\'br-ref\').value=\''+k+'\';renderBidResults();return false;" style="color:#0B5D6B;">'+k+'</a>';
+        }).join(' · ')+'</div>'
+      :'<div style="font-size:12px;color:#888;">இன்னும் எதுவும் சேமிக்கல.</div>';
+    return;
+  }
+  var sorted=rec.rows.slice().sort(function(a,b){return a.amt-b.amt;});
+  var low=sorted[0].amt, our=rec.our||0;
+  var rank=our?sorted.filter(function(r){return r.amt<our;}).length+1:null;
+  el.innerHTML='<div style="border:1px solid #ddd;border-radius:6px;overflow:hidden;">'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#F4F6F8;">'
+      +'<th style="padding:7px 8px;text-align:left;font-size:10px;color:#666;letter-spacing:.08em;">#</th>'
+      +'<th style="padding:7px 8px;text-align:left;font-size:10px;color:#666;letter-spacing:.08em;">VENDOR</th>'
+      +'<th style="padding:7px 8px;text-align:right;font-size:10px;color:#666;letter-spacing:.08em;">PRICE</th>'
+      +'<th style="padding:7px 8px;text-align:right;font-size:10px;color:#666;letter-spacing:.08em;">L1-க்கு மேல</th></tr></thead><tbody>'
+    +sorted.map(function(r,i){
+      var diff=r.amt-low, pct=low?((diff/low)*100):0;
+      return '<tr style="border-bottom:1px solid #eee;'+(i===0?'background:#E8F5E9;':'')+'">'
+        +'<td style="padding:6px 8px;font-size:11.5px;font-weight:700;color:'+(i===0?'#1A6B3C':'#888')+';">'+(i===0?'L1':'L'+(i+1))+'</td>'
+        +'<td style="padding:6px 8px;font-size:12px;">'+r.vendor+'</td>'
+        +'<td style="padding:6px 8px;text-align:right;font-size:12px;font-weight:700;">'+r.amt.toLocaleString()+'</td>'
+        +'<td style="padding:6px 8px;text-align:right;font-size:11.5px;color:#888;">'+(i===0?'—':'+'+diff.toLocaleString()+' ('+pct.toFixed(1)+'%)')+'</td></tr>';
+    }).join('')
+    +(our?'<tr style="background:#FFF4E5;border-top:2px solid #C9952A;"><td style="padding:7px 8px;font-size:11.5px;font-weight:700;color:#8B6914;">'+(rank?'L'+rank:'—')+'</td>'
+      +'<td style="padding:7px 8px;font-size:12px;font-weight:700;">நம்ம price</td>'
+      +'<td style="padding:7px 8px;text-align:right;font-size:12px;font-weight:700;">'+our.toLocaleString()+'</td>'
+      +'<td style="padding:7px 8px;text-align:right;font-size:11.5px;color:'+(our<=low?'#1A6B3C':'#B22222')+';font-weight:700;">'
+      +(our<=low?'✅ L1':'+'+(our-low).toLocaleString()+' ('+(((our-low)/low)*100).toFixed(1)+'%)')+'</td></tr>':'')
+    +'</tbody></table></div>'
+    +'<div style="font-size:11px;color:#888;margin-top:6px;">'+rec.at+(rec.by?' · '+rec.by:'')+'</div>';
+}
+
 function _egpDoCopy(kind){
   var rows=_egpRows();
   var country=(document.getElementById('egp-country')||{}).value||'United Kingdom';
@@ -8909,6 +9106,9 @@ function _egpDoCopy(kind){
   if(kind==='list'){
     var out=prices.map(function(p){ return vat==='strip'?(p/1.18).toFixed(2):p.toFixed(2); }).join('\n');
     _egpCopy(out,'Price list ('+prices.length+' items)');
+  } else if(kind==='verify'){
+    _egpCopy(_egpVerifyScript(prices,rows.map(function(r){return r.country;}),vat,country,
+             rows.map(function(r){return r.desc;})),'Verify script');
   } else if(kind==='delivery'){
     var dv=((document.getElementById('egp-days')||{}).value||'30').trim();
     _egpCopy(_egpDeliveryScript(dv),'Delivery days script ('+dv+' days)');
