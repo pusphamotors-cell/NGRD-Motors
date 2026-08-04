@@ -1800,12 +1800,14 @@ function startPresenceTracking(){
     // Track online presence
     if(typeof fbWrite==='function'){
       fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+      setTimeout(function(){ if(typeof reportDeviceHealth==='function') reportDeviceHealth(); },4000);
     }
     // Update presence every 90 seconds (heartbeat) — fresher than before, so
     // "Online" status doesn't lag behind actual activity.
     window._presenceInterval=setInterval(function(){
       if(CU&&typeof fbWrite==='function'){
         fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+        if(typeof reportDeviceHealth==='function') reportDeviceHealth();
       }
     },90000);
     // Set offline on page unload
@@ -5690,29 +5692,41 @@ function renderPresencePanel(){
   if(!CU||CU.role!=='admin'){el.style.display='none';return;}
   function paint(){
     var users=getUsers().filter(function(u){return u.active;});
+    var dh=window._devHealth||{};
     var chips=users.map(function(u){
       var pres=window._presenceData&&window._presenceData[u.id]?window._presenceData[u.id]:null;
       var st=getPresenceStatus(pres?pres.lastSeen:null,pres?pres.online:false);
-      return {name:u.name||u.username,role:u.role,st:st};
+      return {name:u.name||u.username,role:u.role,st:st,h:dh[u.id]||null};
     });
     chips.sort(function(a,b){
       var order={'🟢':0,'🟡':1,'🔴':2};
       return (order[a.st.icon]||3)-(order[b.st.icon]||3);
     });
     var onlineCount=chips.filter(function(c){return c.st.icon==='🟢';}).length;
+    var sick=chips.filter(function(c){return c.h&&c.h.total===0;}).length;
     el.style.display='block';
     el.innerHTML='<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;">'
-      +'<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px;">🟢 Live Staff Presence — '+onlineCount+' online இப்போ</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px;">🟢 Live Staff Presence — '+onlineCount+' online இப்போ'
+      +(sick?'<span style="margin-left:8px;background:#FDECEA;color:#B22222;padding:2px 8px;border-radius:10px;font-size:10px;">⚠️ '+sick+' device-la data இல்ல</span>':'')+'</div>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
       +chips.map(function(c){
+        var extra='';
+        if(c.h){
+          var bad=(c.h.total===0);
+          extra='<span style="color:'+(bad?'#B22222':'#1A6B3C')+';font-size:10px;font-weight:700;">'
+            +(bad?'⚠️ 0 records':'📦 '+c.h.visible+' visible · ✅ '+c.h.approved)
+            +(c.h.canSubmit?'':' · ⛔ no submit')+'</span>';
+        }
         return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#f7fafd;border:1px solid var(--border);border-radius:20px;font-size:12px;">'
           +'<span>'+c.st.icon+'</span><span style="font-weight:600;">'+c.name+'</span>'
-          +'<span style="color:#999;font-size:10px;">'+c.st.label+'</span></div>';
+          +'<span style="color:#999;font-size:10px;">'+c.st.label+'</span>'+extra+'</div>';
       }).join('')
       +'</div></div>';
   }
   if(typeof fbRead==='function'&&typeof FB_READY!=='undefined'&&FB_READY){
-    fbRead('presence',function(data){ window._presenceData=data||{}; paint(); });
+    fbRead('devhealth',function(dd){ window._devHealth=dd||{};
+      fbRead('presence',function(data){ window._presenceData=data||{}; paint(); });
+    });
   } else {
     paint();
   }
@@ -5724,7 +5738,9 @@ function renderPresencePanel(){
       var pgEl=document.getElementById('page-dashboard');
       if(!pgEl||pgEl.style.display==='none'||!CU||CU.role!=='admin'){return;}
       if(typeof fbRead==='function'&&typeof FB_READY!=='undefined'&&FB_READY){
-        fbRead('presence',function(data){ window._presenceData=data||{}; paint(); });
+        fbRead('devhealth',function(dd){ window._devHealth=dd||{};
+          fbRead('presence',function(data){ window._presenceData=data||{}; paint(); });
+        });
       }
     },30000);
   }
@@ -11679,6 +11695,25 @@ function _histMapFromArr(val){
 }
 // Submitter's device stamps approved entries it can actually see, so admin knows
 // the handover landed instead of guessing. Runs after every sync.
+// Each device reports what it can actually SEE. Without this, a staff PC that
+// silently holds zero records looks identical to a healthy one from the admin side.
+function reportDeviceHealth(){
+  if(typeof CU==='undefined'||!CU||typeof fbWrite!=='function') return;
+  try{
+    var h=getHist();
+    var vis=(typeof getVisibleHistory==='function')?getVisibleHistory():h;
+    fbWrite('devhealth/'+CU.id,{
+      name:CU.name||CU.username,
+      total:h.length,
+      visible:vis.length,
+      approved:vis.filter(function(e){return e&&e.status==='approved';}).length,
+      subCo:CU.submitCompany||'both',
+      canSubmit:!!(typeof getRole==='function'&&getRole().canSubmit),
+      at:new Date().toISOString()
+    });
+  }catch(e){}
+}
+
 function ackApprovedSeen(){
   if(typeof CU==='undefined'||!CU) return;
   var role=(typeof getRole==='function')?getRole():null;
