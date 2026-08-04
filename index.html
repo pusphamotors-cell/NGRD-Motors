@@ -1337,6 +1337,15 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             </div>
           </div>
           <div class="panel" style="margin-bottom:14px;">
+            <div class="panel-hdr" style="background:#0B5D6B;"><span class="panel-hdr-icon">⚡</span><span class="panel-hdr-title">Sync Index (மெதுவான net-க்கு)</span></div>
+            <div class="panel-body">
+              <div style="background:#E8F4F6;border:1px solid #9FD0D9;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#0B5D6B;">
+                ⚡ ஒவ்வொரு sync-லும் முழு archive download ஆகாம, மாறின records மட்டும் வரும். Kandy மாதிரி மெதுவான net-ல இது ரொம்ப வேகமா வேலை செய்யும். ஒரு தடவை அடிச்சா போதும்.
+              </div>
+              <button onclick="rebuildHistIndex()" style="padding:10px 20px;background:#0B5D6B;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">⚡ Sync Index உருவாக்கு</button>
+            </div>
+          </div>
+          <div class="panel" style="margin-bottom:14px;">
             <div class="panel-hdr"><span class="panel-hdr-icon">🧹</span><span class="panel-hdr-title">Duplicate Cleanup</span></div>
             <div class="panel-body">
               <div style="background:rgba(178,34,34,.08);border:1px solid rgba(178,34,34,.2);border-radius:4px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#B22222;">
@@ -3785,44 +3794,7 @@ function initFirebaseSync(){
         renderSupplierPicker((document.getElementById('penq-supplier')||{}).value||'');
     }catch(e){}
   });
-  fbRead('history',function(data){
-    try{
-      var local=getHist();      if(!data||typeof data!=='object'){if(local.length>0)fbWrite('history',local);return;}
-      var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
-      if(!remote.length){if(local.length>0)fbWrite('history',local);return;}
-      var statusOrder={draft:0,assigned:1,pending:2,approved:3,submitted:4,awarded:5,rejected:6};
-      var allIds={};
-      local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
-      remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
-      var merged=[];
-      Object.keys(allIds).forEach(function(id){
-        var lo=local.find(function(x){return x&&String(x.id)===id;});
-        var re2=remote.find(function(x){return x&&String(x.id)===id;});
-        if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;
-          // PROTECT submitted/awarded — never downgrade via sync
-          var _PROTECT=['submitted','awarded'];
-          if(_PROTECT.indexOf(lo.status)>=0&&_PROTECT.indexOf(re2.status)<0){
-            merged.push(lo); // Keep local submitted/awarded!
-          } else {
-            merged.push(reR>=loR?re2:lo);
-          }
-        }
-        else if(re2&&!lo)merged.push(re2);else if(lo)merged.push(lo);
-      });
-      merged=merged.filter(function(x){return x&&typeof x==='object';});
-      // NEVER block sync — always keep MORE data (staff uploads must reach admin)
-      if(merged.length===0){if(local.length>0)fbWrite('history',local);return;}
-      if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
-      // Auto fix submitted status before saving
-      merged.forEach(function(e){if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){e.status='submitted';}});
-      localStorage.setItem('ngrd_hist',JSON.stringify(merged));
-      window.__fapmVer=(window.__fapmVer||0)+1; // invalidate getHist() cache — otherwise synced data doesn't show until reload
-      fbWrite('history',merged);updatePendingBadge();
-      if(typeof ackApprovedSeen==='function') ackApprovedSeen();
-      if(typeof renderDashboard==='function')renderDashboard();
-      if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none')renderHistory();
-    }catch(e){}
-  });
+  syncHistoryFast();
   fbRead('users',function(udata){
     try{
       if(!udata||typeof udata!=='object') return;
@@ -11793,6 +11765,16 @@ function _flushQueue(){
         if(_histSyncSnap[idStr]!==js){body[idStr]=e;_histSyncSnap[idStr]=js;}
       });
       if(!Object.keys(body).length) return; // nothing actually changed — skip the network call entirely
+      // Mirror a tiny fingerprint per record into 'hindex' (~30 bytes each). Other devices
+      // read that instead of the whole archive and pull only the records that moved.
+      try{
+        var idx={};
+        Object.keys(body).forEach(function(k){ idx[k]=_histFp(body[k]); });
+        var xi=new XMLHttpRequest();
+        xi.open('PATCH',FB_BASE+'/hindex.json',true);
+        xi.setRequestHeader('Content-Type','application/json');
+        xi.send(JSON.stringify(idx));
+      }catch(_e){}
       var xhr=new XMLHttpRequest();
       xhr.open('PATCH',FB_BASE+'/history.json',true);
       xhr.setRequestHeader('Content-Type','application/json');
@@ -11816,12 +11798,167 @@ function fbDelHist(id){
   var send=function(){var xhr=new XMLHttpRequest();xhr.open('PATCH',FB_BASE+'/history.json',true);xhr.setRequestHeader('Content-Type','application/json');xhr.send(JSON.stringify(o));};
   if(FB_READY)send();else setTimeout(send,3500);
 }
+// ══════════════════════════════════════════════════
+// INCREMENTAL HISTORY SYNC
+// The archive is ~1400 full quotations. Downloading all of it on every sync is
+// what left slow-connection branches stuck at zero records. Instead we keep a
+// tiny fingerprint index ('hindex') and pull only the records that changed.
+// ══════════════════════════════════════════════════
+function syncHistoryFull(done){
+  done=done||function(){};
+  if(window._histReadBusy){done(false);return;}
+  window._histReadBusy=true;
+  setTimeout(function(){ window._histReadBusy=false; },200000);
+  fbRead('history',function(data){
+    try{
+      window._histReadBusy=false;
+      var local=getHist();      if(!data||typeof data!=='object'){if(local.length>0)fbWrite('history',local);return;}
+      var remote=Array.isArray(data)?data:Object.values(data).filter(function(x){return x&&typeof x==='object';});
+      if(!remote.length){if(local.length>0)fbWrite('history',local);return;}
+      var statusOrder={draft:0,assigned:1,pending:2,approved:3,submitted:4,awarded:5,rejected:6};
+      var allIds={};
+      local.forEach(function(l){if(l&&l.id)allIds[String(l.id)]=true;});
+      remote.forEach(function(r){if(r&&r.id)allIds[String(r.id)]=true;});
+      var merged=[];
+      Object.keys(allIds).forEach(function(id){
+        var lo=local.find(function(x){return x&&String(x.id)===id;});
+        var re2=remote.find(function(x){return x&&String(x.id)===id;});
+        if(lo&&re2){var loR=statusOrder[lo.status]||0,reR=statusOrder[re2.status]||0;
+          // PROTECT submitted/awarded — never downgrade via sync
+          var _PROTECT=['submitted','awarded'];
+          if(_PROTECT.indexOf(lo.status)>=0&&_PROTECT.indexOf(re2.status)<0){
+            merged.push(lo); // Keep local submitted/awarded!
+          } else {
+            merged.push(reR>=loR?re2:lo);
+          }
+        }
+        else if(re2&&!lo)merged.push(re2);else if(lo)merged.push(lo);
+      });
+      merged=merged.filter(function(x){return x&&typeof x==='object';});
+      // NEVER block sync — always keep MORE data (staff uploads must reach admin)
+      if(merged.length===0){if(local.length>0)fbWrite('history',local);return;}
+      if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
+      // Auto fix submitted status before saving
+      merged.forEach(function(e){if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){e.status='submitted';}});
+      localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+      window.__fapmVer=(window.__fapmVer||0)+1; // invalidate getHist() cache — otherwise synced data doesn't show until reload
+      fbWrite('history',merged);updatePendingBadge();
+      if(typeof _writeHistIndex==='function') _writeHistIndex(merged);
+      if(typeof ackApprovedSeen==='function') ackApprovedSeen();
+      if(typeof renderDashboard==='function')renderDashboard();
+      if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none')renderHistory();
+    }catch(e){ window._histReadBusy=false; }
+    done(true);
+  });
+}
+
+function _writeHistIndex(arr){
+  try{
+    if(typeof FB_READY==='undefined'||!FB_READY) return;
+    var idx={};(arr||[]).forEach(function(e){ if(e&&e.id!=null) idx[String(e.id)]=_histFp(e); });
+    if(!Object.keys(idx).length) return;
+    var xhr=new XMLHttpRequest();
+    xhr.open('PUT',FB_BASE+'/hindex.json',true);
+    xhr.setRequestHeader('Content-Type','application/json');
+    xhr.send(JSON.stringify(idx));
+  }catch(e){}
+}
+
+function _histFp(e){
+  if(!e||typeof e!=='object') return '';
+  return [e.status||'',e.seenBySubmitter?1:0,(e.items||[]).length,
+          e.approvedAt||'',e.submittedAt||'',e.notSubmittedInfo?1:0,
+          e.eqNo||e.refNo||''].join('|');
+}
+
+function syncHistoryFast(done){
+  done=done||function(){};
+  if(window._histReadBusy){ done(false); return; }
+  window._histReadBusy=true;
+  var release=function(r){ window._histReadBusy=false; done(r); };
+  setTimeout(function(){ window._histReadBusy=false; },200000);
+
+  fbRead('hindex',function(idx){
+    if(!idx||typeof idx!=='object'||!Object.keys(idx).length){
+      window._histReadBusy=false;
+      syncHistoryFull(done);          // first run, or index not built yet
+      return;
+    }
+    var local=getHist(), localMap={};
+    local.forEach(function(e){ if(e&&e.id!=null) localMap[String(e.id)]=e; });
+    var need=[];
+    Object.keys(idx).forEach(function(id){
+      var lo=localMap[id];
+      if(!lo || _histFp(lo)!==idx[id]) need.push(id);
+    });
+    if(!need.length){ release(true); return; }
+    // Too far behind (fresh device) — one bulk read beats 800 round trips
+    if(need.length>150){ window._histReadBusy=false; syncHistoryFull(done); return; }
+    if(typeof showToast==='function'&&need.length>20) showToast('🔄 '+need.length+' quotations வருது...','t-s');
+
+    var fetched=[], pending=need.length, CONC=6, at=0;
+    var next=function(){
+      if(at>=need.length) return;
+      var id=need[at++];
+      fbRead('history/'+id,function(rec){
+        if(rec&&typeof rec==='object'&&rec.id!=null) fetched.push(rec);
+        if(--pending<=0) finish(); else next();
+      });
+    };
+    var finish=function(){
+      try{
+        var order={draft:0,assigned:1,pending:2,approved:3,submitted:4,awarded:5,rejected:6};
+        var PROTECT=['submitted','awarded'];
+        fetched.forEach(function(r){
+          var id=String(r.id), lo=localMap[id];
+          if(!lo){ localMap[id]=r; return; }
+          if(PROTECT.indexOf(lo.status)>=0 && PROTECT.indexOf(r.status)<0) return; // keep local
+          localMap[id]=((order[r.status]||0)>=(order[lo.status]||0))?r:lo;
+        });
+        var merged=Object.keys(localMap).map(function(k){return localMap[k];});
+        if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
+        localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+        window.__fapmVer=(window.__fapmVer||0)+1;
+        updatePendingBadge();
+        if(typeof ackApprovedSeen==='function') ackApprovedSeen();
+        if(typeof renderDashboard==='function') renderDashboard();
+        if(typeof renderHistory==='function'&&document.getElementById('page-history')
+           &&document.getElementById('page-history').style.display!=='none') renderHistory();
+      }catch(e){}
+      release(true);
+    };
+    for(var c=0;c<Math.min(CONC,need.length);c++) next();
+  });
+}
+
+// Rebuilds 'hindex' from whatever this device holds — run once by admin so slow
+// branches can switch to incremental sync.
+function rebuildHistIndex(){
+  if(typeof FB_READY==='undefined'||!FB_READY){ showToast('Firebase connect ஆகல','t-e'); return; }
+  var h=getHist(); if(!h.length){ showToast('Data இல்ல','t-e'); return; }
+  var idx={}; h.forEach(function(e){ if(e&&e.id!=null) idx[String(e.id)]=_histFp(e); });
+  var xhr=new XMLHttpRequest();
+  xhr.open('PUT',FB_BASE+'/hindex.json',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onload=function(){ showToast('✅ Index ready — '+h.length+' records','t-s'); };
+  xhr.onerror=function(){ showToast('Index write fail','t-e'); };
+  xhr.send(JSON.stringify(idx));
+}
+
 function fbRead(key,cb){
   var xhr=new XMLHttpRequest();
   xhr.open('GET',FB_BASE+'/'+key+'.json',true);
-  xhr.timeout=8000;
+  // 'history' is the whole quotation archive — on a slow branch connection it can
+  // take well over a minute. The old flat 8s timeout silently returned null there,
+  // so those devices sat at 0 records forever while still showing "Synced".
+  var big=(key==='history'||key==='prices'||key==='docs');
+  xhr.timeout=big?180000:8000;
   xhr.onload=function(){try{var d=JSON.parse(xhr.responseText);cb(d);}catch(e){cb(null);}};
-  xhr.onerror=function(){cb(null);};xhr.ontimeout=function(){cb(null);};
+  xhr.onerror=function(){cb(null);};
+  xhr.ontimeout=function(){
+    if(big&&typeof showToast==='function') showToast('⚠️ Data download நேரம் ஆச்சு — net மெதுவா இருக்கு','t-e');
+    cb(null);
+  };
   xhr.send();
 }
 window.addEventListener('load',function(){setTimeout(initFirebase,1500);});
