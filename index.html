@@ -8664,23 +8664,44 @@ function _egpRows(){
   });
 }
 
-function _egpScript(prices,country,vatMode){
+// eGP dropdown wording differs from what's typed into V3, so normalise the
+// common short forms before matching.
+function _egpCountryName(c){
+  var t=String(c||'').trim();
+  if(!t) return '';
+  var map={'uk':'United Kingdom','u.k.':'United Kingdom','england':'United Kingdom',
+           'usa':'United States','u.s.a.':'United States','us':'United States',
+           'uae':'United Arab Emirates','korea':'South Korea','s.korea':'South Korea',
+           'taiwan':'Taiwan','prc':'China'};
+  var k=t.toLowerCase();
+  return map[k]||t;
+}
+
+function _egpScript(prices,countries,vatMode,fallbackCountry){
   var arr='['+prices.join(',')+']';
+  var cArr=JSON.stringify((countries||[]).map(_egpCountryName));
   var vatLine=vatMode==='off'
     ? "  /* VAT tick off */"
     : "  var cb=r.querySelector('input[type=checkbox]'); if(cb&&!cb.checked) cb.click();";
   var priceExpr=vatMode==='strip' ? "(price[i]/1.18).toFixed(2)" : "price[i].toFixed(2)";
   return "(function(){\n"
-    +"  var price="+arr+", CN="+JSON.stringify(country)+";\n"
+    +"  var price="+arr+", CO="+cArr+", FB="+JSON.stringify(_egpCountryName(fallbackCountry||''))+";\n"
     +"  var R=[].slice.call(document.querySelectorAll('tr')).filter(function(r){return r.querySelector('input[value=\"Save\"],input[value=\"Edit\"]')});\n"
     +"  console.log('Table rows:',R.length,'| Prices:',price.length);\n"
     +"  if(R.length!==price.length){console.warn('COUNT MISMATCH - stop and check item order');}\n"
     +"  var i=-1; for(var j=0;j<R.length;j++){ if(R[j].querySelector('input[value=\"Save\"]')){i=j;break;} }\n"
     +"  if(i<0){console.log('%cALL DONE','font-size:20px;color:green');return;}\n"
     +"  var r=R[i];\n"
-    +"  [].forEach.call(r.querySelectorAll('select'),function(s){\n"
-    +"    for(var k=0;k<s.options.length;k++){ if(s.options[k].text.trim()===CN){ s.value=s.options[k].value; s.dispatchEvent(new Event('change',{bubbles:true})); break; } }\n"
-    +"  });\n"
+    +"  var CN=(CO[i]||FB||'').trim();\n"
+    +"  if(CN){\n"
+    +"    [].forEach.call(r.querySelectorAll('select'),function(s){\n"
+    +"      var hit=-1;\n"
+    +"      for(var k=0;k<s.options.length;k++){ if(s.options[k].text.trim().toLowerCase()===CN.toLowerCase()){ hit=k; break; } }\n"
+    +"      if(hit<0){ for(var k2=0;k2<s.options.length;k2++){ if(s.options[k2].text.trim().toLowerCase().indexOf(CN.toLowerCase())===0){ hit=k2; break; } } }\n"
+    +"      if(hit>=0){ s.value=s.options[hit].value; s.dispatchEvent(new Event('change',{bubbles:true})); }\n"
+    +"      else console.warn('Country kaanom in dropdown:',CN,'(row',i+1,')');\n"
+    +"    });\n"
+    +"  } else console.warn('Row',i+1,'country kaali - kaiyaala select pannunga');\n"
     +"  var inp=r.querySelectorAll('input[type=text],input[type=number]')[0];\n"
     +"  if(inp){ inp.focus(); inp.value="+priceExpr+";\n"
     +"    ['input','change','keyup','blur'].forEach(function(e){ inp.dispatchEvent(new Event(e,{bubbles:true})); }); }\n"
@@ -8719,6 +8740,7 @@ function openEgpFillModal(){
       +'<td style="padding:5px 8px;color:#888;font-size:11px;">'+(i+1)+'</td>'
       +'<td style="padding:5px 8px;font-size:11.5px;">'+r.desc+(r.na?' <b style="color:#B22222;">N/A</b>':'')+'</td>'
       +'<td style="padding:5px 8px;text-align:center;font-size:11.5px;">'+r.qty+'</td>'
+      +'<td style="padding:5px 8px;font-size:11.5px;'+(r.country?'':'color:#B22222;font-weight:700;')+'">'+(r.country?_egpCountryName(r.country):'⚠️ இல்லை')+'</td>'
       +'<td style="padding:5px 8px;text-align:right;font-size:11.5px;font-weight:700;">'+(r.price>0?r.price.toLocaleString():'—')+'</td>'
       +'</tr>';
   }).join('');
@@ -8735,17 +8757,20 @@ function openEgpFillModal(){
     +'</div>'
     +'<div style="padding:18px 20px;">'
       +vatBanner
+      +(function(){var miss=rows.filter(function(r){return !r.country;}).length;
+          return miss?'<div style="background:#FFF4E5;border-left:4px solid #C9952A;padding:10px 14px;margin-bottom:14px;font-size:12.5px;">⚠️ '+miss+' item-ku country இல்ல — கீழ box-ல default போடுங்க, illana eGP-la அந்த row-ஐ கையால select பண்ணுங்க.</div>':'';})()
       +(naCount?'<div style="background:#FDECEA;border-left:4px solid #B22222;padding:10px 14px;margin-bottom:14px;font-size:12.5px;">'+naCount+' item(s) N/A — script-la 0 pogum. eGP-la andha row-a kaiyaala handle pannunga.</div>':'')
       +'<div style="border:1px solid #ddd;border-radius:6px;overflow:hidden;margin-bottom:16px;">'
         +'<table style="width:100%;border-collapse:collapse;">'
         +'<thead><tr style="background:#F4F6F8;"><th style="padding:7px 8px;text-align:left;font-size:10px;letter-spacing:.08em;color:#666;">#</th>'
         +'<th style="padding:7px 8px;text-align:left;font-size:10px;letter-spacing:.08em;color:#666;">DESCRIPTION</th>'
         +'<th style="padding:7px 8px;text-align:center;font-size:10px;letter-spacing:.08em;color:#666;">QTY</th>'
+        +'<th style="padding:7px 8px;text-align:left;font-size:10px;letter-spacing:.08em;color:#666;">COUNTRY</th>'
         +'<th style="padding:7px 8px;text-align:right;font-size:10px;letter-spacing:.08em;color:#666;">UNIT PRICE</th></tr></thead>'
         +'<tbody>'+tbl+'</tbody></table>'
       +'</div>'
       +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;">'
-        +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Country of Origin (eGP dropdown word)</div>'
+        +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Country கிடையாத row-க்கு மட்டும்</div>'
         +'<input id="egp-country" value="'+defCountry+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:200px;"></label>'
         +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">VAT handling</div>'
         +'<select id="egp-vat" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;">'
@@ -8894,7 +8919,7 @@ function _egpDoCopy(kind){
     var nm=(document.getElementById('egp-name')||{}).value||'';
     _egpCopy(_egpDetailsScript(vn.trim(),nm.trim()),'Declarations filler');
   } else {
-    _egpCopy(_egpScript(prices,country,vat),'Auto-fill script');
+    _egpCopy(_egpScript(prices,rows.map(function(r){return r.country;}),vat,country),'Auto-fill script');
   }
 }
 
