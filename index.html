@@ -6001,6 +6001,7 @@ function renderHistory(){
         <button class="hist-btn" onclick="reExportSimplePDF(${e.id})" title="Simple PDF (Common Brand/Country)" style="color:#7B1FA2;">📋Q</button>
         <button class="hist-btn" onclick="reExportArmyExcel(${e.id})" style="color:var(--steel);">📥L</button>
         <button class="hist-btn" onclick="reExportArmyPDF(${e.id})" style="color:var(--steel);">📄L</button>
+        ${(e.status==='approved'||e.status==='submitted')?`<button class="hist-btn" onclick="openEgpFillById(${e.id})" title="eGP price schedule auto-fill script" style="color:#0B5D6B;font-weight:700;">⚡eGP</button>`:''}
         ${CU?.role==='admin'?`<button class="hist-btn" onclick="delHist(${e.id})" style="color:var(--red);">🗑️</button>`:''}
       </div>
     </div>`;
@@ -8636,8 +8637,26 @@ function searchParts(){
 // Generates a ready-to-run console script (prices + country baked in)
 // so staff never re-type prices into promise.lk.
 // ══════════════════════════════════════════════════
+// Submitters open the eGP helper straight from History — approved quotations are
+// view-locked for them, so they never reach the editor's action bar.
+var _egpSrc=null;
+function openEgpFillById(id){
+  var e=getHist().find(function(x){return x&&String(x.id)===String(id);});
+  if(!e){ showToast('Quotation kaanom','t-e'); return; }
+  var go=function(rec){
+    if(!rec.items||!rec.items.length){ showToast('Items kaanom','t-e'); return; }
+    _egpSrc={items:rec.items,company:rec.company||'ngrd',ref:rec.eqNo||rec.refNo||''};
+    openEgpFillModal();
+  };
+  if(e._slim&&(!e.items||!e.items.length)&&typeof ensureItemsLoaded==='function'){
+    showToast('⏳ Items load ஆகுது...','t-i');
+    ensureItemsLoaded(id,function(rec){ go(rec||e); });
+  } else go(e);
+}
+
 function _egpRows(){
-  return curItems.map(function(item){
+  var src=(_egpSrc&&_egpSrc.items)?_egpSrc.items:curItems;
+  return src.map(function(item){
     var br=(item.brandRows&&item.brandRows[0])||{};
     var price=item.notQuoting?0:(parseFloat(br.price)||item.unitPrice||0);
     return {no:item.itemNo,desc:item.description||'',qty:item.qty||1,
@@ -8678,7 +8697,7 @@ function _egpCopy(txt,label){
 }
 
 function openEgpFillModal(){
-  if(!curItems.length){ showToast('No items','t-e'); return; }
+  if(!(_egpSrc&&_egpSrc.items&&_egpSrc.items.length)&&!curItems.length){ showToast('No items','t-e'); return; }
   var old=document.getElementById('egp-fill-modal'); if(old) old.remove();
   var rows=_egpRows();
   var countries=[].concat.apply([],rows.map(function(r){return r.country?[r.country]:[];}));
@@ -8687,7 +8706,7 @@ function openEgpFillModal(){
   var naCount=rows.filter(function(r){return r.na;}).length;
   var grand=rows.reduce(function(s,r){return s+r.price*r.qty;},0);
   // VAT registration: Puspha Motors = VAT registered, NGRD Motors = not registered
-  var coId=curCompany||'ngrd';
+  var coId=(_egpSrc&&_egpSrc.company)||curCompany||'ngrd';
   var coName=(typeof COMPANIES!=='undefined'&&COMPANIES[coId]&&COMPANIES[coId].name)||coId.toUpperCase();
   var isVatReg=(coId==='puspha');
   var vatBanner='<div style="background:#E8F5E9;border-left:4px solid #1A6B3C;padding:10px 14px;margin-bottom:14px;font-size:12.5px;">'
@@ -8711,8 +8730,8 @@ function openEgpFillModal(){
     '<div style="background:#fff;border-radius:8px;max-width:720px;width:100%;max-height:90vh;overflow:auto;font-family:inherit;">'
     +'<div style="background:#0B5D6B;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;">'
       +'<div><div style="font-weight:700;font-size:16px;">⚡ eGP Price Schedule Fill</div>'
-      +'<div style="font-size:11.5px;opacity:.85;">'+rows.length+' items · Grand Total LKR '+grand.toLocaleString()+'</div></div>'
-      +'<button onclick="document.getElementById(\'egp-fill-modal\').remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;">×</button>'
+      +'<div style="font-size:11.5px;opacity:.85;">'+((_egpSrc&&_egpSrc.ref)?_egpSrc.ref+' · ':'')+rows.length+' items · Grand Total LKR '+grand.toLocaleString()+'</div></div>'
+      +'<button onclick="_egpSrc=null;document.getElementById(\'egp-fill-modal\').remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;">×</button>'
     +'</div>'
     +'<div style="padding:18px 20px;">'
       +vatBanner
@@ -8755,7 +8774,7 @@ function openEgpFillModal(){
       +'</div>'
     +'</div></div>';
   document.body.appendChild(d);
-  d.addEventListener('click',function(e){ if(e.target===d) d.remove(); });
+  d.addEventListener('click',function(e){ if(e.target===d){ _egpSrc=null; d.remove(); } });
 }
 
 // ── eGP → V3: grabs Description / Qty / Unit from the eGP price schedule table ──
