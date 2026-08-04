@@ -2817,6 +2817,7 @@ function showDailySummary(force){
   h.forEach(function(e){
     var st=e.status||'draft';
     if(ACTIVE.indexOf(st)<0) return;
+    if(e.notSubmittedInfo) return;  // reason already recorded — stop counting it as open work
     active++;
     if(st==='draft') drafts++;
     if(st==='pending') pending++;
@@ -5491,6 +5492,11 @@ function markNotSubmitted(id){
   setHist(h);
   if(typeof fbWrite==='function') fbWrite('history',h);
   renderHistory();
+  // Dashboard cards and the top alarm banner were left stale, so the same tender
+  // kept reappearing under "Closing TODAY" even after the reason was recorded.
+  if(typeof renderDashboard==='function') renderDashboard();
+  if(typeof checkDeadlineAlarms==='function'){ try{ alarmDismissed=false; }catch(_e){} checkDeadlineAlarms(); }
+  if(typeof updatePendingBadge==='function') updatePendingBadge();
   addLog('Not Submitted: '+(entry.eqNo||entry.refNo)+' by '+CU.name+' — '+(reason||''));
   showToast('❌ Not Submitted — noted with reason.','t-e');
 }
