@@ -8669,7 +8669,7 @@ function _egpRows(){
     var br=(item.brandRows&&item.brandRows[0])||{};
     var price=item.notQuoting?0:(parseFloat(br.price)||item.unitPrice||0);
     return {no:item.itemNo,desc:item.description||'',qty:item.qty||1,
-            price:price,country:br.country||item.country||'',na:!!item.notQuoting};
+            price:price,country:br.country||item.country||'',brand:br.brand||item.brand||'',na:!!item.notQuoting};
   });
 }
 
@@ -8733,6 +8733,9 @@ function openEgpFillModal(){
   var countries=[].concat.apply([],rows.map(function(r){return r.country?[r.country]:[];}));
   var defCountry=countries.length?countries[0]:'United Kingdom';
   if(/^uk$/i.test(defCountry)) defCountry='United Kingdom';
+  var brandCount={};
+  rows.forEach(function(r){ if(r.brand){ brandCount[r.brand]=(brandCount[r.brand]||0)+1; } });
+  var defBrand=Object.keys(brandCount).sort(function(a,b){return brandCount[b]-brandCount[a];})[0]||'';
   var naCount=rows.filter(function(r){return r.na;}).length;
   var grand=rows.reduce(function(s,r){return s+r.price*r.qty;},0);
   // VAT registration: Puspha Motors = VAT registered, NGRD Motors = not registered
@@ -8799,7 +8802,7 @@ function openEgpFillModal(){
       +'</div>'
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">'
         +'<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:.06em;width:100%;margin-bottom:2px;">3 — SPECIFICATIONS</div>'
-        +'<button onclick="_egpDoCopy(\'specs\')" style="padding:9px 15px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#9989; Expand + tick all Yes</button>'
+        +'<button onclick="_egpDoCopy(\'specs\')" style="padding:9px 15px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#9989; Specs: Yes/No + Remarks</button>'
       +'</div>'
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">'
         +'<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:.06em;width:100%;margin-bottom:2px;">4 — QUOTATION SUBMISSION FORM</div>'
@@ -8821,6 +8824,20 @@ function openEgpFillModal(){
         +'<input id="egp-name" value="'+coName+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:170px;"></label>'
         +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Delivery days</div>'
         +'<input id="egp-days" value="30" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:90px;"></label>'
+      +'</div>'
+      +'<div style="margin-top:10px;padding:12px 14px;background:#F4F6F8;border:1px solid #dde;border-radius:6px;">'
+        +'<div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.06em;margin-bottom:8px;">SPECIFICATIONS-ku நம்ம offer (Yes/No முடிவு + Remarks இதுல இருந்து)</div>'
+        +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">'
+          +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Brand / Make</div>'
+          +'<input id="egp-brand" value="'+defBrand+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:170px;"></label>'
+          +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Warranty</div>'
+          +'<input id="egp-warranty" value="06 Months" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:110px;"></label>'
+          +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Validity</div>'
+          +'<input id="egp-validity" value="90 days" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:100px;"></label>'
+          +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Payment terms</div>'
+          +'<input id="egp-payment" value="45 Days" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:110px;"></label>'
+        +'</div>'
+        +'<div style="font-size:11.5px;color:#8B6914;margin-top:8px;line-height:1.6;">⚠️ கேட்டதை நம்மால தர முடியலனா script <b>No</b> tick பண்ணி காரணம் சொல்லும் (உ-ம் ONE YEAR கேட்டு நம்ம 06 Months). கண்ணை மூடிட்டு Yes போடாது.</div>'
       +'</div>'
       +'<div style="margin-top:16px;background:#F4F6F8;border-left:4px solid #0B5D6B;padding:12px 16px;font-size:12.5px;line-height:1.7;">'
         +'<b>Ovvoru script-um:</b> andha eGP page-la <b>F12</b> &#8594; <b>Console</b> &#8594; paste &#8594; <b>Enter</b>.<br>'
@@ -8895,26 +8912,98 @@ function _egpDeliveryScript(days){
 }
 
 // ── Specifications: open every collapsed spec block, then answer Yes throughout ──
-function _egpSpecsScript(){
+// ── Specifications: answer each row on its merits, not a blanket Yes ──
+// Purchaser asks ONE YEAR warranty but we only give 06 Months — a blind Yes
+// there is a commitment we can't honour. So each row is compared against what
+// we actually offer, and the remark column gets filled the same pass.
+function _egpSpecsScript(cfg){
+  cfg=cfg||{};
   return "(async function(){\n"
+   +"  var C="+JSON.stringify({
+        brand:cfg.brand||'', warranty:cfg.warranty||'', delivery:cfg.delivery||'',
+        validity:cfg.validity||'', payment:cfg.payment||'', country:cfg.country||'', vatno:cfg.vatno||''
+      })+";\n"
    +"  var opened=0;\n"
    +"  document.querySelectorAll('a,div,span,h3,h4,button,td,th').forEach(function(el){\n"
    +"    if(el.children.length>2) return;\n"
    +"    if(/Click the title to Expand the Spec/i.test(el.textContent||'')){ el.click(); opened++; }\n"
    +"  });\n"
-   +"  if(opened) await new Promise(function(r){ setTimeout(r,2000); });\n"
-   +"  var n=0, radios=document.querySelectorAll('input[type=radio]');\n"
-   +"  radios.forEach(function(rd){\n"
-   +"    if(rd.disabled||rd.checked) return;\n"
-   +"    var lbl='';\n"
-   +"    if(rd.labels&&rd.labels[0]) lbl+=rd.labels[0].textContent||'';\n"
-   +"    lbl+=' '+(rd.value||'')+' '+(rd.id||'')+' ';\n"
-   +"    var sib=rd.nextSibling; var hop=0;\n"
-   +"    while(sib&&hop<3){ lbl+=' '+(sib.textContent||sib.nodeValue||''); sib=sib.nextSibling; hop++; }\n"
-   +"    if(/\\byes\\b/i.test(lbl)&&!/\\bno\\b/i.test((rd.value||''))){ rd.click(); n++; }\n"
+   +"  if(opened) await new Promise(function(r){ setTimeout(r,2500); });\n"
+   +"\n"
+   +"  var W={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};\n"
+   +"  function dur(t){                       // -> days, or null\n"
+   +"    t=String(t||'').toLowerCase(); if(!t.trim()) return null;\n"
+   +"    var m=t.match(/(\\d+(?:\\.\\d+)?)/); var n=m?parseFloat(m[1]):null;\n"
+   +"    if(n===null){ for(var k in W){ if(t.indexOf(k)>=0){ n=W[k]; break; } } }\n"
+   +"    if(n===null) return null;\n"
+   +"    if(/year|varsh|annum/.test(t)) return n*365;\n"
+   +"    if(/month/.test(t))            return n*30;\n"
+   +"    if(/week/.test(t))             return n*7;\n"
+   +"    return n;                            // days\n"
+   +"  }\n"
+   +"\n"
+   +"  var rows=[], yes=0, no=0, skip=0;\n"
+   +"  document.querySelectorAll('tr').forEach(function(r){\n"
+   +"    var rd=r.querySelectorAll('input[type=radio]'); if(!rd.length) return;\n"
+   +"    var td=[].slice.call(r.children).map(function(c){ return (c.innerText||c.textContent||'').replace(/\\s+/g,' ').trim(); });\n"
+   +"    var desc='', req='';\n"
+   +"    for(var i=0;i<td.length;i++){ if(td[i]&&/[A-Za-z]{3}/.test(td[i])&&!/^(yes|no|mandatory|non-mandatory)$/i.test(td[i])){ desc=td[i]; break; } }\n"
+   +"    for(var j=td.indexOf(desc)+1;j<td.length;j++){ if(/mandatory/i.test(td[j])) break; if(td[j]){ req=td[j]; break; } }\n"
+   +"\n"
+   +"    var ans='yes', remark=C.brand, why='';\n"
+   +"    if(/warrant/i.test(desc)){\n"
+   +"      remark=C.warranty; var a=dur(C.warranty), b=dur(req);\n"
+   +"      if(a!==null&&b!==null&&a<b){ ans='no'; why='நம்ம '+C.warranty+' < கேட்டது '+req; }\n"
+   +"    } else if(/deliver/i.test(desc)){\n"
+   +"      remark=C.delivery; var a2=dur(C.delivery), b2=dur(req);\n"
+   +"      if(a2!==null&&b2!==null&&a2>b2){ ans='no'; why='நம்ம '+C.delivery+' > கேட்டது '+req; }\n"
+   +"    } else if(/validity/i.test(desc)){\n"
+   +"      remark=C.validity; var a3=dur(C.validity), b3=dur(req);\n"
+   +"      if(a3!==null&&b3!==null&&a3<b3){ ans='no'; why='நம்ம '+C.validity+' < கேட்டது '+req; }\n"
+   +"    } else if(/payment/i.test(desc)){ remark=C.payment;\n"
+   +"    } else if(/country.*origin|origin.*country/i.test(desc)){ remark=C.country;\n"
+   +"    } else if(/vat/i.test(desc)){ remark=C.vatno;\n"
+   +"    }\n"
+   +"\n"
+   +"    function tag(el){                    // Yes / No / '' for one radio\n"
+   +"      var v=String(el.value||'').trim();\n"
+   +"      if(/^y(es)?$/i.test(v)) return 'yes';\n"
+   +"      if(/^n(o)?$/i.test(v))  return 'no';\n"
+   +"      if(el.labels&&el.labels[0]){\n"
+   +"        var L=(el.labels[0].textContent||'').trim();\n"
+   +"        if(/^yes/i.test(L)) return 'yes';\n"
+   +"        if(/^no/i.test(L))  return 'no';\n"
+   +"      }\n"
+   +"      var sib=el.nextSibling;              // first text node only — the label sits\n"
+   +"      while(sib&&sib.nodeType!==3) sib=sib.nextSibling;   // right after its own radio\n"
+   +"      var t=sib?String(sib.nodeValue||'').trim():'';\n"
+   +"      if(/^yes/i.test(t)) return 'yes';\n"
+   +"      if(/^no/i.test(t))  return 'no';\n"
+   +"      var id=String(el.id||'')+' '+String(el.name||'');\n"
+   +"      if(/yes/i.test(id)&&!/no/i.test(id)) return 'yes';\n"
+   +"      if(/no/i.test(id)&&!/yes/i.test(id)) return 'no';\n"
+   +"      return '';\n"
+   +"    }\n"
+   +"    var picked=null, tagged=[];\n"
+   +"    for(var k=0;k<rd.length;k++) tagged.push(tag(rd[k]));\n"
+   +"    for(var k2=0;k2<rd.length;k2++){ if(tagged[k2]===ans){ picked=rd[k2]; break; } }\n"
+   +"    if(!picked&&rd.length===2&&tagged[0]===''&&tagged[1]===''){ picked=rd[ans==='no'?1:0]; }\n"
+   +"    if(picked&&!picked.disabled){ if(!picked.checked) picked.click(); (ans==='no')?no++:yes++; } else skip++;\n"
+   +"\n"
+   +"    var inp=r.querySelector('input[type=text],textarea');\n"
+   +"    if(inp&&!inp.disabled&&!inp.readOnly&&!inp.value.trim()&&remark){\n"
+   +"      inp.focus(); inp.value=remark;\n"
+   +"      ['input','change','keyup','blur'].forEach(function(e){ inp.dispatchEvent(new Event(e,{bubbles:true})); });\n"
+   +"    }\n"
+   +"    rows.push({item:desc.slice(0,40), kettadhu:req, answer:ans.toUpperCase(), remark:remark, note:why});\n"
    +"  });\n"
-   +"  console.log('Sections opened:',opened,'| Yes ticked:',n,'| Total radios:',radios.length);\n"
-   +"  alert(opened+' section thoranthaachu, '+n+' Yes tick aayiduchu.\\n(Total radio: '+radios.length+')\\nScroll panni check panni Save adikkunga.');\n"
+   +"\n"
+   +"  console.table(rows);\n"
+   +"  var noRows=rows.filter(function(x){return x.answer==='NO';});\n"
+   +"  var msg=opened+' section thoranthaachu\\n✅ Yes: '+yes+'   ❌ No: '+no+(skip?'   ⚠️ Skip: '+skip:'')+'\\n';\n"
+   +"  if(noRows.length) msg+='\\nNO potadhu:\\n'+noRows.map(function(x){return '• '+x.item+' — '+x.note;}).join('\\n')+'\\n';\n"
+   +"  msg+='\\nConsole-la full table irukku. Scroll panni check panni Save adikkunga.';\n"
+   +"  alert(msg);\n"
    +"})();";
 }
 
@@ -9113,7 +9202,12 @@ function _egpDoCopy(kind){
     var dv=((document.getElementById('egp-days')||{}).value||'30').trim();
     _egpCopy(_egpDeliveryScript(dv),'Delivery days script ('+dv+' days)');
   } else if(kind==='specs'){
-    _egpCopy(_egpSpecsScript(),'Specifications Yes-tick script');
+    var g=function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
+    _egpCopy(_egpSpecsScript({
+      brand:g('egp-brand'), warranty:g('egp-warranty'), delivery:g('egp-days')+' days',
+      validity:g('egp-validity'), payment:g('egp-payment'),
+      country:_egpCountryName(g('egp-country')), vatno:g('egp-vatno')
+    }),'Specifications script');
   } else if(kind==='details'){
     var vn=(document.getElementById('egp-vatno')||{}).value||'';
     var nm=(document.getElementById('egp-name')||{}).value||'';
