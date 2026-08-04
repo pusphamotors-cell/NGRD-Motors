@@ -1483,7 +1483,26 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <b style="font-size:12px;color:var(--navy);">Items</b>
-        <button onclick="addMERow()" style="padding:4px 12px;background:var(--gold);border:none;border-radius:3px;color:var(--navy);font-size:12px;font-weight:700;cursor:pointer;">➕ Add</button>
+        <div style="display:flex;gap:6px;">
+          <button onclick="toggleMEPaste()" style="padding:4px 12px;background:#0B5D6B;border:none;border-radius:3px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📥 Paste from eGP</button>
+          <button onclick="addMERow()" style="padding:4px 12px;background:var(--gold);border:none;border-radius:3px;color:var(--navy);font-size:12px;font-weight:700;cursor:pointer;">➕ Add</button>
+        </div>
+      </div>
+      <div id="me-paste-box" style="display:none;margin-bottom:10px;background:#F4F6F8;border:1px solid #ccd;border-radius:5px;padding:10px;">
+        <div style="font-size:11.5px;color:#555;margin-bottom:6px;line-height:1.6;">
+          eGP page-la <b>⚡ eGP Fill → Copy Item Grabber</b> script run panni, inga paste pannunga.<br>
+          Format: <code style="background:#fff;padding:1px 4px;">description &#8594; qty &#8594; unit</code> (tab separated), illana oru line-ku oru description.
+        </div>
+        <textarea id="me-paste-txt" rows="6" placeholder="KNUCKLE ARM TOP SWIVEL PIN&#9;2&#9;Nos&#10;BRAKE DISC FRONT LH/RH&#9;2&#9;Nos" style="width:100%;padding:8px;border:1px solid #bbb;border-radius:4px;font-family:var(--fb);font-size:12px;outline:none;"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+          <button onclick="applyMEPaste(false)" style="padding:6px 14px;background:#1A6B3C;border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Replace items</button>
+          <button onclick="applyMEPaste(true)" style="padding:6px 14px;background:#6B7280;border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Add to existing</button>
+          <span id="me-paste-note" style="font-size:11.5px;color:#666;"></span>
+        </div>
+        <div style="margin-top:8px;border-top:1px solid #ccd;padding-top:8px;">
+          <button onclick="copyEgpGrabber()" style="padding:6px 14px;background:#0B5D6B;border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📋 Copy Item Grabber script</button>
+          <span style="font-size:11.5px;color:#666;margin-left:8px;">eGP page console-la paste pannunga → items clipboard-ku varum</span>
+        </div>
       </div>
       <div id="me-rows"></div>
     </div>
@@ -1629,6 +1648,10 @@ function setHist(h){
   LS.set('ngrd_hist',clean);
   window.__fapmVer=(window.__fapmVer||0)+1;
   if(typeof fbWrite==='function')fbWrite('history',clean);
+  // Tiny "something changed" beacon — other devices poll this (a few bytes) every 8s
+  // and pull the full history only when it actually moves. Without it, staff had to
+  // wait for the 45s full-history poll, which on a slow line took another 30s+.
+  if(typeof fbPulse==='function') fbPulse();
 }
 var _pricesCache=null, _pricesVerSeen=-1;
 function getPrices(){
@@ -3793,6 +3816,7 @@ function initFirebaseSync(){
       localStorage.setItem('ngrd_hist',JSON.stringify(merged));
       window.__fapmVer=(window.__fapmVer||0)+1; // invalidate getHist() cache — otherwise synced data doesn't show until reload
       fbWrite('history',merged);updatePendingBadge();
+      if(typeof ackApprovedSeen==='function') ackApprovedSeen();
       if(typeof renderDashboard==='function')renderDashboard();
       if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none')renderHistory();
     }catch(e){}
@@ -5930,7 +5954,10 @@ function renderHistory(){
     +'<div style="font-size:14px;font-weight:700;color:#E8B84B;">💰 '+lkr(_sumTotal)+'</div>'
     +'</div>';
   c.innerHTML=summaryHtml+hShown.map(e=>{
-    const sb=e.notSubmittedInfo?'<span class="status-badge sb-rejected">⚠️ '+((e.status||'draft').charAt(0).toUpperCase()+(e.status||'draft').slice(1))+' (Not Submitted)</span>':getStatusBadge(e.status);
+    const sb=e.notSubmittedInfo?'<span class="status-badge sb-rejected">⚠️ '+((e.status||'draft').charAt(0).toUpperCase()+(e.status||'draft').slice(1))+' (Not Submitted)</span>':getStatusBadge(e.status)
+      +(e.status==='approved'?(e.seenBySubmitter
+        ?'<span title="'+(e.seenBySubmitter.at||'')+'" style="background:#E8F5E9;color:#1A6B3C;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #A5D6A7;margin-left:4px;">👁 '+(e.seenBySubmitter.by||'seen')+'</span>'
+        :'<span style="background:#FDECEA;color:#B22222;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #F5B7B1;margin-left:4px;">⏳ NOT SEEN</span>'):'');
     const coBadge=e.company==='puspha'?
       '<span style="background:#FFFBEB;color:#B45309;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #FCD34D;margin-left:4px;">PUSH</span>':
       '<span style="background:#EFF6FF;color:#1D4ED8;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #BFDBFE;margin-left:4px;">NGRD</span>';
@@ -7506,6 +7533,109 @@ function approveQuot(id){
   renderDashboard();
   // Auto-generate the quotation PDF + notify the assigned Submit staff on WhatsApp
   notifySubmitterApproved(id);
+  // Did it actually reach a live person? Sync is useless if their app is closed.
+  setTimeout(function(){ checkHandover(id); },1200);
+}
+
+// ══════════════════════════════════════════════════
+// HANDOVER GUARD
+// An approval only counts once a submitter has actually SEEN it. This checks
+// whether the assigned submitter is online right now, and if closing is near
+// with nobody watching, it escalates to a phone call instead of trusting sync.
+// ══════════════════════════════════════════════════
+function playAlarmSound(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    var ctx=new AC();
+    [0,0.45,0.9].forEach(function(t){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='square'; o.frequency.value=880;
+      g.gain.setValueAtTime(0.0001,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.18,ctx.currentTime+t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+t+0.28);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.3);
+    });
+    setTimeout(function(){ try{ ctx.close(); }catch(e){} },2000);
+  }catch(e){}
+}
+
+function _hoursUntilClosing(e){
+  if(!e||!e.closingDate) return null;
+  var cd=parseClosingDate(e.closingDate); if(!cd) return null;
+  if(e.closingTime){var tp=e.closingTime.split(':');cd.setHours(parseInt(tp[0])||0,parseInt(tp[1])||0,0,0);}
+  else cd.setHours(23,59,59,999);
+  return (cd-new Date())/3600000;
+}
+
+function checkHandover(id){
+  var e=getHist().find(function(x){return x.id===id;}); if(!e) return;
+  var hrs=_hoursUntilClosing(e);
+  fbRead('presence',function(data){
+    window._presenceData=data||{};
+    var co=e.company||'ngrd';
+    var subName=getSubmitter(co);
+    var users=getUsers().filter(function(u){return u.active;});
+    // Who could submit this? Named submitter, else anyone with submit rights for this company
+    var candidates=subName?users.filter(function(u){return u.name===subName;})
+      :users.filter(function(u){
+         var p=(u.permissions||[]).join(',');
+         var can=u.role==='admin'||u.role==='submitter'||u.role==='staff'||p.indexOf('submit')>=0;
+         var sc=u.submitCompany||'both';
+         return can && sc!=='none' && (sc==='both'||sc===co);
+       });
+    var online=candidates.filter(function(u){
+      var p=(window._presenceData||{})[u.id];
+      if(!p||!p.online||!p.lastSeen) return false;
+      return (new Date()-new Date(p.lastSeen))<5*60*1000;  // heartbeat is 90s
+    });
+    if(online.length>0){
+      showToast('✅ '+online[0].name+' online — உடனே தெரியும்','t-s');
+      return;
+    }
+    _handoverAlert(e,candidates,hrs);
+  });
+}
+
+function _handoverAlert(e,cands,hrs){
+  var old=document.getElementById('handover-modal'); if(old) old.remove();
+  var urgent=(hrs!==null&&hrs<24);
+  var closeTxt=hrs===null?'Closing date theriyala'
+    :hrs<0?'⛔ CLOSING ALREADY PASSED'
+    :hrs<1?'⏰ '+Math.round(hrs*60)+' நிமிஷம் மட்டும் மீதி!'
+    :hrs<24?'⏰ '+hrs.toFixed(1)+' மணி நேரம் மட்டும் மீதி!'
+    :Math.floor(hrs/24)+' நாள் மீதி';
+  var btns=cands.filter(function(u){return u.whatsapp;}).map(function(u){
+    var ref=e.eqNo||e.refNo||('#'+e.id);
+    var msg='%F0%9F%9A%A8%20URGENT%20-%20Approved,%20submit%20pannunga%3A%20'+encodeURIComponent(ref)
+      +'%20%7C%20Closing%3A%20'+encodeURIComponent((e.closingDate||'')+' '+(e.closingTime||''));
+    return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">'
+      +'<span style="flex:1;font-weight:700;font-size:13px;">'+u.name+'<span style="font-weight:400;color:#888;font-size:11.5px;"> · offline</span></span>'
+      +'<a href="tel:'+u.whatsapp+'" style="padding:7px 14px;background:#B22222;color:#fff;border-radius:4px;text-decoration:none;font-size:12.5px;font-weight:700;">📞 Call</a>'
+      +'<a href="https://wa.me/'+u.whatsapp+'?text='+msg+'" target="_blank" style="padding:7px 14px;background:#1A6B3C;color:#fff;border-radius:4px;text-decoration:none;font-size:12.5px;font-weight:700;">💬 WhatsApp</a>'
+      +'</div>';
+  }).join('')||'<div style="color:#B22222;font-size:12.5px;">⚠️ Submit staff-ku WhatsApp number set பண்ணல — Users page-la சேர்க்கவும்.</div>';
+
+  var d=document.createElement('div');
+  d.id='handover-modal';
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  d.innerHTML='<div style="background:#fff;border-radius:8px;max-width:520px;width:100%;overflow:hidden;">'
+    +'<div style="background:'+(urgent?'#B22222':'#8B6914')+';color:#fff;padding:14px 20px;">'
+      +'<div style="font-weight:700;font-size:16px;">'+(urgent?'🚨':'⚠️')+' Submit staff யாரும் online இல்ல</div>'
+      +'<div style="font-size:12px;opacity:.9;margin-top:2px;">'+closeTxt+'</div></div>'
+    +'<div style="padding:18px 20px;">'
+      +'<div style="font-size:13px;line-height:1.7;margin-bottom:14px;">'
+        +'<b>'+(e.eqNo||e.refNo||'')+'</b> — '+(e.vehicle||'')+'<br>'
+        +'Approve ஆயிடுச்சு, ஆனா app மூடி இருந்தா அவங்களுக்கு <b>தெரியாது</b>. '
+        +(urgent?'<span style="color:#B22222;font-weight:700;">Closing நெருங்குது — phone பண்ணுங்க.</span>':'App திறந்ததும் தெரியும்.')
+      +'</div>'
+      +btns
+      +'<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">'
+        +'<button onclick="document.getElementById(\'handover-modal\').remove()" style="padding:8px 16px;background:#6B7280;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">Sari, மூடு</button>'
+      +'</div>'
+    +'</div></div>';
+  document.body.appendChild(d);
+  if(urgent&&typeof playAlarmSound==='function'){ try{ playAlarmSound(); }catch(_e){} }
 }
 
 function notifySubmitterApproved(id){
@@ -8272,6 +8402,50 @@ function showMESug(i){
 }
 function selMESug(i,d){var el=document.getElementById('me-d-'+i);if(el)el.value=d;meRows[i].d=d;hideMESug(i);}
 function hideMESug(i){var b=document.getElementById('me-sg-'+i);if(b)b.style.display='none';}
+function toggleMEPaste(){
+  var b=document.getElementById('me-paste-box');if(!b)return;
+  b.style.display=b.style.display==='none'?'block':'none';
+  if(b.style.display==='block'){var t=document.getElementById('me-paste-txt');if(t)t.focus();}
+}
+
+// Parses pasted eGP item lines into {d,q,u} rows.
+// Accepts: "desc<TAB>qty<TAB>unit", "1. desc | 2 | Nos", or plain "desc" per line.
+function _parseMELines(txt){
+  var out=[];
+  (txt||'').split(/\r?\n/).forEach(function(line){
+    var raw=line.trim();
+    if(!raw) return;
+    var parts=raw.split(/\t|\s*\|\s*/).map(function(s){return s.trim();}).filter(function(s){return s.length;});
+    var d='',q=1,u='Number';
+    if(parts.length>=2){
+      d=parts[0];
+      // leading item-number column? shift it off
+      if(/^\d{1,3}$/.test(d)&&parts.length>=3){ parts.shift(); d=parts[0]; }
+      var qi=parts[1]!==undefined?parseFloat(String(parts[1]).replace(/,/g,'')):NaN;
+      if(!isNaN(qi)&&qi>0) q=qi;
+      if(parts[2]) u=parts[2];
+    } else {
+      d=raw;
+    }
+    // strip leading "1." / "01)" numbering left in the description
+    d=d.replace(/^\s*\d{1,3}\s*[.)\-]\s*/,'').trim();
+    if(d) out.push({d:d,q:q,u:u});
+  });
+  return out;
+}
+
+function applyMEPaste(append){
+  var t=document.getElementById('me-paste-txt');
+  var rows=_parseMELines(t?t.value:'');
+  var note=document.getElementById('me-paste-note');
+  if(!rows.length){ if(note){note.textContent='Edhuvum kaanom — paste pannunga.';note.style.color='#B22222';} return; }
+  if(append){ meRows=meRows.filter(function(r){return (r.d||'').trim();}).concat(rows); }
+  else { meRows=rows; }
+  renderMERows();
+  if(note){ note.textContent='✅ '+rows.length+' items loaded'; note.style.color='#1A6B3C'; }
+  if(t) t.value='';
+}
+
 function submitME(){
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   if(!g('me-veh')&&!g('me-eq')){showToast('Vehicle or e-Q No. போடுங்கள்','t-e');return;}
@@ -8555,6 +8729,13 @@ function openEgpFillModal(){
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;">'
         +'<button onclick="_egpDoCopy(\'script\')" style="padding:10px 18px;background:#0B5D6B;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">📋 Copy Auto-Fill Script</button>'
         +'<button onclick="_egpDoCopy(\'list\')" style="padding:10px 18px;background:#6B7280;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">📄 Copy Price List</button>'
+        +'<button onclick="_egpDoCopy(\'details\')" style="padding:10px 18px;background:#7B1FA2;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">✅ Copy Declarations Filler</button>'
+      +'</div>'
+      +'<div style="margin-top:12px;display:flex;gap:14px;flex-wrap:wrap;align-items:end;">'
+        +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">VAT Reg. No (declaration form)</div>'
+        +'<input id="egp-vatno" value="'+(isVatReg?'102101012 7000':'')+'" placeholder="VAT reg. illa na kaali vidunga" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:190px;"></label>'
+        +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Name</div>'
+        +'<input id="egp-name" value="'+coName+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:190px;"></label>'
       +'</div>'
       +'<div style="margin-top:16px;background:#F4F6F8;border-left:4px solid #0B5D6B;padding:12px 16px;font-size:12.5px;line-height:1.7;">'
         +'<b>Steps:</b><br>1. eGP price schedule page thorakkunga<br>'
@@ -8568,6 +8749,52 @@ function openEgpFillModal(){
   d.addEventListener('click',function(e){ if(e.target===d) d.remove(); });
 }
 
+// ── eGP → V3: grabs Description / Qty / Unit from the eGP price schedule table ──
+function copyEgpGrabber(){
+  var s="(function(){\n"
+   +"  var R=[].slice.call(document.querySelectorAll('tr')).filter(function(r){\n"
+   +"    return r.querySelector('select') || r.querySelector('input[value=\"Save\"],input[value=\"Edit\"]');\n"
+   +"  });\n"
+   +"  if(!R.length){ alert('Price Schedule table kaanom.'); return; }\n"
+   +"  var out=R.map(function(r){\n"
+   +"    var td=[].slice.call(r.children).map(function(c){ return (c.innerText||c.textContent||'').replace(/\\s+/g,' ').trim(); });\n"
+   +"    var desc='', qty='1', unit='Number';\n"
+   +"    for(var i=0;i<td.length;i++){ if(td[i].length>4 && /[A-Za-z]{3}/.test(td[i]) && !/^select$/i.test(td[i])){ desc=td[i]; break; } }\n"
+   +"    for(var j=td.length-1;j>=0;j--){\n"
+   +"      if(/^(nos|no|set|number|pcs|pair|litre|liter|kg|mtr|meter|box|unit)$/i.test(td[j])){ unit=td[j];\n"
+   +"        for(var k=j-1;k>=0;k--){ if(/^[\\d,]+(\\.\\d+)?$/.test(td[k])){ qty=td[k].replace(/,/g,''); break; } }\n"
+   +"        break; }\n"
+   +"    }\n"
+   +"    qty=String(parseFloat(qty)||1);\n"
+   +"    return desc ? desc+'\\t'+qty+'\\t'+unit : '';\n"
+   +"  }).filter(Boolean).join('\\n');\n"
+   +"  if(!out){ alert('Items padikka mudiyala.'); return; }\n"
+   +"  function done(){ console.log(out); alert(out.split('\\n').length+' items copied. V3-la paste pannunga.'); }\n"
+   +"  if(navigator.clipboard){ navigator.clipboard.writeText(out).then(done, function(){ done(); }); } else { done(); }\n"
+   +"})();";
+  _egpCopy(s,'Item Grabber script');
+}
+
+// ── eGP submission form: ticks declarations + fills VAT reg / name / date ──
+function _egpDetailsScript(vatNo,name){
+  return "(function(){\n"
+   +"  var VATNO="+JSON.stringify(vatNo||'')+", NAME="+JSON.stringify(name||'')+";\n"
+   +"  var inPriceTable=function(el){ var t=el.closest('tr'); return !!(t && t.querySelector('input[value=\"Save\"],input[value=\"Edit\"]')); };\n"
+   +"  var boxes=[].slice.call(document.querySelectorAll('input[type=checkbox]')).filter(function(c){ return !inPriceTable(c); });\n"
+   +"  var n=0; boxes.forEach(function(c){ if(!c.checked && !c.disabled){ c.click(); n++; } });\n"
+   +"  var filled=0;\n"
+   +"  [].slice.call(document.querySelectorAll('input[type=text],input:not([type])')).forEach(function(i){\n"
+   +"    if(inPriceTable(i) || i.value.trim()) return;\n"
+   +"    var box=i.closest('tr')||i.closest('div')||{};\n"
+   +"    var ctx=((box.innerText||box.textContent||'')+' '+(i.name||'')+' '+(i.id||'')+' '+(i.placeholder||''));\n"
+   +"    if(VATNO && /vat/i.test(ctx)){ i.value=VATNO; i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new Event('change',{bubbles:true})); filled++; }\n"
+   +"    else if(NAME && /\\bname\\b/i.test(ctx) && !/user|login|file/i.test(ctx)){ i.value=NAME; i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new Event('change',{bubbles:true})); filled++; }\n"
+   +"  });\n"
+   +"  console.log('Declarations ticked:',n,'| Fields filled:',filled);\n"
+   +"  alert(n+' declaration tick aayiduchu, '+filled+' field fill aayiduchu.\\nKizhe Save adikkunga.');\n"
+   +"})();";
+}
+
 function _egpDoCopy(kind){
   var rows=_egpRows();
   var country=(document.getElementById('egp-country')||{}).value||'United Kingdom';
@@ -8576,6 +8803,10 @@ function _egpDoCopy(kind){
   if(kind==='list'){
     var out=prices.map(function(p){ return vat==='strip'?(p/1.18).toFixed(2):p.toFixed(2); }).join('\n');
     _egpCopy(out,'Price list ('+prices.length+' items)');
+  } else if(kind==='details'){
+    var vn=(document.getElementById('egp-vatno')||{}).value||'';
+    var nm=(document.getElementById('egp-name')||{}).value||'';
+    _egpCopy(_egpDetailsScript(vn.trim(),nm.trim()),'Declarations filler');
   } else {
     _egpCopy(_egpScript(prices,country,vat),'Auto-fill script');
   }
@@ -11446,7 +11677,70 @@ function _histMapFromArr(val){
   var arr=Array.isArray(val)?val:(val&&typeof val==='object'?Object.values(val):[]);
   var m={};arr.forEach(function(e){if(e&&typeof e==='object'&&e.id!=null)m[String(e.id)]=e;});return m;
 }
+// Submitter's device stamps approved entries it can actually see, so admin knows
+// the handover landed instead of guessing. Runs after every sync.
+function ackApprovedSeen(){
+  if(typeof CU==='undefined'||!CU) return;
+  var role=(typeof getRole==='function')?getRole():null;
+  if(!role||!role.canSubmit||CU.role==='admin') return;
+  var sCo=CU.submitCompany||'both';
+  if(sCo==='none') return;
+  var h=getHist(),changed=false;
+  h.forEach(function(e){
+    if(!e||e.status!=='approved'||e.seenBySubmitter) return;
+    if(sCo!=='both'&&(e.company||'ngrd')!==sCo) return;
+    e.seenBySubmitter={by:CU.name,at:new Date().toLocaleString('en-LK')};
+    changed=true;
+  });
+  if(changed) setHist(h);
+}
+
 function fbWrite(key,val){_fbQueue[key]=val;if(!FB_READY)return;_flushQueue();}
+
+// ══════════════════════════════════════════════════
+// FAST CHANGE BEACON
+// Writes a ~40-byte marker on every history change; every device polls just that
+// marker every 8s and triggers a full sync only when it moves. Turns the old
+// "approve → up to 45s + full 1400-record download" lag into a few seconds.
+// ══════════════════════════════════════════════════
+var _pulseSeen=null,_pulseBusy=false,_pulseMine=0;
+function fbPulse(){
+  if(typeof FB_READY==='undefined'||!FB_READY)return;
+  _pulseMine=Date.now();
+  try{
+    var xhr=new XMLHttpRequest();
+    xhr.open('PUT',FB_BASE+'/pulse.json',true);
+    xhr.setRequestHeader('Content-Type','application/json');
+    xhr.send(JSON.stringify({t:_pulseMine,by:(typeof CU!=='undefined'&&CU?CU.username:'')||''}));
+    _pulseSeen=_pulseMine;
+  }catch(e){}
+}
+function _pulseCheck(){
+  if(typeof FB_READY==='undefined'||!FB_READY||_pulseBusy)return;
+  if(typeof CU==='undefined'||!CU)return;
+  _pulseBusy=true;
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET',FB_BASE+'/pulse.json',true);
+  xhr.timeout=6000;
+  xhr.onload=function(){
+    _pulseBusy=false;
+    try{
+      var p=JSON.parse(xhr.responseText||'null');
+      if(!p||!p.t)return;
+      if(_pulseSeen===null){_pulseSeen=p.t;return;}
+      if(p.t>_pulseSeen){
+        _pulseSeen=p.t;
+        if(typeof initFirebaseSync==='function') initFirebaseSync();
+      }
+    }catch(e){}
+  };
+  xhr.onerror=xhr.ontimeout=function(){_pulseBusy=false;};
+  xhr.send();
+}
+if(!window._pulseStarted){
+  window._pulseStarted=true;
+  setInterval(_pulseCheck,8000);
+}
 function _flushQueue(){
   var keys=Object.keys(_fbQueue);if(!keys.length)return;
   keys.forEach(function(key){
