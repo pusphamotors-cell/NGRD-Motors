@@ -1549,7 +1549,14 @@ function showToast(msg,cls){
 
 const LS={
   get:(k)=>{try{return JSON.parse(localStorage.getItem(k));}catch{return null;}},
-  set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),
+  set:(k,v)=>{
+    try{ localStorage.setItem(k,JSON.stringify(v)); return true; }
+    catch(e){
+      if(k==='ngrd_hist'&&typeof saveHistSafe==='function'&&Array.isArray(v)) return saveHistSafe(v).ok;
+      if(typeof showToast==='function') showToast('⛔ Browser storage நிரம்பிடுச்சு ('+k+')','t-e');
+      return false;
+    }
+  },
   del:(k)=>localStorage.removeItem(k)
 };
 function getDefaultUsers(){
@@ -3848,7 +3855,7 @@ function initFirebaseSync(){
             if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
             // Auto fix submitted status
             merged.forEach(function(e){if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){e.status='submitted';}});
-            localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+            saveHistSafe(merged);
             fbWrite('history',merged);
             updatePendingBadge();
             if(typeof renderDashboard==='function')renderDashboard();
@@ -3908,7 +3915,7 @@ function startAutoSync(){
         merged=merged.filter(function(x){return x&&typeof x==='object';});
         // NEVER block — always accept more data from Firebase
         if(merged.length===0) return;
-        localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+        saveHistSafe(merged);
         fbWrite('history',merged);updatePendingBadge();
         if(typeof renderDashboard==='function')renderDashboard();
       }catch(e){}
@@ -6067,6 +6074,14 @@ function markResult(id, result){
 }
 
 function loadHist(id){
+  const e0=getHist().find(x=>x.id===id);
+  // Storage-trimmed record — pull its items back from Firebase before opening,
+  // otherwise the quotation would open empty.
+  if(e0&&e0._slim&&(!e0.items||!e0.items.length)&&typeof ensureItemsLoaded==='function'){
+    if(typeof showToast==='function') showToast('⏳ Items load ஆகுது...','t-i');
+    ensureItemsLoaded(id,function(){ window._slimRetry=true; loadHist(id); });
+    return;
+  }
   const e=getHist().find(x=>x.id===id);if(!e)return;
   // LOCK: non-admin cannot edit submitted/approved/awarded
   const LOCKED=['submitted','approved','awarded'];
@@ -11846,7 +11861,7 @@ function syncHistoryFull(done){
       if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
       // Auto fix submitted status before saving
       merged.forEach(function(e){if(e.steps&&e.steps.submitted&&e.status!=='submitted'&&e.status!=='approved'&&e.status!=='awarded'&&e.status!=='rejected'){e.status='submitted';}});
-      localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+      saveHistSafe(merged);
       window.__fapmVer=(window.__fapmVer||0)+1; // invalidate getHist() cache — otherwise synced data doesn't show until reload
       fbWrite('history',merged);updatePendingBadge();
       if(typeof _writeHistIndex==='function') _writeHistIndex(merged);
@@ -11855,6 +11870,58 @@ function syncHistoryFull(done){
       if(typeof renderHistory==='function'&&document.getElementById('page-history')&&document.getElementById('page-history').style.display!=='none')renderHistory();
     }catch(e){ window._histReadBusy=false; }
     done(true);
+  });
+}
+
+// ══════════════════════════════════════════════════
+// QUOTA-SAFE HISTORY SAVE
+// localStorage caps around 5MB. The full archive exceeds that, and a plain
+// setItem throws QuotaExceededError which the sync's catch block swallowed —
+// leaving devices permanently stuck at a partial record count while still
+// reporting "Synced". Now we trim instead: finalised old quotations keep their
+// summary but drop the bulky items array, which can be re-fetched on demand.
+// ══════════════════════════════════════════════════
+function saveHistSafe(arr){
+  var FINAL=['submitted','awarded','rejected','missed'];
+  try{
+    localStorage.setItem('ngrd_hist',JSON.stringify(arr));
+    return {ok:true,trimmed:0};
+  }catch(e){}
+  // Oldest finalised entries lose their item detail first
+  var idx=arr.map(function(e,i){return {i:i,id:Number(e&&e.id)||0,fin:FINAL.indexOf(e&&e.status)>=0};});
+  idx.sort(function(a,b){ return (a.fin===b.fin)?(a.id-b.id):(a.fin?-1:1); });
+  var work=arr.map(function(e){return e;}), trimmed=0;
+  for(var pass=0;pass<idx.length;pass++){
+    var t=work[idx[pass].i];
+    if(t&&t.items&&t.items.length){
+      work[idx[pass].i]=Object.assign({},t,{items:[],_slim:true,_itemCount:t.items.length});
+      trimmed++;
+    }
+    if(trimmed%100!==0 && pass<idx.length-1) continue;   // retry every 100 trims
+    try{
+      localStorage.setItem('ngrd_hist',JSON.stringify(work));
+      if(typeof showToast==='function')
+        showToast('💾 Storage நிரம்பிடுச்சு — '+trimmed+' பழைய quotation-oda item list மட்டும் நீக்கிட்டேன் (திறந்தா திரும்ப வரும்)','t-i');
+      return {ok:true,trimmed:trimmed};
+    }catch(e2){}
+  }
+  if(typeof showToast==='function') showToast('⛔ Browser storage நிரம்பிடுச்சு — Admin-கிட்ட சொல்லுங்க','t-e');
+  return {ok:false,trimmed:trimmed};
+}
+
+// A slimmed record gets its items pulled back from Firebase the moment it's opened.
+function ensureItemsLoaded(id,cb){
+  var e=getHist().find(function(x){return x&&String(x.id)===String(id);});
+  if(!e){ cb&&cb(null); return; }
+  if(!e._slim||(e.items&&e.items.length)){ cb&&cb(e); return; }
+  if(typeof fbRead!=='function'||typeof FB_READY==='undefined'||!FB_READY){ cb&&cb(e); return; }
+  fbRead('history/'+id,function(rec){
+    if(rec&&rec.items&&rec.items.length){
+      var h=getHist();
+      var i=h.findIndex(function(x){return x&&String(x.id)===String(id);});
+      if(i>=0){ h[i]=rec; saveHistSafe(h); window.__fapmVer=(window.__fapmVer||0)+1; }
+      cb&&cb(rec);
+    } else cb&&cb(e);
   });
 }
 
@@ -11923,7 +11990,7 @@ function syncHistoryFast(done){
         });
         var merged=Object.keys(localMap).map(function(k){return localMap[k];});
         if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
-        localStorage.setItem('ngrd_hist',JSON.stringify(merged));
+        saveHistSafe(merged);
         window.__fapmVer=(window.__fapmVer||0)+1;
         updatePendingBadge();
         if(typeof ackApprovedSeen==='function') ackApprovedSeen();
