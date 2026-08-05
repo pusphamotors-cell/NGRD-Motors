@@ -1654,9 +1654,21 @@ function getHist(){
   // Filter out blacklisted (deleted) entries
   var deleted=JSON.parse(deletedRaw);
   var result=deleted.length>0?(h||[]).filter(function(e){return deleted.indexOf(String(e.id))<0;}):(h||[]);
+  // Items pulled back from Firebase for storage-trimmed records live in memory only.
+  // localStorage is already full — writing them back would just get them trimmed again
+  // on the next save, which is what made opening an old quotation loop forever.
+  if(typeof _slimItemsMem!=='undefined' && Object.keys(_slimItemsMem).length){
+    result=result.map(function(e){
+      if(!e||!e._slim||(e.items&&e.items.length)) return e;
+      var mem=_slimItemsMem[String(e.id)];
+      return mem?Object.assign({},e,{items:mem}):e;
+    });
+  }
   _histCache=result;_histVerSeen=ver;_histDeletedSeen=deletedRaw;
   return _histCache;
 }
+// id -> items[] for records whose item list was dropped to free localStorage.
+var _slimItemsMem={};
 function setHist(h){
   // Filter out blacklisted (deleted) entries
   var deleted=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
@@ -6087,9 +6099,18 @@ function loadHist(id){
   const e0=getHist().find(x=>x.id===id);
   // Storage-trimmed record — pull its items back from Firebase before opening,
   // otherwise the quotation would open empty.
-  if(e0&&e0._slim&&(!e0.items||!e0.items.length)&&typeof ensureItemsLoaded==='function'){
+  // Storage-trimmed record — pull items back once. The retry is capped: if the fetch
+  // fails we stop and tell the user, instead of bouncing back into this branch forever.
+  window._slimTried=window._slimTried||{};
+  if(e0&&e0._slim&&(!e0.items||!e0.items.length)&&typeof ensureItemsLoaded==='function'&&!window._slimTried[String(id)]){
+    window._slimTried[String(id)]=1;
     if(typeof showToast==='function') showToast('⏳ Items load ஆகுது...','t-i');
-    ensureItemsLoaded(id,function(){ window._slimRetry=true; loadHist(id); });
+    ensureItemsLoaded(id,function(rec){
+      delete window._slimTried[String(id)];
+      if(rec&&rec.items&&rec.items.length){ loadHist(id); return; }
+      if(typeof showToast==='function')
+        showToast('⚠️ Item list edukka mudiyala — internet check panni, illa Backup/Restore-la irundhu restore pannunga','t-e');
+    });
     return;
   }
   const e=getHist().find(x=>x.id===id);if(!e)return;
@@ -12178,6 +12199,10 @@ function _flushQueue(){
       arr.forEach(function(e){
         if(!e||typeof e!=='object'||e.id==null) return;
         var idStr=String(e.id);
+        // DATA GUARD: a record trimmed to free localStorage carries items:[] locally while
+        // the cloud still holds the real list. Uploading it would wipe that list permanently.
+        // Skip it entirely — nothing here is authoritative.
+        if(e._slim&&(!e.items||!e.items.length)) return;
         var js=JSON.stringify(e);
         if(_histSyncSnap[idStr]!==js){body[idStr]=e;_histSyncSnap[idStr]=js;}
       });
@@ -12310,14 +12335,18 @@ function ensureItemsLoaded(id,cb){
   var e=getHist().find(function(x){return x&&String(x.id)===String(id);});
   if(!e){ cb&&cb(null); return; }
   if(!e._slim||(e.items&&e.items.length)){ cb&&cb(e); return; }
-  if(typeof fbRead!=='function'||typeof FB_READY==='undefined'||!FB_READY){ cb&&cb(e); return; }
+  // Offline / Firebase down — say so. Returning the empty record here used to send
+  // loadHist straight back into ensureItemsLoaded, looping on "Items load ஆகுது".
+  if(typeof fbRead!=='function'||typeof FB_READY==='undefined'||!FB_READY){ cb&&cb(null); return; }
   fbRead('history/'+id,function(rec){
     if(rec&&rec.items&&rec.items.length){
-      var h=getHist();
-      var i=h.findIndex(function(x){return x&&String(x.id)===String(id);});
-      if(i>=0){ h[i]=rec; saveHistSafe(h); window.__fapmVer=(window.__fapmVer||0)+1; }
-      cb&&cb(rec);
-    } else cb&&cb(e);
+      // Memory only — do NOT push back through saveHistSafe. Storage is full, so the
+      // trim would immediately strip this same record again (it is the oldest finalised
+      // one, i.e. first in line) and the caller would retry forever.
+      _slimItemsMem[String(id)]=rec.items;
+      window.__fapmVer=(window.__fapmVer||0)+1;
+      cb&&cb(Object.assign({},e,{items:rec.items}));
+    } else cb&&cb(null);   // cloud copy has no items either
   });
 }
 
@@ -12335,7 +12364,10 @@ function _writeHistIndex(arr){
 
 function _histFp(e){
   if(!e||typeof e!=='object') return '';
-  return [e.status||'',e.seenBySubmitter?1:0,(e.items||[]).length,
+  // A trimmed record must report its ORIGINAL item count, otherwise its fingerprint
+  // never matches the cloud, every sync flags it as changed, and the device re-downloads
+  // (and re-trims) the whole archive on a loop.
+  return [e.status||'',e.seenBySubmitter?1:0,(e._slim?(e._itemCount||0):(e.items||[]).length),
           e.approvedAt||'',e.submittedAt||'',e.notSubmittedInfo?1:0,
           e.eqNo||e.refNo||''].join('|');
 }
