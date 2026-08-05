@@ -9290,8 +9290,9 @@ function _egpBulkScript(prices,countries,vatMode,fallback){
    +"  console.log('Saved:',ok,'| Failed:',fail.length);\n"
    +"  if(fail.length) console.warn(fail.join('\\n'));\n"
    +"  alert('✅ '+ok+' row save aayiduchu'+(fail.length?'\\n❌ '+fail.length+' fail (console paarunga)':'')\n"
-   +"    +'\\n\\nIppo page refresh aagum. Ellaam \"Edit\" nu maarirukkaanu paarunga,\\napparam Verify script podunga.');\n"
-   +"  location.reload();\n"
+   +"    +(ok?'\\n\\nIppo page refresh aagum. Ellaam \"Edit\" nu maarirukkaanu paarunga,\\napparam Verify script podunga.'\n"
+   +"        :'\\n\\nOnnum save aagala — page-a refresh panna maaten, nirappina data appadiye irukku.\\nOvvoru row-oda Save-a kaiyaala adikkalaam.'));\n"
+   +"  if(ok) location.reload();   // nothing saved? keep the filled values on screen\n"
    +"})();";
 }
 
