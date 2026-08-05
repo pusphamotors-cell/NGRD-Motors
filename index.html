@@ -8922,7 +8922,8 @@ function _egpSpecsScript(cfg){
   return "(async function(){\n"
    +"  var C="+JSON.stringify({
         brand:cfg.brand||'', warranty:cfg.warranty||'', delivery:cfg.delivery||'',
-        validity:cfg.validity||'', payment:cfg.payment||'', country:cfg.country||'', vatno:cfg.vatno||''
+        validity:cfg.validity||'', payment:cfg.payment||'', country:cfg.country||'', vatno:cfg.vatno||'',
+        items:cfg.items||[]
       })+";\n"
    +"  var opened=0;\n"
    +"  document.querySelectorAll('a,div,span,h3,h4,button,td,th').forEach(function(el){\n"
@@ -8951,7 +8952,29 @@ function _egpSpecsScript(cfg){
    +"    for(var i=0;i<td.length;i++){ if(td[i]&&/[A-Za-z]{3}/.test(td[i])&&!/^(yes|no|mandatory|non-mandatory)$/i.test(td[i])){ desc=td[i]; break; } }\n"
    +"    for(var j=td.indexOf(desc)+1;j<td.length;j++){ if(/mandatory/i.test(td[j])) break; if(td[j]){ req=td[j]; break; } }\n"
    +"\n"
-   +"    var ans='yes', remark=C.brand, why='';\n"
+   +"    function norm(t){ return String(t||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim(); }\n"
+   +"    function brandFor(text){                 // per-item brand beats the global one\n"
+   +"      var want=norm(text); if(!want||!C.items.length) return C.brand;\n"
+   +"      var best=null,score=0;\n"
+   +"      C.items.forEach(function(it){\n"
+   +"        var d=norm(it.desc); if(!d) return;\n"
+   +"        if(d===want){ if(score<99){ best=it; score=99; } return; }\n"
+   +"        var w=d.split(' ').filter(function(x){return x.length>2;});\n"
+   +"        var hit=w.filter(function(x){ return want.indexOf(x)>=0; }).length;\n"
+   +"        var sc=w.length?hit/w.length:0;\n"
+   +"        if(sc>score&&sc>=0.6){ best=it; score=sc; }\n"
+   +"      });\n"
+   +"      return (best&&best.brand)?best.brand:C.brand;\n"
+   +"    }\n"
+   +"    var secTitle='';\n"
+   +"    var tb=r.closest('table');\n"
+   +"    if(tb){ var pv=tb.previousElementSibling; var hops=0;\n"
+   +"      while(pv&&hops<3&&!secTitle){ var t=(pv.innerText||pv.textContent||'').replace(/Click the title.*$/i,'').trim();\n"
+   +"        if(t&&t.length<90) secTitle=t; pv=pv.previousElementSibling; hops++; } }\n"
+   +"    var itemName=secTitle||desc;      // eGP repeats the item name as the block\n"
+   +"                                      // heading, and sub-rows leave the description\n"
+   +"                                      // cell blank, so the heading is the reliable key\n"
+   +"    var ans='yes', remark=brandFor(itemName), why='';\n"
    +"    if(/warrant/i.test(desc)){\n"
    +"      remark=C.warranty; var a=dur(C.warranty), b=dur(req);\n"
    +"      if(a!==null&&b!==null&&a<b){ ans='no'; why='நம்ம '+C.warranty+' < கேட்டது '+req; }\n"
@@ -8964,6 +8987,12 @@ function _egpSpecsScript(cfg){
    +"    } else if(/payment/i.test(desc)){ remark=C.payment;\n"
    +"    } else if(/country.*origin|origin.*country/i.test(desc)){ remark=C.country;\n"
    +"    } else if(/vat/i.test(desc)){ remark=C.vatno;\n"
+   +"    } else if(/recondition|reconditioned|\\bused\\b|second hand|repair|rebuilt/i.test(req+' '+desc)){\n"
+   +"      why='⚠️ \"'+(req||desc)+'\" ketkiraanga — namma '+remark+'. CHECK PANNUNGA';\n"
+   +"    } else if(req && /[A-Za-z]{3}/.test(req) && !/warrant|month|year|day/i.test(req)){\n"
+   +"      var rn=norm(req), bn=norm(remark);\n"
+   +"      var shared=rn.split(' ').filter(function(x){ return x.length>2 && bn.indexOf(x)>=0; }).length;\n"
+   +"      if(!shared) why='ℹ️ Requirement \"'+req+'\" — namma '+remark+'. Paarunga';\n"
    +"    }\n"
    +"\n"
    +"    function tag(el){                    // Yes / No / '' for one radio\n"
@@ -9001,8 +9030,10 @@ function _egpSpecsScript(cfg){
    +"\n"
    +"  console.table(rows);\n"
    +"  var noRows=rows.filter(function(x){return x.answer==='NO';});\n"
+   +"  var flagged=rows.filter(function(x){return x.answer!=='NO'&&x.note;});\n"
    +"  var msg=opened+' section thoranthaachu\\n✅ Yes: '+yes+'   ❌ No: '+no+(skip?'   ⚠️ Skip: '+skip:'')+'\\n';\n"
    +"  if(noRows.length) msg+='\\nNO potadhu:\\n'+noRows.map(function(x){return '• '+x.item+' — '+x.note;}).join('\\n')+'\\n';\n"
+   +"  if(flagged.length) msg+='\\nCHECK PANNUNGA:\\n'+flagged.map(function(x){return '• '+(x.item||x.kettadhu)+' — '+x.note;}).join('\\n')+'\\n';\n"
    +"  msg+='\\nConsole-la full table irukku. Scroll panni check panni Save adikkunga.';\n"
    +"  alert(msg);\n"
    +"})();";
@@ -9285,7 +9316,8 @@ function _egpDoCopy(kind){
     _egpCopy(_egpSpecsScript({
       brand:g('egp-brand'), warranty:g('egp-warranty'), delivery:g('egp-days')+' days',
       validity:g('egp-validity'), payment:g('egp-payment'),
-      country:_egpCountryName(g('egp-country')), vatno:g('egp-vatno')
+      country:_egpCountryName(g('egp-country')), vatno:g('egp-vatno'),
+      items:rows.map(function(r){ return {desc:r.desc,brand:r.brand||''}; })
     }),'Specifications script');
   } else if(kind==='details'){
     var vn=(document.getElementById('egp-vatno')||{}).value||'';
