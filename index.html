@@ -1654,21 +1654,9 @@ function getHist(){
   // Filter out blacklisted (deleted) entries
   var deleted=JSON.parse(deletedRaw);
   var result=deleted.length>0?(h||[]).filter(function(e){return deleted.indexOf(String(e.id))<0;}):(h||[]);
-  // Items pulled back from Firebase for storage-trimmed records live in memory only.
-  // localStorage is already full — writing them back would just get them trimmed again
-  // on the next save, which is what made opening an old quotation loop forever.
-  if(typeof _slimItemsMem!=='undefined' && Object.keys(_slimItemsMem).length){
-    result=result.map(function(e){
-      if(!e||!e._slim||(e.items&&e.items.length)) return e;
-      var mem=_slimItemsMem[String(e.id)];
-      return mem?Object.assign({},e,{items:mem}):e;
-    });
-  }
   _histCache=result;_histVerSeen=ver;_histDeletedSeen=deletedRaw;
   return _histCache;
 }
-// id -> items[] for records whose item list was dropped to free localStorage.
-var _slimItemsMem={};
 function setHist(h){
   // Filter out blacklisted (deleted) entries
   var deleted=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]');
@@ -6099,18 +6087,9 @@ function loadHist(id){
   const e0=getHist().find(x=>x.id===id);
   // Storage-trimmed record — pull its items back from Firebase before opening,
   // otherwise the quotation would open empty.
-  // Storage-trimmed record — pull items back once. The retry is capped: if the fetch
-  // fails we stop and tell the user, instead of bouncing back into this branch forever.
-  window._slimTried=window._slimTried||{};
-  if(e0&&e0._slim&&(!e0.items||!e0.items.length)&&typeof ensureItemsLoaded==='function'&&!window._slimTried[String(id)]){
-    window._slimTried[String(id)]=1;
+  if(e0&&e0._slim&&(!e0.items||!e0.items.length)&&typeof ensureItemsLoaded==='function'){
     if(typeof showToast==='function') showToast('⏳ Items load ஆகுது...','t-i');
-    ensureItemsLoaded(id,function(rec){
-      delete window._slimTried[String(id)];
-      if(rec&&rec.items&&rec.items.length){ loadHist(id); return; }
-      if(typeof showToast==='function')
-        showToast('⚠️ Item list edukka mudiyala — internet check panni, illa Backup/Restore-la irundhu restore pannunga','t-e');
-    });
+    ensureItemsLoaded(id,function(){ window._slimRetry=true; loadHist(id); });
     return;
   }
   const e=getHist().find(x=>x.id===id);if(!e)return;
@@ -8815,6 +8794,7 @@ function openEgpFillModal(){
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;">'
         +'<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:.06em;width:100%;margin-bottom:2px;">1 — PRICE SCHEDULE</div>'
         +'<button onclick="_egpDoCopy(\'script\')" style="padding:9px 15px;background:#0B5D6B;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#9889; Price + Country + VAT</button>'
+        +'<button onclick="_egpDoCopy(\'bulk\')" style="padding:9px 15px;background:#B8860B;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#9889;&#9889; Bulk &#8212; ellaam ore thadava</button>'
         +'<button onclick="_egpDoCopy(\'list\')" style="padding:9px 15px;background:#6B7280;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#128196; Price list only</button>'
       +'</div>'
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">'
@@ -9208,6 +9188,82 @@ function renderBidResults(ref){
     +'<div style="font-size:11px;color:#888;margin-top:6px;">'+rec.at+(rec.by?' · '+rec.by:'')+'</div>';
 }
 
+// ── BULK: fill every row, then post each Save in the background ──
+// eGP reloads the page on each row's Save, which kills the script and forces
+// ↑Enter once per item — unbearable at 150 items. Here the form is posted with
+// fetch instead, so the page never navigates and the loop survives.
+function _egpBulkScript(prices,countries,vatMode,fallback){
+  var pArr='['+prices.join(',')+']';
+  var cArr=JSON.stringify((countries||[]).map(_egpCountryName));
+  var priceExpr=vatMode==='strip'?"(price[i]/1.18).toFixed(2)":"price[i].toFixed(2)";
+  var vatLine=vatMode==='off'
+    ? "    /* VAT tick vendaam */"
+    : "    var cb=r.querySelector('input[type=checkbox]'); if(cb&&!cb.checked) cb.click();";
+  return "(async function(){\n"
+   +"  var price="+pArr+", CO="+cArr+", FB="+JSON.stringify(_egpCountryName(fallback||''))+";\n"
+   +"  var rowsOf=function(){ return [].slice.call(document.querySelectorAll('tr'))\n"
+   +"    .filter(function(r){ return r.querySelector('input[value=\"Save\"],input[value=\"Edit\"]'); }); };\n"
+   +"  var R=rowsOf();\n"
+   +"  console.log('Table rows:',R.length,'| Prices:',price.length);\n"
+   +"  if(!R.length){ alert('Price Schedule table kaanom.'); return; }\n"
+   +"  if(R.length!==price.length){\n"
+   +"    if(!confirm('⚠️ COUNT MISMATCH\\neGP rows: '+R.length+'\\nV3 prices: '+price.length+'\\n\\nThodaravaa?')) return;\n"
+   +"  }\n"
+   +"\n"
+   +"  // ---- 1. fill every row in the page (nothing sent yet) ----\n"
+   +"  var filled=0, warn=[];\n"
+   +"  R.forEach(function(r,i){\n"
+   +"    if(price[i]===undefined) return;\n"
+   +"    if(!r.querySelector('input[value=\"Save\"]')) return;   // already saved\n"
+   +"    var CN=(CO[i]||FB||'').trim();\n"
+   +"    if(CN){\n"
+   +"      [].forEach.call(r.querySelectorAll('select'),function(s){\n"
+   +"        var hit=-1;\n"
+   +"        for(var k=0;k<s.options.length;k++){ if(s.options[k].text.trim().toLowerCase()===CN.toLowerCase()){ hit=k; break; } }\n"
+   +"        if(hit<0) for(var k2=0;k2<s.options.length;k2++){ if(s.options[k2].text.trim().toLowerCase().indexOf(CN.toLowerCase())===0){ hit=k2; break; } }\n"
+   +"        if(hit>=0){ s.value=s.options[hit].value; s.dispatchEvent(new Event('change',{bubbles:true})); }\n"
+   +"        else warn.push('Row '+(i+1)+': country \"'+CN+'\" dropdown-la illa');\n"
+   +"      });\n"
+   +"    } else warn.push('Row '+(i+1)+': country kaali');\n"
+   +"    var inp=r.querySelectorAll('input[type=text],input[type=number]')[0];\n"
+   +"    if(inp){ inp.focus(); inp.value="+priceExpr+";\n"
+   +"      ['input','change','keyup','blur'].forEach(function(e){ inp.dispatchEvent(new Event(e,{bubbles:true})); }); }\n"
+   +vatLine+"\n"
+   +"    filled++;\n"
+   +"  });\n"
+   +"  console.log('Filled',filled,'rows in page.');\n"
+   +"  if(warn.length) console.warn(warn.join('\\n'));\n"
+   +"  if(!filled){ alert('Ellaa row-um already save aayiduchu.'); return; }\n"
+   +"  if(!confirm(filled+' row fill aayiduchu.\\n\\nIppo background-la save panna Thodangattumaa?\\n(Page reload aagaadhu)')) return;\n"
+   +"\n"
+   +"  // ---- 2. post each row's Save without navigating ----\n"
+   +"  var ok=0, fail=[];\n"
+   +"  for(var i=0;i<R.length;i++){\n"
+   +"    if(price[i]===undefined) continue;\n"
+   +"    var r=R[i];\n"
+   +"    var btn=r.querySelector('input[value=\"Save\"]');\n"
+   +"    if(!btn) continue;\n"
+   +"    var f=btn.closest('form');\n"
+   +"    if(!f){ fail.push('Row '+(i+1)+': form kaanom'); continue; }\n"
+   +"    try{\n"
+   +"      var fd=new FormData(f);\n"
+   +"      if(btn.name) fd.set(btn.name,btn.value||'Save');\n"
+   +"      var url=(f.getAttribute('action')||location.href);\n"
+   +"      var res=await fetch(url,{method:(f.method||'POST').toUpperCase(),body:fd,credentials:'same-origin'});\n"
+   +"      if(res.ok){ ok++; console.log('✔ Row',i+1,'saved | price',"+priceExpr+"); }\n"
+   +"      else { fail.push('Row '+(i+1)+': HTTP '+res.status); }\n"
+   +"    }catch(e){ fail.push('Row '+(i+1)+': '+e.message); }\n"
+   +"    await new Promise(function(z){ setTimeout(z,250); });\n"
+   +"  }\n"
+   +"\n"
+   +"  console.log('Saved:',ok,'| Failed:',fail.length);\n"
+   +"  if(fail.length) console.warn(fail.join('\\n'));\n"
+   +"  alert('✅ '+ok+' row save aayiduchu'+(fail.length?'\\n❌ '+fail.length+' fail (console paarunga)':'')\n"
+   +"    +'\\n\\nIppo page refresh aagum. Ellaam \"Edit\" nu maarirukkaanu paarunga,\\napparam Verify script podunga.');\n"
+   +"  location.reload();\n"
+   +"})();";
+}
+
 function _egpDoCopy(kind){
   var rows=_egpRows();
   var country=(document.getElementById('egp-country')||{}).value||'United Kingdom';
@@ -9216,6 +9272,8 @@ function _egpDoCopy(kind){
   if(kind==='list'){
     var out=prices.map(function(p){ return vat==='strip'?(p/1.18).toFixed(2):p.toFixed(2); }).join('\n');
     _egpCopy(out,'Price list ('+prices.length+' items)');
+  } else if(kind==='bulk'){
+    _egpCopy(_egpBulkScript(prices,rows.map(function(r){return r.country;}),vat,country),'Bulk save script');
   } else if(kind==='verify'){
     _egpCopy(_egpVerifyScript(prices,rows.map(function(r){return r.country;}),vat,country,
              rows.map(function(r){return r.desc;})),'Verify script');
@@ -12199,10 +12257,6 @@ function _flushQueue(){
       arr.forEach(function(e){
         if(!e||typeof e!=='object'||e.id==null) return;
         var idStr=String(e.id);
-        // DATA GUARD: a record trimmed to free localStorage carries items:[] locally while
-        // the cloud still holds the real list. Uploading it would wipe that list permanently.
-        // Skip it entirely — nothing here is authoritative.
-        if(e._slim&&(!e.items||!e.items.length)) return;
         var js=JSON.stringify(e);
         if(_histSyncSnap[idStr]!==js){body[idStr]=e;_histSyncSnap[idStr]=js;}
       });
@@ -12335,18 +12389,14 @@ function ensureItemsLoaded(id,cb){
   var e=getHist().find(function(x){return x&&String(x.id)===String(id);});
   if(!e){ cb&&cb(null); return; }
   if(!e._slim||(e.items&&e.items.length)){ cb&&cb(e); return; }
-  // Offline / Firebase down — say so. Returning the empty record here used to send
-  // loadHist straight back into ensureItemsLoaded, looping on "Items load ஆகுது".
-  if(typeof fbRead!=='function'||typeof FB_READY==='undefined'||!FB_READY){ cb&&cb(null); return; }
+  if(typeof fbRead!=='function'||typeof FB_READY==='undefined'||!FB_READY){ cb&&cb(e); return; }
   fbRead('history/'+id,function(rec){
     if(rec&&rec.items&&rec.items.length){
-      // Memory only — do NOT push back through saveHistSafe. Storage is full, so the
-      // trim would immediately strip this same record again (it is the oldest finalised
-      // one, i.e. first in line) and the caller would retry forever.
-      _slimItemsMem[String(id)]=rec.items;
-      window.__fapmVer=(window.__fapmVer||0)+1;
-      cb&&cb(Object.assign({},e,{items:rec.items}));
-    } else cb&&cb(null);   // cloud copy has no items either
+      var h=getHist();
+      var i=h.findIndex(function(x){return x&&String(x.id)===String(id);});
+      if(i>=0){ h[i]=rec; saveHistSafe(h); window.__fapmVer=(window.__fapmVer||0)+1; }
+      cb&&cb(rec);
+    } else cb&&cb(e);
   });
 }
 
@@ -12364,10 +12414,7 @@ function _writeHistIndex(arr){
 
 function _histFp(e){
   if(!e||typeof e!=='object') return '';
-  // A trimmed record must report its ORIGINAL item count, otherwise its fingerprint
-  // never matches the cloud, every sync flags it as changed, and the device re-downloads
-  // (and re-trims) the whole archive on a loop.
-  return [e.status||'',e.seenBySubmitter?1:0,(e._slim?(e._itemCount||0):(e.items||[]).length),
+  return [e.status||'',e.seenBySubmitter?1:0,(e.items||[]).length,
           e.approvedAt||'',e.submittedAt||'',e.notSubmittedInfo?1:0,
           e.eqNo||e.refNo||''].join('|');
 }
