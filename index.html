@@ -8792,6 +8792,11 @@ function openEgpFillModal(){
         +'</select></label>'
       +'</div>'
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+        +'<div style="background:#0B5D6B;border-radius:7px;padding:13px 15px;margin-bottom:16px;width:100%;">'
+          +'<div style="color:#fff;font-weight:700;font-size:13.5px;margin-bottom:3px;">🎯 ALL-IN-ONE — staff-ku idhu ondru podhum</div>'
+          +'<div style="color:#CFE6EB;font-size:11.5px;line-height:1.6;margin-bottom:9px;">Oru script. Price Schedule / Schedule of Requirements / Specifications — edhula paste panninaalum thaanaa kandupidichu velai seiyum. Enna mudinjadhu, enna meethi nu popup kaattum.</div>'
+          +'<button onclick="_egpDoCopy(\'all\')" style="padding:10px 20px;background:#fff;color:#0B5D6B;border:none;border-radius:5px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">📋 Copy ALL-IN-ONE script</button>'
+        +'</div>'
         +'<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:.06em;width:100%;margin-bottom:2px;">1 — PRICE SCHEDULE</div>'
         +'<button onclick="_egpDoCopy(\'script\')" style="padding:9px 15px;background:#0B5D6B;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#9889; Price + Country + VAT</button>'
         +'<button onclick="_egpDoCopy(\'bulk\')" style="padding:9px 15px;background:#B8860B;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">&#9889;&#9889; Bulk &#8212; ellaam ore thadava</button>'
@@ -9299,6 +9304,199 @@ function _egpBulkScript(prices,countries,vatMode,fallback){
    +"})();";
 }
 
+// ══════════════════════════════════════════════════
+// ALL-IN-ONE — one script, any eGP page
+// The three pages are separate URLs, so a single paste cannot cross them.
+// Instead this detects where it is, does that page's work, remembers progress
+// in sessionStorage, and shows a running checklist so staff always know what's
+// left. Same script every time — nothing to choose.
+// ══════════════════════════════════════════════════
+function _egpAllInOneScript(cfg){
+  cfg=cfg||{};
+  var pArr='['+(cfg.prices||[]).join(',')+']';
+  var cArr=JSON.stringify((cfg.countries||[]).map(_egpCountryName));
+  var priceExpr=cfg.vat==='strip'?"(P[i]/1.18).toFixed(2)":"P[i].toFixed(2)";
+  var vatOn=(cfg.vat!=='off');
+  return "(async function(){\n"
++"var P="+pArr+", CO="+cArr+", CFG="+JSON.stringify({
+    fb:_egpCountryName(cfg.fallback||''), brand:cfg.brand||'', warranty:cfg.warranty||'',
+    delivery:cfg.delivery||'30', validity:cfg.validity||'', payment:cfg.payment||'',
+    country:_egpCountryName(cfg.country||''), vatno:cfg.vatno||'', name:cfg.name||'',
+    ref:cfg.ref||'', items:cfg.items||[], vatOn:vatOn
+  })+";\n"
++"var KEY='egp_progress_'+(CFG.ref||'x');\n"
++"var PG={};try{PG=JSON.parse(sessionStorage.getItem(KEY)||'{}');}catch(e){}\n"
++"var save=function(){try{sessionStorage.setItem(KEY,JSON.stringify(PG));}catch(e){}};\n"
++"var U=location.href.toLowerCase(), body=(document.body.innerText||'').toLowerCase();\n"
++"\n"
++"// ---------- which page are we on ----------\n"
++"var page='';\n"
++"if(/price_schedule/.test(U)||/unit price excluding vat/.test(body)) page='price';\n"
++"else if(/schedule_of_requirements/.test(U)||/latest delivery period/.test(body)) page='deliv';\n"
++"else if(/specifications/.test(U)||/compliance with specifications/.test(body)) page='spec';\n"
++"if(!page){ alert('⚠️ Indha page theriyala.\\n\\nPrice Schedule / Schedule of Requirements / Specifications — indha 3-la ondrula podunga.'); return; }\n"
++"\n"
++"var norm=function(t){return String(t||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();};\n"
++"var brandFor=function(txt){var w=norm(txt);if(!w||!CFG.items.length)return CFG.brand;var best=null,sc=0;\n"
++"  CFG.items.forEach(function(it){var d=norm(it.desc);if(!d)return;\n"
++"    if(d===w){if(sc<99){best=it;sc=99;}return;}\n"
++"    var ws=d.split(' ').filter(function(x){return x.length>2;});\n"
++"    var hit=ws.filter(function(x){return w.indexOf(x)>=0;}).length,s=ws.length?hit/ws.length:0;\n"
++"    if(s>sc&&s>=0.6){best=it;sc=s;}});\n"
++"  return (best&&best.brand)?best.brand:CFG.brand;};\n"
++"var W={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};\n"
++"var dur=function(t){t=String(t||'').toLowerCase();if(!t.trim())return null;\n"
++"  var m=t.match(/(\\d+(?:\\.\\d+)?)/),n=m?parseFloat(m[1]):null;\n"
++"  if(n===null){for(var k in W){if(t.indexOf(k)>=0){n=W[k];break;}}}\n"
++"  if(n===null)return null;\n"
++"  if(/year|annum/.test(t))return n*365; if(/month/.test(t))return n*30; if(/week/.test(t))return n*7; return n;};\n"
++"var fire=function(el){['input','change','keyup','blur'].forEach(function(e){el.dispatchEvent(new Event(e,{bubbles:true}));});};\n"
++"var notes=[];\n"
++"\n"
++"// ---------- PRICE SCHEDULE ----------\n"
++"if(page==='price'){\n"
++"  var R=[].slice.call(document.querySelectorAll('tr')).filter(function(r){return r.querySelector('input[value=\"Save\"],input[value=\"Edit\"]');});\n"
++"  if(!R.length){ alert('Price table kaanom.'); return; }\n"
++"  if(R.length!==P.length && !confirm('⚠️ COUNT MISMATCH\\neGP: '+R.length+' rows\\nV3: '+P.length+' prices\\n\\nThodaravaa?')) return;\n"
++"  var filled=0;\n"
++"  R.forEach(function(r,i){\n"
++"    if(P[i]===undefined||!r.querySelector('input[value=\"Save\"]'))return;\n"
++"    var CN=(CO[i]||CFG.fb||'').trim();\n"
++"    if(CN){[].forEach.call(r.querySelectorAll('select'),function(s){var h=-1;\n"
++"      for(var k=0;k<s.options.length;k++){if(s.options[k].text.trim().toLowerCase()===CN.toLowerCase()){h=k;break;}}\n"
++"      if(h<0)for(var k2=0;k2<s.options.length;k2++){if(s.options[k2].text.trim().toLowerCase().indexOf(CN.toLowerCase())===0){h=k2;break;}}\n"
++"      if(h>=0){s.value=s.options[h].value;s.dispatchEvent(new Event('change',{bubbles:true}));}\n"
++"      else notes.push('Row '+(i+1)+': country \"'+CN+'\" dropdown-la illa');});\n"
++"    } else notes.push('Row '+(i+1)+': country kaali');\n"
++"    var inp=r.querySelectorAll('input[type=text],input[type=number]')[0];\n"
++"    if(inp){inp.focus();inp.value="+priceExpr+";fire(inp);}\n"
++"    if(CFG.vatOn){var cb=r.querySelector('input[type=checkbox]');if(cb&&!cb.checked)cb.click();}\n"
++"    filled++;\n"
++"  });\n"
++"  if(filled){\n"
++"    if(!confirm(filled+' row fill aayiduchu.\\nBackground-la save panna thodangattumaa?')) return;\n"
++"    var ok=0,bad=[];\n"
++"    for(var i=0;i<R.length;i++){\n"
++"      if(P[i]===undefined)continue;\n"
++"      var b=R[i].querySelector('input[value=\"Save\"]'); if(!b)continue;\n"
++"      var f=b.form||b.closest('form'); if(!f){bad.push('Row '+(i+1)+': form kaanom');continue;}\n"
++"      try{var fd=new FormData(f); if(b.name)fd.set(b.name,b.value||'Save');\n"
++"        var res=await fetch(f.action||location.href,{method:(f.method||'POST').toUpperCase(),body:fd,credentials:'same-origin'});\n"
++"        res.ok?ok++:bad.push('Row '+(i+1)+': HTTP '+res.status);\n"
++"      }catch(e){bad.push('Row '+(i+1)+': '+e.message);}\n"
++"      await new Promise(function(z){setTimeout(z,250);});\n"
++"    }\n"
++"    PG.price={done:ok,total:P.length,fail:bad.length,at:new Date().toLocaleTimeString()};\n"
++"    notes=notes.concat(bad);\n"
++"  } else { PG.price={done:P.length,total:P.length,fail:0,skip:true,at:new Date().toLocaleTimeString()}; }\n"
++"  // declarations on the same page\n"
++"  var inTbl=function(el){var t=el.closest('tr');return !!(t&&t.querySelector('input[value=\"Save\"],input[value=\"Edit\"]'));};\n"
++"  var dn=0;[].slice.call(document.querySelectorAll('input[type=checkbox]')).forEach(function(c){\n"
++"    if(inTbl(c)||c.disabled||c.checked)return;c.click();dn++;});\n"
++"  var df=0;[].slice.call(document.querySelectorAll('input[type=text]')).forEach(function(i2){\n"
++"    if(inTbl(i2)||i2.value.trim())return;\n"
++"    var bx=i2.closest('tr')||i2.closest('div')||{},ctx=(bx.innerText||bx.textContent||'')+' '+(i2.name||'')+' '+(i2.id||'');\n"
++"    if(CFG.vatno&&/vat/i.test(ctx)){i2.value=CFG.vatno;fire(i2);df++;}\n"
++"    else if(CFG.name&&/\\bname\\b/i.test(ctx)&&!/user|login|file/i.test(ctx)){i2.value=CFG.name;fire(i2);df++;}});\n"
++"  PG.decl={ticked:dn,filled:df,at:new Date().toLocaleTimeString()};\n"
++"}\n"
++"\n"
++"// ---------- SCHEDULE OF REQUIREMENTS ----------\n"
++"if(page==='deliv'){\n"
++"  var n=0;\n"
++"  document.querySelectorAll('tr').forEach(function(r){\n"
++"    var i3=r.querySelector('input[type=text],input[type=number]');\n"
++"    if(!i3||i3.disabled||i3.readOnly)return;\n"
++"    i3.focus();i3.value=String(CFG.delivery).replace(/[^0-9]/g,'')||'30';fire(i3);n++;});\n"
++"  PG.deliv={rows:n,days:CFG.delivery,at:new Date().toLocaleTimeString()};\n"
++"  if(!n) notes.push('Delivery box ondrum kidaikkala');\n"
++"}\n"
++"\n"
++"// ---------- SPECIFICATIONS ----------\n"
++"if(page==='spec'){\n"
++"  var op=0;\n"
++"  document.querySelectorAll('a,div,span,h3,h4,button,td,th').forEach(function(el){\n"
++"    if(el.children.length>2)return;\n"
++"    if(/Click the title to Expand the Spec/i.test(el.textContent||'')){el.click();op++;}});\n"
++"  if(op) await new Promise(function(z){setTimeout(z,2500);});\n"
++"  var yes=0,no=0,noList=[],flag=[];\n"
++"  var tagOf=function(el){var v=String(el.value||'').trim();\n"
++"    if(/^y(es)?$/i.test(v))return 'yes'; if(/^n(o)?$/i.test(v))return 'no';\n"
++"    if(el.labels&&el.labels[0]){var L=(el.labels[0].textContent||'').trim();\n"
++"      if(/^yes/i.test(L))return 'yes'; if(/^no/i.test(L))return 'no';}\n"
++"    var sb=el.nextSibling; while(sb&&sb.nodeType!==3)sb=sb.nextSibling;\n"
++"    var t=sb?String(sb.nodeValue||'').trim():'';\n"
++"    if(/^yes/i.test(t))return 'yes'; if(/^no/i.test(t))return 'no';\n"
++"    var id=String(el.id||'')+' '+String(el.name||'');\n"
++"    if(/yes/i.test(id)&&!/no/i.test(id))return 'yes';\n"
++"    if(/no/i.test(id)&&!/yes/i.test(id))return 'no'; return '';};\n"
++"  document.querySelectorAll('tr').forEach(function(r){\n"
++"    var rd=r.querySelectorAll('input[type=radio]'); if(!rd.length)return;\n"
++"    var td=[].slice.call(r.children).map(function(c){return (c.innerText||c.textContent||'').replace(/\\s+/g,' ').trim();});\n"
++"    var desc='',req='';\n"
++"    for(var a=0;a<td.length;a++){if(td[a]&&/[A-Za-z]{3}/.test(td[a])&&!/^(yes|no|mandatory|non-mandatory)$/i.test(td[a])){desc=td[a];break;}}\n"
++"    for(var b2=td.indexOf(desc)+1;b2<td.length;b2++){if(/mandatory/i.test(td[b2]))break;if(td[b2]){req=td[b2];break;}}\n"
++"    var sec='',tb=r.closest('table');\n"
++"    if(tb){var pv=tb.previousElementSibling,hp=0;\n"
++"      while(pv&&hp<3&&!sec){var t2=(pv.innerText||pv.textContent||'').replace(/Click the title.*$/i,'').trim();\n"
++"        if(t2&&t2.length<90)sec=t2; pv=pv.previousElementSibling;hp++;}}\n"
++"    var name=sec||desc, ans='yes', rem=brandFor(name), why='';\n"
++"    if(/warrant/i.test(desc)){rem=CFG.warranty;var x=dur(CFG.warranty),y=dur(req);\n"
++"      if(x!==null&&y!==null&&x<y){ans='no';why='namma '+CFG.warranty+' < ketta '+req;}}\n"
++"    else if(/deliver/i.test(desc)){rem=CFG.delivery;var x2=dur(CFG.delivery),y2=dur(req);\n"
++"      if(x2!==null&&y2!==null&&x2>y2){ans='no';why='namma '+CFG.delivery+' > ketta '+req;}}\n"
++"    else if(/validity/i.test(desc)){rem=CFG.validity;var x3=dur(CFG.validity),y3=dur(req);\n"
++"      if(x3!==null&&y3!==null&&x3<y3){ans='no';why='namma '+CFG.validity+' < ketta '+req;}}\n"
++"    else if(/payment/i.test(desc)){rem=CFG.payment;}\n"
++"    else if(/country.*origin|origin.*country/i.test(desc)){rem=CFG.country;}\n"
++"    else if(/vat/i.test(desc)){rem=CFG.vatno;}\n"
++"    else if(/recondition|reconditioned|\\bused\\b|second hand|repair|rebuilt/i.test(req+' '+desc)){\n"
++"      why='⚠️ \"'+(req||desc)+'\" ketkiraanga — namma '+rem;}\n"
++"    var pick=null,tg=[];\n"
++"    for(var c1=0;c1<rd.length;c1++)tg.push(tagOf(rd[c1]));\n"
++"    for(var c2=0;c2<rd.length;c2++){if(tg[c2]===ans){pick=rd[c2];break;}}\n"
++"    if(!pick&&rd.length===2&&tg[0]===''&&tg[1]==='')pick=rd[ans==='no'?1:0];\n"
++"    if(pick&&!pick.disabled){if(!pick.checked)pick.click();(ans==='no')?no++:yes++;}\n"
++"    var rin=r.querySelector('input[type=text],textarea');\n"
++"    if(rin&&!rin.disabled&&!rin.readOnly&&!rin.value.trim()&&rem){rin.focus();rin.value=rem;fire(rin);}\n"
++"    if(ans==='no')noList.push((name||desc)+' — '+why);\n"
++"    else if(why)flag.push((name||desc)+' — '+why);\n"
++"  });\n"
++"  PG.spec={yes:yes,no:no,noList:noList,flag:flag,at:new Date().toLocaleTimeString()};\n"
++"}\n"
++"save();\n"
++"\n"
++"// ---------- review panel ----------\n"
++"var esc=function(t){return String(t==null?'':t).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});};\n"
++"var card=function(t,st,cls,extra){return '<div style=\"border:1px solid #ddd;border-left:5px solid '+cls+';border-radius:6px;padding:10px 14px;margin-bottom:8px;\">'\n"
++"  +'<div style=\"font-weight:700;font-size:13px;color:#123049;\">'+t+'</div>'\n"
++"  +'<div style=\"font-size:12.5px;color:#444;margin-top:3px;\">'+st+'</div>'+(extra||'')+'</div>';};\n"
++"var pend='<span style=\"color:#8B6914;\">⏳ Innum pannala</span>';\n"
++"var h='';\n"
++"h+=card('1 · Price Schedule', PG.price?('✅ '+PG.price.done+'/'+PG.price.total+' save'+(PG.price.fail?' · ❌ '+PG.price.fail+' fail':'')+' <span style=\"color:#888;\">('+PG.price.at+')</span>'):pend, PG.price?(PG.price.fail?'#B22222':'#1A6B3C'):'#C9952A');\n"
++"h+=card('2 · Schedule of Requirements', PG.deliv?('✅ '+PG.deliv.rows+' row → '+esc(PG.deliv.days)+' <span style=\"color:#888;\">('+PG.deliv.at+')</span>'):pend, PG.deliv?'#1A6B3C':'#C9952A');\n"
++"var sx=''; if(PG.spec){\n"
++"  if(PG.spec.noList&&PG.spec.noList.length) sx+='<div style=\"margin-top:6px;font-size:12px;background:#FDECEA;border-radius:4px;padding:7px 10px;\"><b>NO potadhu:</b><br>'+PG.spec.noList.map(esc).join('<br>')+'</div>';\n"
++"  if(PG.spec.flag&&PG.spec.flag.length) sx+='<div style=\"margin-top:6px;font-size:12px;background:#FFF4E5;border-radius:4px;padding:7px 10px;\"><b>Check pannunga:</b><br>'+PG.spec.flag.map(esc).join('<br>')+'</div>';}\n"
++"h+=card('3 · Specifications', PG.spec?('✅ Yes '+PG.spec.yes+' · ❌ No '+PG.spec.no+' <span style=\"color:#888;\">('+PG.spec.at+')</span>'):pend, PG.spec?'#1A6B3C':'#C9952A', sx);\n"
++"h+=card('4 · Declarations', PG.decl?('✅ '+PG.decl.ticked+' tick · '+PG.decl.filled+' field <span style=\"color:#888;\">('+PG.decl.at+')</span>'):pend, PG.decl?'#1A6B3C':'#C9952A');\n"
++"var left=[]; if(!PG.price)left.push('Price Schedule'); if(!PG.deliv)left.push('Schedule of Requirements'); if(!PG.spec)left.push('Specifications');\n"
++"var d=document.createElement('div');\n"
++"d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif;';\n"
++"d.innerHTML='<div style=\"background:#fff;border-radius:8px;max-width:620px;width:100%;max-height:88vh;overflow:auto;\">'\n"
++"+'<div style=\"background:#123049;color:#fff;padding:14px 20px;\"><div style=\"font-weight:700;font-size:16px;\">📋 eGP Progress'+(CFG.ref?' — '+esc(CFG.ref):'')+'</div>'\n"
++"+'<div style=\"font-size:11.5px;opacity:.85;\">Save adikkardhukku munnadi scroll panni kannaala paarunga</div></div>'\n"
++"+'<div style=\"padding:16px 20px;\">'+h\n"
++"+(left.length?'<div style=\"background:#FFF4E5;border-left:4px solid #C9952A;padding:10px 14px;margin-top:6px;font-size:12.5px;\"><b>Meethi page:</b> '+left.join(' · ')+'<br>Angae poi <b>idhe script-a</b> paste pannunga.</div>':'<div style=\"background:#E7F3EC;border-left:4px solid #1A6B3C;padding:10px 14px;margin-top:6px;font-size:12.5px;\"><b>✅ Moondru page-um mudinjadhu.</b> Ovvondrilum Save adichittu, kadaisila Submit pannunga.</div>')\n"
++"+(notes.length?'<div style=\"background:#FDECEA;border-left:4px solid #B22222;padding:10px 14px;margin-top:8px;font-size:12px;\"><b>Kavanam:</b><br>'+notes.map(esc).join('<br>')+'</div>':'')\n"
++"+'<div style=\"margin-top:14px;text-align:right;\"><button id=\"egpx\" style=\"padding:9px 20px;background:#123049;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:13px;cursor:pointer;\">Sari</button></div>'\n"
++"+'</div></div>';\n"
++"document.body.appendChild(d);\n"
++"d.querySelector('#egpx').onclick=function(){d.remove();};\n"
++"d.onclick=function(e){if(e.target===d)d.remove();};\n"
++"})();";
+}
+
 function _egpDoCopy(kind){
   var rows=_egpRows();
   var country=(document.getElementById('egp-country')||{}).value||'United Kingdom';
@@ -9307,6 +9505,15 @@ function _egpDoCopy(kind){
   if(kind==='list'){
     var out=prices.map(function(p){ return vat==='strip'?(p/1.18).toFixed(2):p.toFixed(2); }).join('\n');
     _egpCopy(out,'Price list ('+prices.length+' items)');
+  } else if(kind==='all'){
+    var gv=function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
+    _egpCopy(_egpAllInOneScript({
+      prices:prices, countries:rows.map(function(r){return r.country;}), vat:vat, fallback:country,
+      brand:gv('egp-brand'), warranty:gv('egp-warranty'), delivery:gv('egp-days'),
+      validity:gv('egp-validity'), payment:gv('egp-payment'), country:country,
+      vatno:gv('egp-vatno'), name:gv('egp-name'), ref:(_egpSrc&&_egpSrc.ref)||'',
+      items:rows.map(function(r){ return {desc:r.desc,brand:r.brand||''}; })
+    }),'ALL-IN-ONE script');
   } else if(kind==='bulk'){
     _egpCopy(_egpBulkScript(prices,rows.map(function(r){return r.country;}),vat,country),'Bulk save script');
   } else if(kind==='verify'){
