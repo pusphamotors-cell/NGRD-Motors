@@ -446,6 +446,7 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
         <button class="nav-item" id="nav-search" onclick="showPage('search');closeSidebarMobile()"><span class="nav-icon">🔍</span>Parts Search</button>
         <button class="nav-item" id="nav-docs" onclick="showPage('docs');closeSidebarMobile()"><span class="nav-icon">📑</span>Documents</button>
         <button class="nav-item" id="nav-campcontacts" onclick="showPage('campcontacts');closeSidebarMobile()"><span class="nav-icon">☎️</span>Camp Contacts</button>
+        <button class="nav-item" id="nav-commcheck" onclick="openCommCheck();closeSidebarMobile()"><span class="nav-icon">💵</span>Commission Check</button>
       </div>
       <div class="nav-div"></div>
       <div class="nav-sec" id="admin-nav">
@@ -1334,6 +1335,16 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
               </div>
               <div id="fix-submitted-result" style="margin-bottom:10px;font-size:12px;"></div>
               <button onclick="bulkFixSubmitted()" style="padding:10px 20px;background:#8B4500;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">🔧 Fix All Submitted Status → Firebase</button>
+            </div>
+          </div>
+          <div class="panel" style="margin-bottom:14px;">
+            <div class="panel-hdr" style="background:#1A6B3C;"><span class="panel-hdr-icon">🛡️</span><span class="panel-hdr-title">Data Integrity — Order System match-kku</span></div>
+            <div class="panel-body">
+              <div style="background:#E7F3EC;border:1px solid #A5D6A7;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#1A6B3C;">
+                🛡️ Order System indha archive-a paathu thaan eGP / non-eGP nu mudivu pannudhu. Ellaa quotation-um paadhukaappa irukkaanu inga check pannunga.
+              </div>
+              <button onclick="runIntegrityCheck()" style="padding:10px 20px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">🛡️ Check pannu</button>
+              <div id="integrity-out" style="margin-top:12px;"></div>
             </div>
           </div>
           <div class="panel" style="margin-bottom:14px;">
@@ -8724,6 +8735,165 @@ function _egpCopy(txt,label){
   if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(done); }
   else { var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta);
          ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); }
+}
+
+// ══════════════════════════════════════════════════
+// COMMISSION CHECK
+// eGP orders earn the agent nothing — the work came through the portal. So
+// before paying Apo/Clark, each order is matched against the eGP quotation
+// archive: found here means no commission.
+// ══════════════════════════════════════════════════
+function _ccNorm(t){ return String(t||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+
+function ccLookup(q){
+  var key=_ccNorm(q);
+  if(key.length<4) return {status:'short'};
+  var h=getHist(), hits=[];
+  h.forEach(function(e){
+    if(!e) return;
+    var fields=[e.eqNo,e.refNo,e.ourRef,e.orderNo,e.poNo].filter(Boolean).map(_ccNorm);
+    var exact=fields.some(function(f){ return f===key; });
+    var part =fields.some(function(f){ return f.length>=6 && (f.indexOf(key)>=0||key.indexOf(f)>=0); });
+    if(exact||part) hits.push({e:e,exact:exact});
+  });
+  if(!hits.length) return {status:'none'};
+  hits.sort(function(a,b){ return (b.exact?1:0)-(a.exact?1:0); });
+  var LIVE=['submitted','awarded','approved'];
+  var live=hits.filter(function(x){ return LIVE.indexOf(x.e.status)>=0; });
+  var best=(live[0]||hits[0]);
+  return {status:live.length?'egp':'weak', e:best.e, exact:best.exact, count:hits.length};
+}
+
+function openCommCheck(){
+  var old=document.getElementById('cc-modal'); if(old) old.remove();
+  var d=document.createElement('div');
+  d.id='cc-modal';
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  d.innerHTML='<div style="background:#fff;border-radius:8px;max-width:760px;width:100%;max-height:92vh;overflow:auto;">'
+    +'<div style="background:#1A6B3C;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;">'
+      +'<div><div style="font-weight:700;font-size:16px;">💵 Commission Check</div>'
+      +'<div style="font-size:11.5px;opacity:.88;">eGP-la vandha order-ku commission illa — inga check pannunga</div></div>'
+      +'<button onclick="document.getElementById(\'cc-modal\').remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;">×</button></div>'
+    +'<div style="padding:18px 20px;">'
+      +'<div style="font-size:12.5px;color:#555;margin-bottom:6px;line-height:1.6;">Order-oda <b>e-Q No</b> illa <b>Ref No</b> podunga — oru line-ku ondru. Order list-a apdiye paste panninaalum sari.</div>'
+      +'<textarea id="cc-in" rows="7" placeholder="ENA/APO/FO/MT/2026/2419&#10;401/EL/26/598&#10;20260730101621" style="width:100%;padding:9px;border:1px solid #bbb;border-radius:5px;font-family:var(--fb);font-size:12.5px;outline:none;"></textarea>'
+      +'<div style="display:flex;gap:8px;margin-top:9px;align-items:center;flex-wrap:wrap;">'
+        +'<button onclick="runCommCheck()" style="padding:9px 18px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">🔍 Check pannu</button>'
+        +'<button onclick="copyCommResult()" style="padding:9px 16px;background:#6B7280;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">📋 Result copy</button>'
+        +'<span id="cc-sum" style="font-size:12.5px;color:#666;"></span>'
+      +'</div>'
+      +'<div id="cc-out" style="margin-top:14px;"></div>'
+    +'</div></div>';
+  document.body.appendChild(d);
+  d.addEventListener('click',function(e){ if(e.target===d) d.remove(); });
+  setTimeout(function(){ var t=document.getElementById('cc-in'); if(t) t.focus(); },80);
+}
+
+var _ccRows=[];
+// ══════════════════════════════════════════════════
+// DATA INTEGRITY
+// The Order System matches incoming orders against this archive to decide
+// eGP vs non-eGP, so a missing quotation means a wrongly paid commission.
+// This compares what's on this device against Firebase and says so plainly.
+// ══════════════════════════════════════════════════
+function runIntegrityCheck(){
+  var el=document.getElementById('integrity-out');
+  if(el) el.innerHTML='<div style="font-size:12.5px;color:#666;">⏳ Check pannuren...</div>';
+  if(typeof FB_READY==='undefined'||!FB_READY){
+    if(el) el.innerHTML='<div style="background:#FDECEA;border-left:4px solid #B22222;padding:10px 14px;font-size:12.5px;">Firebase connect aagala — internet paarunga.</div>';
+    return;
+  }
+  fbRead('hindex',function(idx){
+    var local=getHist();
+    var localIds={}; local.forEach(function(e){ if(e&&e.id!=null) localIds[String(e.id)]=e; });
+    var remoteIds=idx&&typeof idx==='object'?Object.keys(idx):[];
+    var missing=remoteIds.filter(function(id){ return !localIds[id]; });
+    var slim=local.filter(function(e){ return e&&e._slim; }).length;
+    var noRef=local.filter(function(e){ return e&&!e.eqNo&&!e.refNo; }).length;
+    var del=[]; try{ del=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]'); }catch(e){}
+    var rows=[
+      ['Indha device-la',local.length+' records',local.length?'ok':'bad'],
+      ['Firebase-la (index)',remoteIds.length?remoteIds.length+' records':'Index illa — Sync Index urvaakunga',remoteIds.length?'ok':'warn'],
+      ['Inga kaanaadhadhu',missing.length+' records',missing.length?'bad':'ok'],
+      ['Item list trim aanadhu',slim+' records (thirandhaa thirumba varum)',slim?'warn':'ok'],
+      ['e-Q / Ref illaadhadhu',noRef+' records (match panna mudiyaadhu)',noRef?'warn':'ok'],
+      ['Delete panna list',del.length+' records',del.length?'warn':'ok']
+    ];
+    var col={ok:'#1A6B3C',warn:'#8B6914',bad:'#B22222'};
+    var ic={ok:'✅',warn:'⚠️',bad:'❌'};
+    var html='<table style="width:100%;border-collapse:collapse;margin-top:4px;">'
+      +rows.map(function(r){
+        return '<tr style="border-bottom:1px solid #eee;">'
+          +'<td style="padding:7px 8px 7px 0;font-size:12.5px;color:#555;">'+r[0]+'</td>'
+          +'<td style="padding:7px 0;font-size:12.5px;font-weight:700;color:'+col[r[2]]+';text-align:right;">'+ic[r[2]]+' '+r[1]+'</td></tr>';
+      }).join('')+'</table>';
+    if(missing.length){
+      html+='<div style="background:#FDECEA;border-left:4px solid #B22222;padding:10px 14px;margin-top:10px;font-size:12.5px;">'
+        +'<b>'+missing.length+' record indha device-la illa.</b> Firebase-la irukku, aana inga varala.<br>'
+        +'Kizhe <b>🟢 Synced</b> badge-a click panni sync pannunga. Aagalana Backup/Restore-la restore pannunga.</div>';
+    } else if(remoteIds.length){
+      html+='<div style="background:#E7F3EC;border-left:4px solid #1A6B3C;padding:10px 14px;margin-top:10px;font-size:12.5px;">'
+        +'<b>✅ Ellaa record-um indha device-la irukku.</b> Order System match panradhukku thevaiyaana e-Q / Ref / Status / Total ellaam paadhukaappa irukku.</div>';
+    }
+    html+='<div style="font-size:11.5px;color:#888;margin-top:8px;line-height:1.6;">'
+      +'Storage nirambumbodhu pazhaiya quotation-oda <b>item list mattum</b> local-la irundhu neekkappadum — e-Q No, Ref, Vehicle, Status, Total <b>eppavum</b> irukkum, Firebase-la muzhu data-vum irukkum.</div>';
+    if(el) el.innerHTML=html;
+  });
+}
+
+function runCommCheck(){
+  var txt=(document.getElementById('cc-in')||{}).value||'';
+  var lines=txt.split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean);
+  if(!lines.length){ showToast('Order number podunga','t-e'); return; }
+  _ccRows=lines.map(function(q){
+    var r=ccLookup(q);
+    return {q:q,r:r};
+  });
+  var pay=_ccRows.filter(function(x){return x.r.status==='none'||x.r.status==='weak';}).length;
+  var no=_ccRows.filter(function(x){return x.r.status==='egp';}).length;
+  var el=document.getElementById('cc-out');
+  el.innerHTML='<div style="border:1px solid #ddd;border-radius:6px;overflow:hidden;">'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#F4F6F8;">'
+      +'<th style="padding:7px 9px;text-align:left;font-size:10px;color:#666;letter-spacing:.08em;">ORDER / REF</th>'
+      +'<th style="padding:7px 9px;text-align:left;font-size:10px;color:#666;letter-spacing:.08em;">eGP-la iruka?</th>'
+      +'<th style="padding:7px 9px;text-align:left;font-size:10px;color:#666;letter-spacing:.08em;">COMMISSION</th></tr></thead><tbody>'
+    +_ccRows.map(function(x){
+      var r=x.r,badge,comm,det='';
+      if(r.status==='egp'){
+        badge='<span style="color:#B22222;font-weight:700;">✔ eGP quotation</span>';
+        comm='<span style="color:#B22222;font-weight:700;">❌ KUDUKKA VENDAAM</span>';
+        det='<div style="font-size:11px;color:#777;margin-top:2px;">'+(r.e.vehicle||'')+' · '+(r.e.status||'')+' · LKR '+(Number(r.e.total||0)).toLocaleString()+(r.exact?'':' <b style="color:#8B6914;">(partial match)</b>')+'</div>';
+      } else if(r.status==='weak'){
+        badge='<span style="color:#8B6914;font-weight:700;">⚠ Draft/Rejected mattum</span>';
+        comm='<span style="color:#8B6914;font-weight:700;">🔎 KAIYAALA PAARUNGA</span>';
+        det='<div style="font-size:11px;color:#777;margin-top:2px;">'+(r.e.vehicle||'')+' · '+(r.e.status||'')+'</div>';
+      } else if(r.status==='short'){
+        badge='<span style="color:#888;">— romba chinna text</span>';
+        comm='<span style="color:#888;">—</span>';
+      } else {
+        badge='<span style="color:#1A6B3C;font-weight:700;">✘ Illa</span>';
+        comm='<span style="color:#1A6B3C;font-weight:700;">✅ KUDUKKALAAM</span>';
+      }
+      return '<tr style="border-bottom:1px solid #eee;">'
+        +'<td style="padding:8px 9px;font-size:12px;font-weight:600;">'+x.q+'</td>'
+        +'<td style="padding:8px 9px;font-size:12px;">'+badge+det+'</td>'
+        +'<td style="padding:8px 9px;font-size:12px;">'+comm+'</td></tr>';
+    }).join('')
+    +'</tbody></table></div>';
+  var s=document.getElementById('cc-sum');
+  if(s) s.innerHTML='<b style="color:#1A6B3C;">✅ '+pay+' kudukkalaam</b> &nbsp;·&nbsp; <b style="color:#B22222;">❌ '+no+' vendaam</b>';
+}
+
+function copyCommResult(){
+  if(!_ccRows.length){ showToast('Modhala check pannunga','t-e'); return; }
+  var out=_ccRows.map(function(x){
+    var v=x.r.status==='egp'?'eGP — commission VENDAAM'
+         :x.r.status==='weak'?'Draft/Rejected mattum — kaiyaala paarunga'
+         :x.r.status==='short'?'-' :'eGP-la illa — commission KUDUKKALAAM';
+    return x.q+'\t'+v;
+  }).join('\n');
+  _egpCopy(out,'Commission check result');
 }
 
 function openEgpFillModal(){
