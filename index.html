@@ -8883,6 +8883,7 @@ function runIntegrityCheck(){
     var localIds={}; local.forEach(function(e){ if(e&&e.id!=null) localIds[String(e.id)]=e; });
     var remoteIds=idx&&typeof idx==='object'?Object.keys(idx):[];
     var missing=remoteIds.filter(function(id){ return !localIds[id]; });
+    _missIds=missing;   // keep for the drill-down button
     var slim=local.filter(function(e){ return e&&e._slim; }).length;
     var noRef=local.filter(function(e){ return e&&!e.eqNo&&!e.refNo; }).length;
     var del=[]; try{ del=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]'); }catch(e){}
