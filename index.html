@@ -8796,6 +8796,81 @@ var _ccRows=[];
 // eGP vs non-eGP, so a missing quotation means a wrongly paid commission.
 // This compares what's on this device against Firebase and says so plainly.
 // ══════════════════════════════════════════════════
+// Lists the records Firebase has but this device doesn't, so they can be
+// inspected and pulled back instead of silently staying absent.
+var _missIds=[];
+function showMissingRecords(){
+  var el=document.getElementById('integrity-detail');
+  if(!_missIds.length){ el.innerHTML='<div style="font-size:12.5px;color:#1A6B3C;">✅ Ellaam irukku.</div>'; return; }
+  el.innerHTML='<div style="font-size:12.5px;color:#666;">⏳ '+_missIds.length+' record Firebase-la irundhu edukkuren...</div>';
+  var del=[]; try{ del=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]'); }catch(e){}
+  var got=[], pending=_missIds.length;
+  _missIds.forEach(function(id){
+    fbRead('history/'+id,function(rec){
+      if(rec&&typeof rec==='object') got.push({rec:rec,blocked:del.indexOf(String(id))>=0});
+      if(--pending<=0) paint();
+    });
+  });
+  function paint(){
+    if(!got.length){ el.innerHTML='<div style="font-size:12.5px;color:#8B6914;">Firebase-la full record kidaikkala (index mattum irukkalaam).</div>'; return; }
+    got.sort(function(a,b){ return (Number(b.rec.id)||0)-(Number(a.rec.id)||0); });
+    var blocked=got.filter(function(g){return g.blocked;}).length;
+    el.innerHTML='<div style="border:1px solid #ddd;border-radius:6px;overflow:auto;max-height:340px;">'
+      +'<table style="width:100%;border-collapse:collapse;">'
+      +'<thead><tr style="background:#F4F6F8;position:sticky;top:0;">'
+        +'<th style="padding:7px 9px;text-align:left;font-size:10px;color:#666;">e-Q / REF</th>'
+        +'<th style="padding:7px 9px;text-align:left;font-size:10px;color:#666;">VEHICLE</th>'
+        +'<th style="padding:7px 9px;text-align:left;font-size:10px;color:#666;">STATUS</th>'
+        +'<th style="padding:7px 9px;text-align:right;font-size:10px;color:#666;">TOTAL</th>'
+        +'<th style="padding:7px 9px;text-align:left;font-size:10px;color:#666;">ENA</th></tr></thead><tbody>'
+      +got.map(function(g){
+        var e=g.rec;
+        return '<tr style="border-bottom:1px solid #eee;">'
+          +'<td style="padding:6px 9px;font-size:11.5px;font-weight:600;">'+(e.eqNo||e.refNo||('#'+e.id))+'</td>'
+          +'<td style="padding:6px 9px;font-size:11.5px;">'+(e.vehicle||'—')+'</td>'
+          +'<td style="padding:6px 9px;font-size:11.5px;">'+(e.status||'—')+'</td>'
+          +'<td style="padding:6px 9px;font-size:11.5px;text-align:right;">'+(Number(e.total||0)).toLocaleString()+'</td>'
+          +'<td style="padding:6px 9px;font-size:11px;color:'+(g.blocked?'#B22222':'#8B6914')+';">'+(g.blocked?'Delete list-la irukku':'Sync aagala')+'</td></tr>';
+      }).join('')+'</tbody></table></div>'
+      +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+      +(blocked?'<button onclick="restoreBlocked()" style="padding:8px 16px;background:#B22222;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">♻️ '+blocked+' record-a delete list-la irundhu neekku</button>':'')
+      +'<span style="font-size:11.5px;color:#666;">Delete list-la இருந்தா nirandhara-a neekkappattadhu — thevai-na mattum restore pannunga.</span></div>';
+    window._missGot=got;
+  }
+}
+
+function restoreBlocked(){
+  var got=window._missGot||[];
+  var ids=got.filter(function(g){return g.blocked;}).map(function(g){return String(g.rec.id);});
+  if(!ids.length) return;
+  if(!confirm(ids.length+' record-a delete list-la irundhu neekki, thirumba kondu varattumaa?')) return;
+  var del=[]; try{ del=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]'); }catch(e){}
+  del=del.filter(function(x){ return ids.indexOf(String(x))<0; });
+  localStorage.setItem('ngrd_deleted',JSON.stringify(del));
+  var h=getHist();
+  got.forEach(function(g){ if(g.blocked) h.push(g.rec); });
+  saveHistSafe(h);
+  window.__fapmVer=(window.__fapmVer||0)+1;
+  showToast('♻️ '+ids.length+' record thirumba vandhaachu','t-s');
+  runIntegrityCheck();
+}
+
+function showNoRefRecords(){
+  var el=document.getElementById('integrity-detail');
+  var bad=getHist().filter(function(e){ return e&&!e.eqNo&&!e.refNo; });
+  if(!bad.length){ el.innerHTML='<div style="font-size:12.5px;color:#1A6B3C;">✅ Ellaathukkum ref irukku.</div>'; return; }
+  el.innerHTML='<div style="background:#FFF4E5;border-left:4px solid #C9952A;padding:10px 14px;font-size:12.5px;margin-bottom:8px;">'
+    +'Indha '+bad.length+' quotation-ku e-Q No-vum Ref No-vum illa. Order System indha order-a match panna mudiyaadhu — thirandhu ref serunga.</div>'
+    +'<div style="border:1px solid #ddd;border-radius:6px;overflow:auto;max-height:300px;"><table style="width:100%;border-collapse:collapse;">'
+    +bad.map(function(e){
+      return '<tr style="border-bottom:1px solid #eee;">'
+        +'<td style="padding:7px 9px;font-size:11.5px;">'+(e.vehicle||'—')+'</td>'
+        +'<td style="padding:7px 9px;font-size:11.5px;">'+(e.status||'—')+'</td>'
+        +'<td style="padding:7px 9px;font-size:11.5px;text-align:right;">'+(Number(e.total||0)).toLocaleString()+'</td>'
+        +'<td style="padding:7px 9px;"><button onclick="document.getElementById(\'cc-modal\')&&document.getElementById(\'cc-modal\').remove();loadHist('+e.id+')" style="padding:4px 12px;background:#123049;color:#fff;border:none;border-radius:3px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;">Thira</button></td></tr>';
+    }).join('')+'</table></div>';
+}
+
 function runIntegrityCheck(){
   var el=document.getElementById('integrity-out');
   if(el) el.innerHTML='<div style="font-size:12.5px;color:#666;">⏳ Check pannuren...</div>';
@@ -8835,6 +8910,10 @@ function runIntegrityCheck(){
       html+='<div style="background:#E7F3EC;border-left:4px solid #1A6B3C;padding:10px 14px;margin-top:10px;font-size:12.5px;">'
         +'<b>✅ Ellaa record-um indha device-la irukku.</b> Order System match panradhukku thevaiyaana e-Q / Ref / Status / Total ellaam paadhukaappa irukku.</div>';
     }
+    html+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">'
+      +(missing.length?'<button onclick="showMissingRecords()" style="padding:8px 15px;background:#B22222;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83D\uDD0D '+missing.length+' kaanaadha record paaru</button>':'')
+      +(noRef?'<button onclick="showNoRefRecords()" style="padding:8px 15px;background:#8B6914;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83C\uDFF7\uFE0F '+noRef+' ref illaadha record paaru</button>':'')
+      +'</div><div id="integrity-detail" style="margin-top:10px;"></div>';
     html+='<div style="font-size:11.5px;color:#888;margin-top:8px;line-height:1.6;">'
       +'Storage nirambumbodhu pazhaiya quotation-oda <b>item list mattum</b> local-la irundhu neekkappadum — e-Q No, Ref, Vehicle, Status, Total <b>eppavum</b> irukkum, Firebase-la muzhu data-vum irukkum.</div>';
     if(el) el.innerHTML=html;
