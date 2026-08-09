@@ -8689,11 +8689,28 @@ function _egpRows(){
 function _egpCountryName(c){
   var t=String(c||'').trim();
   if(!t) return '';
+  // Staff type the demonym as often as the country name ("Indian", "Japanese"),
+  // and eGP's dropdown only carries the country, so normalise before matching.
   var map={'uk':'United Kingdom','u.k.':'United Kingdom','england':'United Kingdom',
-           'usa':'United States','u.s.a.':'United States','us':'United States',
-           'uae':'United Arab Emirates','korea':'South Korea','s.korea':'South Korea',
-           'taiwan':'Taiwan','prc':'China'};
-  var k=t.toLowerCase();
+           'britain':'United Kingdom','great britain':'United Kingdom','british':'United Kingdom',
+           'usa':'United States','u.s.a.':'United States','us':'United States','american':'United States',
+           'uae':'United Arab Emirates','korea':'South Korea','s.korea':'South Korea','korean':'South Korea',
+           'prc':'China','chinese':'China','china':'China',
+           'indian':'India','india':'India',
+           'japanese':'Japan','japan':'Japan',
+           'thai':'Thailand','thailand':'Thailand',
+           'taiwanese':'Taiwan','taiwan':'Taiwan',
+           'indonesian':'Indonesia','indonesia':'Indonesia',
+           'malaysian':'Malaysia','malaysia':'Malaysia',
+           'german':'Germany','germany':'Germany',
+           'italian':'Italy','italy':'Italy',
+           'turkish':'Turkey','turkey':'Turkey',
+           'spanish':'Spain','spain':'Spain',
+           'french':'France','france':'France',
+           'srilanka':'Sri Lanka','sri lankan':'Sri Lanka','local':'Sri Lanka',
+           'vietnamese':'Vietnam','vietnam':'Vietnam',
+           'brazilian':'Brazil','brazil':'Brazil'};
+  var k=t.toLowerCase().replace(/\./g,'').replace(/\s+/g,' ').trim();
   return map[k]||t;
 }
 
@@ -8716,8 +8733,15 @@ function _egpScript(prices,countries,vatMode,fallbackCountry){
     +"  if(CN){\n"
     +"    [].forEach.call(r.querySelectorAll('select'),function(s){\n"
     +"      var hit=-1;\n"
-    +"      for(var k=0;k<s.options.length;k++){ if(s.options[k].text.trim().toLowerCase()===CN.toLowerCase()){ hit=k; break; } }\n"
-    +"      if(hit<0){ for(var k2=0;k2<s.options.length;k2++){ if(s.options[k2].text.trim().toLowerCase().indexOf(CN.toLowerCase())===0){ hit=k2; break; } } }\n"
+    +"      for(var k=0;k<s.options.length;k++){ if(s.options[k].text.trim().toLowerCase().replace(/[^a-z]/g,'')===want){ hit=k; break; } }\n"
+    +"      var want=CN.toLowerCase().replace(/[^a-z]/g,'');\n"
+    +"      if(hit<0){ var bb=-1,bn=0;\n"
+    +"        for(var k2=0;k2<s.options.length;k2++){\n"
+    +"          var oo=s.options[k2].text.trim().toLowerCase().replace(/[^a-z]/g,'');\n"
+    +"          if(!oo||oo==='select')continue;\n"
+    +"          if((oo.indexOf(want)===0||want.indexOf(oo)===0)&&oo.length>bn){bb=k2;bn=oo.length;}\n"
+    +"        }\n"
+    +"        hit=bb; }\n"
     +"      if(hit>=0){ s.value=s.options[hit].value; s.dispatchEvent(new Event('change',{bubbles:true})); }\n"
     +"      else console.warn('Country kaanom in dropdown:',CN,'(row',i+1,')');\n"
     +"    });\n"
@@ -9505,8 +9529,15 @@ function _egpBulkScript(prices,countries,vatMode,fallback){
    +"    if(CN){\n"
    +"      [].forEach.call(r.querySelectorAll('select'),function(s){\n"
    +"        var hit=-1;\n"
-   +"        for(var k=0;k<s.options.length;k++){ if(s.options[k].text.trim().toLowerCase()===CN.toLowerCase()){ hit=k; break; } }\n"
-   +"        if(hit<0) for(var k2=0;k2<s.options.length;k2++){ if(s.options[k2].text.trim().toLowerCase().indexOf(CN.toLowerCase())===0){ hit=k2; break; } }\n"
+   +"        for(var k=0;k<s.options.length;k++){ if(s.options[k].text.trim().toLowerCase().replace(/[^a-z]/g,'')===want){ hit=k; break; } }\n"
+   +"      var want=CN.toLowerCase().replace(/[^a-z]/g,'');\n"
+   +"      if(hit<0){ var bb=-1,bn=0;\n"
+   +"        for(var k2=0;k2<s.options.length;k2++){\n"
+   +"          var oo=s.options[k2].text.trim().toLowerCase().replace(/[^a-z]/g,'');\n"
+   +"          if(!oo||oo==='select')continue;\n"
+   +"          if((oo.indexOf(want)===0||want.indexOf(oo)===0)&&oo.length>bn){bb=k2;bn=oo.length;}\n"
+   +"        }\n"
+   +"        hit=bb; }\n"
    +"        if(hit>=0){ s.value=s.options[hit].value; s.dispatchEvent(new Event('change',{bubbles:true})); }\n"
    +"        else warn.push('Row '+(i+1)+': country \"'+CN+'\" dropdown-la illa');\n"
    +"      });\n"
@@ -9614,8 +9645,15 @@ function _egpAllInOneScript(cfg){
 +"    if(P[i]===undefined||!r.querySelector('input[value=\"Save\"]'))return;\n"
 +"    var CN=(CO[i]||CFG.fb||'').trim();\n"
 +"    if(CN){[].forEach.call(r.querySelectorAll('select'),function(s){var h=-1;\n"
-+"      for(var k=0;k<s.options.length;k++){if(s.options[k].text.trim().toLowerCase()===CN.toLowerCase()){h=k;break;}}\n"
-+"      if(h<0)for(var k2=0;k2<s.options.length;k2++){if(s.options[k2].text.trim().toLowerCase().indexOf(CN.toLowerCase())===0){h=k2;break;}}\n"
++"      for(var k=0;k<s.options.length;k++){if(s.options[k].text.trim().toLowerCase().replace(/[^a-z]/g,'')===want){h=k;break;}}\n"
++"      var want=CN.toLowerCase().replace(/[^a-z]/g,'');\n"
++"      if(h<0){ var bb=-1,bn=0;\n"
++"        for(var k2=0;k2<s.options.length;k2++){\n"
++"          var oo=s.options[k2].text.trim().toLowerCase().replace(/[^a-z]/g,'');\n"
++"          if(!oo||oo==='select')continue;\n"
++"          if((oo.indexOf(want)===0||want.indexOf(oo)===0)&&oo.length>bn){bb=k2;bn=oo.length;}\n"
++"        }\n"
++"        h=bb; }\n"
 +"      if(h>=0){s.value=s.options[h].value;s.dispatchEvent(new Event('change',{bubbles:true}));}\n"
 +"      else notes.push('Row '+(i+1)+': country \"'+CN+'\" dropdown-la illa');});\n"
 +"    } else notes.push('Row '+(i+1)+': country kaali');\n"
