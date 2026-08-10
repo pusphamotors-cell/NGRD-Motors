@@ -2933,6 +2933,8 @@ function calClosingMap(){
   var byDate={};
   h.forEach(function(e){
     if(ACTIVE.indexOf(e.status||'draft')<0) return;
+    // reason already recorded — settled, not pending work
+    if(e.notSubmittedInfo) return;
     var cd=(typeof parseClosingDate==='function')?parseClosingDate(e.closingDate):null;
     if(!cd||isNaN(cd)) return;
     var key=cd.getFullYear()+'-'+String(cd.getMonth()+1).padStart(2,'0')+'-'+String(cd.getDate()).padStart(2,'0');
@@ -3648,21 +3650,34 @@ function calShowDay(key){
   var stLabel={draft:'📝 Draft',pending:'⏳ Pending',approved:'✅ Approved',assigned:'📋 Assigned',submitted:'📤 Submitted'};
   var checkboxes=statuses.map(function(s){
     return '<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;cursor:pointer;background:#f7fafd;border:1px solid var(--border);border-radius:16px;padding:5px 12px;">'
-      +'<input type="checkbox" class="cal-st-chk" value="'+s+'" checked style="cursor:pointer;">'+(stLabel[s]||s)+'</label>';
+      +'<input type="checkbox" class="cal-st-chk" value="'+s+'"'+(s==='draft'?'':' checked')+' style="cursor:pointer;">'+(stLabel[s]||s)+'</label>';
   }).join('');
   var rows=qs.map(function(e){
-    return '<div onclick="loadHist('+e.id+')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #eee;cursor:pointer;" onmouseover="this.style.background=\'#f7fafd\'" onmouseout="this.style.background=\'#fff\'">'
+    var st=e.status||'draft';
+    return '<div data-cal-st="'+st+'" onclick="loadHist('+e.id+')" style="'+(st==='draft'?'display:none;':'display:flex;')+'justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #eee;cursor:pointer;" onmouseover="this.style.background=\'#f7fafd\'" onmouseout="this.style.background=\'#fff\'">'
       +'<div><div style="font-weight:700;font-size:13px;color:#0D1B2A;">'+(e.vehicle||'—')+'</div><div style="font-size:11px;color:#666;">'+(e.eqNo||e.refNo||'')+(e.entity?(' · '+e.entity):'')+'</div></div>'
       +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;white-space:nowrap;">'+(e.status||'draft')+'</div></div>';
   }).join('');
-  det.innerHTML='<div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);" data-day-key="'+key+'"><div style="font-size:14px;font-weight:700;margin-bottom:10px;color:#0D1B2A;">📋 '+key+' — '+qs.length+' closing (தட்டினா open ஆகும்)</div>'
-    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'+checkboxes+'</div>'
+  det.innerHTML='<div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);" data-day-key="'+key+'"><div style="font-size:14px;font-weight:700;margin-bottom:10px;color:#0D1B2A;">📋 '+key+' — <span id="cal-day-count">'+qs.filter(function(e){return (e.status||'draft')!=='draft';}).length+'</span> closing (தட்டினா open ஆகும்)</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" onchange="calApplyStatusFilter()">'+checkboxes+'</div>'
     +rows
     +'<div style="display:flex;gap:8px;margin-top:14px;">'
     +'<button onclick="event.stopPropagation();calSendWhatsApp(\''+key+'\')" style="flex:1;padding:10px;background:#B22222;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📲 WhatsApp</button>'
     +'<button onclick="event.stopPropagation();calDayPDFFiltered(\''+key+'\')" style="flex:1;padding:10px;background:#0D1B2A;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📄 PDF (Selected)</button>'
     +'</div></div>';
 }
+function calApplyStatusFilter(){
+  var det=document.getElementById('cal-day-detail'); if(!det) return;
+  var on=Array.from(det.querySelectorAll('.cal-st-chk:checked')).map(function(c){return c.value;});
+  var shown=0;
+  det.querySelectorAll('[data-cal-st]').forEach(function(r){
+    var ok=on.indexOf(r.getAttribute('data-cal-st'))>=0;
+    r.style.display=ok?'flex':'none';
+    if(ok) shown++;
+  });
+  var c=document.getElementById('cal-day-count'); if(c) c.textContent=shown;
+}
+
 function calDayPDFFiltered(key){
   var det=document.getElementById('cal-day-detail');
   var checked=det?Array.from(det.querySelectorAll('.cal-st-chk:checked')).map(function(c){return c.value;}):null;
