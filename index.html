@@ -8680,7 +8680,7 @@ function openEgpFillById(id){
   if(!e){ showToast('Quotation kaanom','t-e'); return; }
   var go=function(rec){
     if(!rec.items||!rec.items.length){ showToast('Items kaanom','t-e'); return; }
-    _egpSrc={items:rec.items,company:rec.company||'ngrd',ref:rec.eqNo||rec.refNo||''};
+    _egpSrc={items:rec.items,company:rec.company||'ngrd',ref:rec.eqNo||rec.refNo||'',vehicle:rec.vehicle||''};
     openEgpFillModal();
   };
   if(e._slim&&(!e.items||!e.items.length)&&typeof ensureItemsLoaded==='function'){
@@ -8695,7 +8695,8 @@ function _egpRows(){
     var br=(item.brandRows&&item.brandRows[0])||{};
     var price=item.notQuoting?0:(parseFloat(br.price)||item.unitPrice||0);
     return {no:item.itemNo,desc:item.description||'',qty:item.qty||1,
-            price:price,country:br.country||item.country||'',brand:br.brand||item.brand||'',na:!!item.notQuoting};
+            price:price,country:br.country||item.country||'',brand:br.brand||item.brand||'',
+            part:br.partNo||br.part||item.partNo||'',na:!!item.notQuoting};
   });
 }
 
@@ -9022,6 +9023,7 @@ function openEgpFillModal(){
   var countries=[].concat.apply([],rows.map(function(r){return r.country?[r.country]:[];}));
   var defCountry=countries.length?countries[0]:'United Kingdom';
   if(/^uk$/i.test(defCountry)) defCountry='United Kingdom';
+  var co=(typeof COMPANIES!=='undefined')?COMPANIES[coId]:null;
   var brandCount={};
   rows.forEach(function(r){ if(r.brand){ brandCount[r.brand]=(brandCount[r.brand]||0)+1; } });
   var defBrand=Object.keys(brandCount).sort(function(a,b){return brandCount[b]-brandCount[a];})[0]||'';
@@ -9117,6 +9119,8 @@ function openEgpFillModal(){
         +'<input id="egp-vatno" value="'+(isVatReg?'102101012 7000':'')+'" placeholder="VAT reg. illa na kaali" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:170px;"></label>'
         +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Name</div>'
         +'<input id="egp-name" value="'+coName+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:170px;"></label>'
+        +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Company contacts</div>'
+        +'<input id="egp-tel" value="'+((co&&co.tel)||'')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:190px;"></label>'
         +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Delivery days</div>'
         +'<input id="egp-days" value="30" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:90px;"></label>'
       +'</div>'
@@ -9125,8 +9129,10 @@ function openEgpFillModal(){
         +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">'
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Brand / Make</div>'
           +'<input id="egp-brand" value="'+defBrand+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:170px;"></label>'
-          +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Warranty</div>'
-          +'<input id="egp-warranty" value="06 Months" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:110px;"></label>'
+          +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Warranty (mechanical)</div>'
+          +'<input id="egp-warranty" value="12 Months" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:120px;"></label>'
+          +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Warranty (electrical)</div>'
+          +'<input id="egp-warranty-elec" value="03 Months" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:120px;"></label>'
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Validity</div>'
           +'<input id="egp-validity" value="90 days" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:100px;"></label>'
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Payment terms</div>'
@@ -9618,6 +9624,9 @@ function _egpAllInOneScript(cfg){
     fb:_egpCountryName(cfg.fallback||''), brand:cfg.brand||'', warranty:cfg.warranty||'',
     delivery:cfg.delivery||'30', validity:cfg.validity||'', payment:cfg.payment||'',
     country:_egpCountryName(cfg.country||''), vatno:cfg.vatno||'', name:cfg.name||'',
+    addr:cfg.addr||'', tel:cfg.tel||'', vehicle:cfg.vehicle||'',
+    mfgYear:cfg.mfgYear||'', category:cfg.category||'',
+    warrantyElec:cfg.warrantyElec||'',
     ref:cfg.ref||'', items:cfg.items||[], vatOn:vatOn
   })+";\n"
 +"var KEY='egp_progress_'+(CFG.ref||'x');\n"
@@ -9655,7 +9664,7 @@ function _egpAllInOneScript(cfg){
 +"// reports when nothing matched instead of quietly using the default brand.\n"
 +"var brandFor=function(txt){\n"
 +"  var w=norm(txt);\n"
-+"  if(!w||!CFG.items.length) return {b:CFG.brand,m:''};\n"
++"  if(!w||!CFG.items.length) return {b:CFG.brand,m:'',p:'',c:''};\n"
 +"  var best=null,sc=0;\n"
 +"  var toks=function(t){return t.split(' ').filter(function(x){return x.length>2;});};\n"
 +"  var wt=toks(w);\n"
@@ -9668,8 +9677,8 @@ function _egpAllInOneScript(cfg){
 +"    var sco=Math.max(a,b);                       // either side covering the other counts\n"
 +"    if(sco>sc&&sco>=0.5){best=it;sc=sco;}\n"
 +"  });\n"
-+"  if(best&&best.brand) return {b:best.brand,m:best.desc};\n"
-+"  return {b:CFG.brand,m:''};\n"
++"  if(best) return {b:best.brand||CFG.brand,m:best.desc,p:best.part||'',c:best.country||''};\n"
++"  return {b:CFG.brand,m:'',p:'',c:''};\n"
 +"};\n"
 +"var W={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};\n"
 +"var dur=function(t){t=String(t||'').toLowerCase();if(!t.trim())return null;\n"
@@ -9844,8 +9853,13 @@ function _egpAllInOneScript(cfg){
 +"    }\n"
 +"    var name=sec||desc, bf=brandFor(name), rem=bf.b, ans='yes', why='';\n"
 +"    if(!bf.m&&CFG.items.length) why='⚠️ V3-la indha item kaanom — default brand \"'+rem+'\" poduren. Paarunga';\n"
-+"    if(/warrant/i.test(desc)){rem=CFG.warranty;var x=dur(CFG.warranty),y=dur(req);\n"
-+"      if(x!==null&&y!==null&&x<y){ans='no';why='namma '+CFG.warranty+' < ketta '+req;}}\n"
++"    // Electrical parts carry a shorter warranty than mechanical ones, so the\n"
++"    // answer depends on what the item actually is.\n"
++"    var ELEC=/bulb|fuse|relay|flasher|wire|wiring|cable|alternator|starter|dynamo|sensor|switch|horn|light|lamp|coil|battery|regulator|solenoid|indicator|speedo|meter|motor|plug|socket|ignition|distributor|rectifier|stator|armature|brush|abs modul|ecu|electr/i;\n"
++"    var isElec=ELEC.test(name||'')&&!/oil|hose|pipe|line|gasket|seal|bearing|mount|belt|pump|filter/i.test(name||'');\n"
++"    var WARR=(isElec&&CFG.warrantyElec)?CFG.warrantyElec:CFG.warranty;\n"
++"    if(/warr[ae]n|guarantee/i.test(desc)){rem=WARR;var x=dur(WARR),y=dur(req);\n"
++"      if(x!==null&&y!==null&&x<y){ans='no';why='namma '+WARR+' < ketta '+req+(isElec?' (electrical)':'');}}\n"
 +"    else if(/deliver/i.test(desc)){rem=CFG.delivery;var x2=dur(CFG.delivery),y2=dur(req);\n"
 +"      if(x2!==null&&y2!==null&&x2>y2){ans='no';why='namma '+CFG.delivery+' > ketta '+req;}}\n"
 +"    else if(/validity/i.test(desc)){rem=CFG.validity;var x3=dur(CFG.validity),y3=dur(req);\n"
@@ -9853,6 +9867,35 @@ function _egpAllInOneScript(cfg){
 +"    else if(/payment/i.test(desc)){rem=CFG.payment;}\n"
 +"    else if(/country.*origin|origin.*country/i.test(desc)){rem=CFG.country;}\n"
 +"    else if(/vat/i.test(desc)){rem=CFG.vatno;}\n"
++"    // ---- Police-style generic spec sheet: one row per attribute ----\n"
++"    else if(/country\\s*of\\s*manufacture|manufactur.*country/i.test(desc)){ rem=bf.c||CFG.country; }\n"
++"    else if(/year\\s*of\\s*manufacture|manufactur.*year/i.test(desc)){ rem=CFG.mfgYear||String(new Date().getFullYear()); }\n"
++"    else if(/manufacturer\\s*\\/?\\s*brand|brand\\s*name|make\\s*of/i.test(desc)){ rem=bf.b; }\n"
++"    else if(/authoriz/i.test(desc)){ rem='Authorization letter attached'; why='📄 Authorization letter upload pannanum'; }\n"
++"    else if(/part\\s*name/i.test(desc)){ rem=bf.m||name; }\n"
++"    else if(/part\\s*(no|number)/i.test(desc)){ rem=bf.p||'As per OEM'; if(!bf.p) why='🔢 V3-la part number illa — serunga'; }\n"
++"    else if(/^category/i.test(desc)){ rem=CFG.category||(isElec?'Electrical':'Mechanical'); }\n"
++"    else if(/^description/i.test(desc)){ rem=bf.m||name; }\n"
++"    else if(/applicable\\s*vehicle|vehicle\\s*\\/?\\s*model|model\\s*\\/?\\s*engine/i.test(desc)){ rem=CFG.vehicle||''; if(!CFG.vehicle) why='🚗 Vehicle vivaram illa'; }\n"
++"    else if(/material|quality\\s*standard/i.test(desc)){ rem='OEM standard'; }\n"
++"    else if(/dimension/i.test(desc)){ rem='As per OEM specification'; }\n"
++"    else if(/compatib/i.test(desc)){ rem='Compatible with the vehicle'; }\n"
++"    else if(/packag|handling/i.test(desc)){ rem='Proper labeling & packing'; }\n"
++"    else if(/sample/i.test(desc)){ rem='Sample will be submitted if required'; }\n"
++"    else if(/company\\s*address|address\\s*of/i.test(desc)){ rem=CFG.addr||''; }\n"
++"    else if(/company\\s*contact|telephone|phone/i.test(desc)){ rem=CFG.tel||''; }\n"
++"    else if(/^general$/i.test(desc)||!desc){\n"
++"      // Blank / 'General' rows carry the demand in the requirement column, so the\n"
++"      // answer is written from that instead of one flat 'Complied' everywhere.\n"
++"      if(/qr\\s*code/i.test(req)){ rem='OEM QR code provided on each part';\n"
++"        why='🔲 QR code kettiruikaanga — supplier-kitta mudiyumaanu confirm pannunga'; }\n"
++"      else if(/brand\\s*new|unused|defect/i.test(req)) rem='Brand new, unused & defect free';\n"
++"      else if(/install/i.test(req)) rem='Easily installed in Police vehicles';\n"
++"      else if(/compatib/i.test(req)) rem='Compatible as per purchase order';\n"
++"      else if(/packing|logo|country of origin/i.test(req)) rem='Packing bears brand, logo & country of origin';\n"
++"      else if(/same quality|fit/i.test(req)) rem='Same quality & fit as original part';\n"
++"      else rem='Complied';\n"
++"    }\n"
 +"    // Confirmation rows — the purchaser states a fact and wants it echoed back.\n"
 +"    // Putting the brand here reads as a wrong answer.\n"
 +"    else if(/vehicle\\s*(make|model)|make\\s*&?\\s*model|registration|reg\\.?\\s*year|year of|engine\\s*no|chassis|serial\\s*no|part\\s*no/i.test(desc)){\n"
@@ -9966,12 +10009,16 @@ function _egpDoCopy(kind){
     _egpCopy(out,'Price list ('+prices.length+' items)');
   } else if(kind==='all'){
     var gv=function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
+    var co=(typeof COMPANIES!=='undefined')?COMPANIES[(_egpSrc&&_egpSrc.company)||curCompany||'ngrd']:null;
     _egpCopy(_egpAllInOneScript({
       prices:prices, countries:rows.map(function(r){return r.country;}), vat:vat, fallback:country,
-      brand:gv('egp-brand'), warranty:gv('egp-warranty'), delivery:gv('egp-days'),
+      brand:gv('egp-brand'), warranty:gv('egp-warranty'), warrantyElec:gv('egp-warranty-elec'),
+      delivery:gv('egp-days'),
       validity:gv('egp-validity'), payment:gv('egp-payment'), country:country,
       vatno:gv('egp-vatno'), name:gv('egp-name'), ref:(_egpSrc&&_egpSrc.ref)||'',
-      items:rows.map(function(r){ return {desc:r.desc,brand:r.brand||''}; })
+      addr:(co&&co.address)||'', tel:gv('egp-tel')||(co&&co.tel)||'',
+      vehicle:(_egpSrc&&_egpSrc.vehicle)||'',
+      items:rows.map(function(r){ return {desc:r.desc,brand:r.brand||'',part:r.part||'',country:r.country||''}; })
     }),'ALL-IN-ONE script');
   } else if(kind==='bulk'){
     _egpCopy(_egpBulkScript(prices,rows.map(function(r){return r.country;}),vat,country),'Bulk save script');
