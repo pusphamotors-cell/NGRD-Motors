@@ -8724,7 +8724,8 @@ function _egpRows(){
     var br=(item.brandRows&&item.brandRows[0])||{};
     var price=item.notQuoting?0:(parseFloat(br.price)||item.unitPrice||0);
     return {no:item.itemNo,desc:item.description||'',qty:item.qty||1,
-            price:price,country:br.country||item.country||'',brand:br.brand||item.brand||'',
+            price:price,country:br.country||item.country||'',
+            brand:br.brand||item.brand||item.reqBrand||'',
             part:br.partNo||br.part||item.partNo||'',na:!!item.notQuoting};
   });
 }
@@ -9076,6 +9077,7 @@ function openEgpFillModal(){
       +'<td style="padding:5px 8px;font-size:11.5px;">'+r.desc+(r.na?' <b style="color:#B22222;">N/A</b>':'')+'</td>'
       +'<td style="padding:5px 8px;text-align:center;font-size:11.5px;">'+r.qty+'</td>'
       +'<td style="padding:5px 8px;font-size:11.5px;'+(r.country?'':'color:#B22222;font-weight:700;')+'">'+(r.country?_egpCountryName(r.country):'⚠️ இல்லை')+'</td>'
+      +'<td style="padding:5px 8px;font-size:11.5px;'+(r.brand?'':'color:#B22222;font-weight:700;')+'">'+(r.brand||'⚠️ இல்லை')+'</td>'
       +'<td style="padding:5px 8px;text-align:right;font-size:11.5px;font-weight:700;">'+(r.price>0?r.price.toLocaleString():'—')+'</td>'
       +'</tr>';
   }).join('');
@@ -9101,6 +9103,7 @@ function openEgpFillModal(){
         +'<th style="padding:7px 8px;text-align:left;font-size:10px;letter-spacing:.08em;color:#666;">DESCRIPTION</th>'
         +'<th style="padding:7px 8px;text-align:center;font-size:10px;letter-spacing:.08em;color:#666;">QTY</th>'
         +'<th style="padding:7px 8px;text-align:left;font-size:10px;letter-spacing:.08em;color:#666;">COUNTRY</th>'
+        +'<th style="padding:7px 8px;text-align:left;font-size:10px;letter-spacing:.08em;color:#666;">BRAND</th>'
         +'<th style="padding:7px 8px;text-align:right;font-size:10px;letter-spacing:.08em;color:#666;">UNIT PRICE</th></tr></thead>'
         +'<tbody>'+tbl+'</tbody></table>'
       +'</div>'
@@ -9170,7 +9173,9 @@ function openEgpFillModal(){
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Payment terms</div>'
           +'<input id="egp-payment" value="'+pf('egp-payment','45 Days')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:110px;"></label>'
         +'</div>'
-        +'<div style="font-size:11.5px;color:#8B6914;margin-top:8px;line-height:1.6;">⚠️ கேட்டதை நம்மால தர முடியலனா script <b>No</b> tick பண்ணி காரணம் சொல்லும் (உ-ம் ONE YEAR கேட்டு நம்ம 06 Months). கண்ணை மூடிட்டு Yes போடாது.</div>'
+        +(function(){var nb=rows.filter(function(r){return !r.brand;}).length;
+          return nb?'<div style="background:#FDECEA;border-left:4px solid #B22222;padding:8px 12px;margin-top:8px;font-size:12px;"><b>⚠️ '+nb+' item-ku brand illa</b> — Specifications-la brand row kaali pogum. V3-la brand serunga.</div>':'';})()
+      +'<div style="font-size:11.5px;color:#8B6914;margin-top:8px;line-height:1.6;">⚠️ கேட்டதை நம்மால தர முடியலனா script <b>No</b> tick பண்ணி காரணம் சொல்லும் (உ-ம் ONE YEAR கேட்டு நம்ம 06 Months). கண்ணை மூடிட்டு Yes போடாது.</div>'
       +'</div>'
       +'<div style="margin-top:16px;background:#F4F6F8;border-left:4px solid #0B5D6B;padding:12px 16px;font-size:12.5px;line-height:1.7;">'
         +'<b>Ovvoru script-um:</b> andha eGP page-la <b>F12</b> &#8594; <b>Console</b> &#8594; paste &#8594; <b>Enter</b>.<br>'
@@ -9902,7 +9907,14 @@ function _egpAllInOneScript(cfg){
 +"    // ---- Police-style generic spec sheet: one row per attribute ----\n"
 +"    else if(/country\\s*of\\s*manufacture|manufactur.*country/i.test(desc)){ rem=bf.c||CFG.country; }\n"
 +"    else if(/year/i.test(desc)&&/manufact/i.test(desc)){ rem=CFG.mfgYear||String(new Date().getFullYear()); }\n"
-+"    else if(/^\\s*(brand|make)\\b|manufacturer|brand\\s*name/i.test(desc)){ rem=bf.b; }\n"
++"    else if(/^\\s*(brand|make)\\b|manufacturer|brand\\s*name/i.test(desc)){\n"
++"      rem=bf.b;\n"
++"      if(!rem){                       // no brand anywhere — echo what they asked for\n"
++"        rem=req||'';\n"
++"        why=req? '🏷️ V3-la brand illa — ketta \"'+req+'\" poduren. Sari-nu paarunga'\n"
++"               : '🏷️ Brand illa — V3-la serunga';\n"
++"      }\n"
++"    }\n"
 +"    else if(/authoriz/i.test(desc)){ rem='Authorization letter attached'; why='📄 Authorization letter upload pannanum'; }\n"
 +"    else if(/part\\s*name/i.test(desc)){ rem=bf.m||name; }\n"
 +"    else if(/part\\s*(no|number)/i.test(desc)){\n"
