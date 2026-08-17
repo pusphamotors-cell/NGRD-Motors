@@ -1822,18 +1822,35 @@ function _completeLogin(found){
     addLog('Logged in: '+CU.name+' — '+getDeviceInfo());
     startPresenceTracking();
 }
+// One place that writes presence, so page/activity always travels with it.
+var PAGE_LABEL={dashboard:'Dashboard',newquote:'New Quotation',history:'History',letters:'Letters',
+  calendar:'Calendar',prices:'Parts Price List',search:'Quick Search',partsearch:'Parts Search',
+  documents:'Documents',campcontacts:'Camp Contacts',analytics:'Analytics',users:'Users',
+  vehicles:'Vehicles',suppliers:'Suppliers',ratecontracts:'Rate Contracts',log:'Activity Log',
+  backup:'Backup / Restore'};
+function pushPresence(online){
+  if(typeof CU==='undefined'||!CU||typeof fbWrite!=='function') return;
+  fbWrite('presence/'+CU.id,{
+    online:(online===false)?false:true,
+    lastSeen:new Date().toISOString(),
+    name:CU.name, role:CU.role,
+    page:PAGE_LABEL[window._curPage]||window._curPage||'',
+    doing:window._curDoing||''
+  });
+}
+
 function startPresenceTracking(){
     if(window._presenceInterval) clearInterval(window._presenceInterval); // avoid double-heartbeat on repeated calls
     // Track online presence
     if(typeof fbWrite==='function'){
-      fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+      pushPresence();
       setTimeout(function(){ if(typeof reportDeviceHealth==='function') reportDeviceHealth(); },4000);
     }
     // Update presence every 90 seconds (heartbeat) — fresher than before, so
     // "Online" status doesn't lag behind actual activity.
     window._presenceInterval=setInterval(function(){
       if(CU&&typeof fbWrite==='function'){
-        fbWrite('presence/'+CU.id,{online:true,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+        pushPresence();
         if(typeof reportDeviceHealth==='function') reportDeviceHealth();
       }
     },90000);
@@ -1842,7 +1859,7 @@ function startPresenceTracking(){
       window._presenceUnloadBound=true;
       window.addEventListener('beforeunload',function(){
         if(CU&&typeof fbWrite==='function'){
-          fbWrite('presence/'+CU.id,{online:false,lastSeen:new Date().toISOString(),name:CU.name,role:CU.role});
+          pushPresence(false);
         }
       });
     }
@@ -2073,6 +2090,9 @@ function goToHistory(statusFilter, dateFilter) {
 
 function showPage(pg){
   if(['analytics','users','log','backup','suppliers','ratecontracts'].includes(pg)&&CU?.role!=='admin'){showToast('Admin access required','t-e');return;}
+  // Tell the presence beacon where this person now is, so admin sees live activity
+  window._curPage=pg; window._curDoing='';
+  if(typeof pushPresence==='function') pushPresence();
   PAGES.forEach(p=>{
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===pg?'block':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===pg);
@@ -5716,7 +5736,8 @@ function renderPresencePanel(){
     var chips=users.map(function(u){
       var pres=window._presenceData&&window._presenceData[u.id]?window._presenceData[u.id]:null;
       var st=getPresenceStatus(pres?pres.lastSeen:null,pres?pres.online:false);
-      return {name:u.name||u.username,role:u.role,st:st,h:dh[u.id]||null};
+      return {name:u.name||u.username,role:u.role,st:st,h:dh[u.id]||null,
+              page:(pres&&pres.page)||'',doing:(pres&&pres.doing)||''};
     });
     chips.sort(function(a,b){
       var order={'🟢':0,'🟡':1,'🔴':2};
@@ -5737,8 +5758,14 @@ function renderPresencePanel(){
             +(bad?'⚠️ 0 records':'📦 '+c.h.visible+' visible · ✅ '+c.h.approved)
             +(c.h.canSubmit?'':' · ⛔ no submit')+'</span>';
         }
+        var where='';
+        if(c.st.icon==='🟢'&&(c.page||c.doing)){
+          where='<span style="background:#E8F4F6;color:#0B5D6B;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:700;">'
+               +(c.doing? c.doing : '📍 '+c.page)+'</span>';
+        }
         return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#f7fafd;border:1px solid var(--border);border-radius:20px;font-size:12px;">'
           +'<span>'+c.st.icon+'</span><span style="font-weight:600;">'+c.name+'</span>'
+          +where
           +'<span style="color:#999;font-size:10px;">'+c.st.label+'</span>'+extra+'</div>';
       }).join('')
       +'</div></div>';
@@ -6111,6 +6138,7 @@ function markResult(id, result){
 
 function loadHist(id){
   const e0=getHist().find(x=>x.id===id);
+  if(e0){ window._curDoing='📄 '+(e0.eqNo||e0.refNo||('#'+e0.id)); if(typeof pushPresence==='function') pushPresence(); }
   // Storage-trimmed record — pull its items back from Firebase before opening,
   // otherwise the quotation would open empty.
   if(e0&&e0._slim&&(!e0.items||!e0.items.length)&&typeof ensureItemsLoaded==='function'){
@@ -8681,6 +8709,7 @@ function openEgpFillById(id){
   var go=function(rec){
     if(!rec.items||!rec.items.length){ showToast('Items kaanom','t-e'); return; }
     _egpSrc={items:rec.items,company:rec.company||'ngrd',ref:rec.eqNo||rec.refNo||'',vehicle:rec.vehicle||''};
+    window._curDoing='⚡ eGP '+(_egpSrc.ref||''); if(typeof pushPresence==='function') pushPresence();
     openEgpFillModal();
   };
   if(e._slim&&(!e.items||!e.items.length)&&typeof ensureItemsLoaded==='function'){
@@ -9024,6 +9053,9 @@ function openEgpFillModal(){
   var defCountry=countries.length?countries[0]:'United Kingdom';
   if(/^uk$/i.test(defCountry)) defCountry='United Kingdom';
   var co=(typeof COMPANIES!=='undefined')?COMPANIES[coId]:null;
+  // Navy asks 06 months, Police 12 — remember whatever was last used per company
+  var PREF={}; try{ PREF=JSON.parse(localStorage.getItem('egp_prefs_'+coId)||'{}'); }catch(e){}
+  var pf=function(k,d){ return (PREF[k]!==undefined&&PREF[k]!=='')?PREF[k]:d; };
   var brandCount={};
   rows.forEach(function(r){ if(r.brand){ brandCount[r.brand]=(brandCount[r.brand]||0)+1; } });
   var defBrand=Object.keys(brandCount).sort(function(a,b){return brandCount[b]-brandCount[a];})[0]||'';
@@ -9120,9 +9152,9 @@ function openEgpFillModal(){
         +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Name</div>'
         +'<input id="egp-name" value="'+coName+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:170px;"></label>'
         +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Company contacts</div>'
-        +'<input id="egp-tel" value="'+((co&&co.tel)||'')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:190px;"></label>'
+        +'<input id="egp-tel" value="'+pf('egp-tel',(co&&co.tel)||'')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:190px;"></label>'
         +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Delivery days</div>'
-        +'<input id="egp-days" value="30" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:90px;"></label>'
+        +'<input id="egp-days" value="'+pf('egp-days','30')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:90px;"></label>'
       +'</div>'
       +'<div style="margin-top:10px;padding:12px 14px;background:#F4F6F8;border:1px solid #dde;border-radius:6px;">'
         +'<div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.06em;margin-bottom:8px;">SPECIFICATIONS-ku நம்ம offer (Yes/No முடிவு + Remarks இதுல இருந்து)</div>'
@@ -9130,13 +9162,13 @@ function openEgpFillModal(){
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Brand / Make</div>'
           +'<input id="egp-brand" value="'+defBrand+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;min-width:170px;"></label>'
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Warranty (mechanical)</div>'
-          +'<input id="egp-warranty" value="12 Months" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:120px;"></label>'
+          +'<input id="egp-warranty" value="'+pf('egp-warranty','12 Months')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:120px;"></label>'
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Warranty (electrical)</div>'
-          +'<input id="egp-warranty-elec" value="03 Months" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:120px;"></label>'
+          +'<input id="egp-warranty-elec" value="'+pf('egp-warranty-elec','03 Months')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:120px;"></label>'
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Validity</div>'
-          +'<input id="egp-validity" value="90 days" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:100px;"></label>'
+          +'<input id="egp-validity" value="'+pf('egp-validity','90 days')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:100px;"></label>'
           +'<label style="font-size:12.5px;"><div style="color:#666;margin-bottom:4px;">Payment terms</div>'
-          +'<input id="egp-payment" value="45 Days" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:110px;"></label>'
+          +'<input id="egp-payment" value="'+pf('egp-payment','45 Days')+'" style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:inherit;font-size:13px;width:110px;"></label>'
         +'</div>'
         +'<div style="font-size:11.5px;color:#8B6914;margin-top:8px;line-height:1.6;">⚠️ கேட்டதை நம்மால தர முடியலனா script <b>No</b> tick பண்ணி காரணம் சொல்லும் (உ-ம் ONE YEAR கேட்டு நம்ம 06 Months). கண்ணை மூடிட்டு Yes போடாது.</div>'
       +'</div>'
@@ -9869,21 +9901,38 @@ function _egpAllInOneScript(cfg){
 +"    else if(/vat/i.test(desc)){rem=CFG.vatno;}\n"
 +"    // ---- Police-style generic spec sheet: one row per attribute ----\n"
 +"    else if(/country\\s*of\\s*manufacture|manufactur.*country/i.test(desc)){ rem=bf.c||CFG.country; }\n"
-+"    else if(/year\\s*of\\s*manufacture|manufactur.*year/i.test(desc)){ rem=CFG.mfgYear||String(new Date().getFullYear()); }\n"
-+"    else if(/manufacturer\\s*\\/?\\s*brand|brand\\s*name|make\\s*of/i.test(desc)){ rem=bf.b; }\n"
++"    else if(/year/i.test(desc)&&/manufact/i.test(desc)){ rem=CFG.mfgYear||String(new Date().getFullYear()); }\n"
++"    else if(/^\\s*(brand|make)\\b|manufacturer|brand\\s*name/i.test(desc)){ rem=bf.b; }\n"
 +"    else if(/authoriz/i.test(desc)){ rem='Authorization letter attached'; why='📄 Authorization letter upload pannanum'; }\n"
 +"    else if(/part\\s*name/i.test(desc)){ rem=bf.m||name; }\n"
-+"    else if(/part\\s*(no|number)/i.test(desc)){ rem=bf.p||'As per OEM'; if(!bf.p) why='🔢 V3-la part number illa — serunga'; }\n"
++"    else if(/part\\s*(no|number)/i.test(desc)){\n"
++"      rem=bf.p||'As per OEM';\n"
++"      if(!bf.p) why='🔢 Part number MANDATORY — V3-la illa. \"As per OEM\" poyirukku, part no serunga';\n"
++"    }\n"
 +"    else if(/^category/i.test(desc)){ rem=CFG.category||(isElec?'Electrical':'Mechanical'); }\n"
 +"    else if(/^description/i.test(desc)){ rem=bf.m||name; }\n"
-+"    else if(/applicable\\s*vehicle|vehicle\\s*\\/?\\s*model|model\\s*\\/?\\s*engine/i.test(desc)){ rem=CFG.vehicle||''; if(!CFG.vehicle) why='🚗 Vehicle vivaram illa'; }\n"
++"    else if(/^\\s*model\\b|applicable\\s*vehicle|vehicle\\s*\\/?\\s*model|model\\s*\\/?\\s*engine/i.test(desc)){\n"
++"      // 'Model | SX4 CAR' — the purchaser already states it, so echo theirs\n"
++"      rem=req||CFG.vehicle||'';\n"
++"      if(!rem) why='🚗 Vehicle vivaram illa';\n"
++"    }\n"
++"    else if(/credit\\s*period|payment\\s*period/i.test(desc)){ rem=CFG.payment; }\n"
++"    else if(/shelf\\s*life/i.test(desc)){ rem='More than 80% shelf life remaining'; }\n"
++"    else if(/item.?s?\\s*condition|^condition/i.test(desc)){ rem=req||'Brand New'; }\n"
++"    else if(/terms\\s*(and|&)\\s*conditions/i.test(desc)){ rem='Agreed'; }\n"
 +"    else if(/material|quality\\s*standard/i.test(desc)){ rem='OEM standard'; }\n"
 +"    else if(/dimension/i.test(desc)){ rem='As per OEM specification'; }\n"
 +"    else if(/compatib/i.test(desc)){ rem='Compatible with the vehicle'; }\n"
 +"    else if(/packag|handling/i.test(desc)){ rem='Proper labeling & packing'; }\n"
 +"    else if(/sample/i.test(desc)){ rem='Sample will be submitted if required'; }\n"
 +"    else if(/company\\s*address|address\\s*of/i.test(desc)){ rem=CFG.addr||''; }\n"
-+"    else if(/company\\s*contact|telephone|phone/i.test(desc)){ rem=CFG.tel||''; }\n"
++"    else if(/company\\s*contact|telephone|phone/i.test(desc)){\n"
++"      rem=CFG.tel||'';\n"
++"      // The requirement usually names how many numbers are wanted; make sure we have them\n"
++"      var nums=(rem.match(/\\d[\\d\\s\\-]{7,}/g)||[]).length;\n"
++"      var need=/two|2\\s*(tele|phone|number)/i.test(req)?2:1;\n"
++"      if(nums<need) why='☎️ '+need+' number kettiruikaanga — namma '+nums+' mattum. V3-la sernga';\n"
++"    }\n"
 +"    else if(/^general$/i.test(desc)||!desc){\n"
 +"      // Blank / 'General' rows carry the demand in the requirement column, so the\n"
 +"      // answer is written from that instead of one flat 'Complied' everywhere.\n"
@@ -9901,7 +9950,7 @@ function _egpAllInOneScript(cfg){
 +"    else if(/vehicle\\s*(make|model)|make\\s*&?\\s*model|registration|reg\\.?\\s*year|year of|engine\\s*no|chassis|serial\\s*no|part\\s*no/i.test(desc)){\n"
 +"      if(req) rem=req;\n"
 +"    }\n"
-+"    else if(/condition/i.test(desc)){ if(req) rem=req; }\n"
+
 +"    else if(/stock|availability|available/i.test(desc)){ rem='Available'; }\n"
 +"    else if(/incomplete specification|not be considered|submission/i.test(desc+' '+req)){ rem='Noted'; }\n"
 +"    else if(/recondition|reconditioned|\\bused\\b|second hand|repair|rebuilt/i.test(req+' '+desc)){\n"
@@ -10009,7 +10058,12 @@ function _egpDoCopy(kind){
     _egpCopy(out,'Price list ('+prices.length+' items)');
   } else if(kind==='all'){
     var gv=function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
-    var co=(typeof COMPANIES!=='undefined')?COMPANIES[(_egpSrc&&_egpSrc.company)||curCompany||'ngrd']:null;
+    var cid=(_egpSrc&&_egpSrc.company)||curCompany||'ngrd';
+    var co=(typeof COMPANIES!=='undefined')?COMPANIES[cid]:null;
+    try{ localStorage.setItem('egp_prefs_'+cid, JSON.stringify({
+      'egp-warranty':gv('egp-warranty'),'egp-warranty-elec':gv('egp-warranty-elec'),
+      'egp-validity':gv('egp-validity'),'egp-payment':gv('egp-payment'),
+      'egp-days':gv('egp-days'),'egp-tel':gv('egp-tel')})); }catch(e){}
     _egpCopy(_egpAllInOneScript({
       prices:prices, countries:rows.map(function(r){return r.country;}), vat:vat, fallback:country,
       brand:gv('egp-brand'), warranty:gv('egp-warranty'), warrantyElec:gv('egp-warranty-elec'),
