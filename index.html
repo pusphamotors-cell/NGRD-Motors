@@ -1319,6 +1319,10 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
                 </select>
               </div>
             </div>
+            <div style="background:#FFF4E5;border-left:4px solid #C9952A;padding:9px 13px;margin-top:10px;font-size:12px;line-height:1.6;">
+              ⚠️ Inga oruthar per select panna, <b>avar mattum</b> andha company-oda quotation-a submit panna mudiyum — mathavanga permission irundhaalum mudiyaadhu.<br>
+              Ellaarum submit panna vendum-na <b>"— Select Staff —"</b> nu kaali vidunga.
+            </div>
             <div id="submitter-status" style="font-size:12px;color:#1A6B3C;margin-top:8px;"></div>
             <button onclick="loadSubmitterSettings()" style="margin-top:8px;padding:5px 12px;background:#0D1B2A;color:#fff;border:none;border-radius:3px;font-size:11px;cursor:pointer;">🔄 Refresh Users</button>
           </div>
@@ -5466,12 +5470,24 @@ function markSubmitted(id){
   if(!isAdmin&&!role.canSubmit){
     showToast('⛔ Submit permission இல்லை!','t-e');return;
   }
-  // Check if this user is the assigned submitter for this company
+  // Two separate gates: which company this person may submit for, and whether a
+  // single named submitter has been pinned for that company.
   if(!isAdmin){
     var co=entry.company||'ngrd';
+    var sc=CU.submitCompany||'both';
+    if(sc==='none'||(sc!=='both'&&sc!==co)){
+      alert('⛔ Submit panna mudiyaadhu\n\nIndha quotation: '+co.toUpperCase()
+        +'\nUngaloda Submit Permission: '+(sc==='none'?'Not Allow':sc.toUpperCase())
+        +'\n\nAdmin-kitta sollunga: Users → '+CU.name+' → Submit Permission');
+      return;
+    }
     var assignedSubmitter=getSubmitter(co);
     if(assignedSubmitter&&assignedSubmitter!==CU.name){
-      showToast('⛔ '+co.toUpperCase()+' submitter: '+assignedSubmitter+' மட்டும்!','t-e');return;
+      alert('⛔ Submit panna mudiyaadhu\n\n'+co.toUpperCase()+'-ku assigned submitter: '
+        +assignedSubmitter+'\nNeenga: '+CU.name
+        +'\n\nAdmin-kitta sollunga:\nUsers page → Submitter Settings → '+co.toUpperCase()
+        +' submitter-a maathunga (illa kaali vidunga, appo ellaarum submit pannalaam).');
+      return;
     }
   }
   if(!confirm('Promise.lk-ல் submit பண்ணிவிட்டீர்களா?')) return;
@@ -5545,7 +5561,8 @@ function markNotSubmitted(id){
     var co=entry.company||'ngrd';
     var assignedSubmitter=getSubmitter(co);
     if(assignedSubmitter&&assignedSubmitter!==CU.name){
-      showToast('⛔ '+co.toUpperCase()+' submitter: '+assignedSubmitter+' மட்டும்!','t-e');return;
+      alert('⛔ '+co.toUpperCase()+'-ku assigned submitter: '+assignedSubmitter
+        +'\nNeenga: '+CU.name+'\n\nUsers page → Submitter Settings-la maathunga.');return;
     }
   }
   var reason=prompt('❌ Submit ஆகல — காரணம் என்ன? (உதா: portal down, net issue, time miss)');
