@@ -1953,7 +1953,7 @@ function initApp(){
   // Load saved company preference
   // Set company based on user's assigned company
   var savedCo;
-  if(CU&&CU.company&&CU.company!=='both'){
+  if(CU&&(CU.company==='ngrd'||CU.company==='puspha')){
     savedCo=CU.company; // Use user's assigned company
   } else {
     savedCo=localStorage.getItem('ngrd_company')||'ngrd';
@@ -4175,12 +4175,13 @@ function getCompany(){
 
 function setCompany(id, silent){
   // Staff company restriction
-  if(!silent&&CU&&CU.role!=='admin'&&CU.company&&CU.company!=='both'){
+  if(!silent&&CU&&CU.role!=='admin'&&(CU.company==='ngrd'||CU.company==='puspha')){
     if(id!==CU.company){
       showToast('⛔ '+CU.name+' is assigned to '+(CU.company==='ngrd'?'N.G.R.D. Motors':'Puspha Motors')+' only!','t-e');
       return;
     }
   }
+  if(id!=='ngrd'&&id!=='puspha') id='ngrd';
   curCompany = id;
   localStorage.setItem('ngrd_company', id);
   // Update toggle buttons
@@ -4207,7 +4208,7 @@ function setCompany(id, silent){
   }
   if(!silent) showToast('🏢 '+getCompany().name+' selected', 't-s');
   // Hide wrong company button for restricted staff
-  if(CU&&CU.role!=='admin'&&CU.company&&CU.company!=='both'){
+  if(CU&&CU.role!=='admin'&&(CU.company==='ngrd'||CU.company==='puspha')){
     var ngrdBtnH=document.getElementById('co-ngrd');
     var pushaBtnH=document.getElementById('co-puspha');
     if(CU.company==='ngrd'){
@@ -5430,7 +5431,7 @@ function saveToHistory(){
     items:JSON.parse(JSON.stringify(curItems)),
     grandTotal:curItems.reduce(function(s,item){var br=(item.brandRows&&item.brandRows[0])||{};var p=parseFloat(br.price)||item.unitPrice||0;return s+p*item.qty;},0),
     status:quotStatus,steps:steps,
-    company:curCompany||'ngrd'
+    company:((curCompany==='ngrd'||curCompany==='puspha')?curCompany:'ngrd')
   };
   hist.unshift(entry);if(hist.length>200) hist.pop();
   setHist(hist);autoSavePrices(curItems);
@@ -5473,7 +5474,10 @@ function markSubmitted(id){
   // Two separate gates: which company this person may submit for, and whether a
   // single named submitter has been pinned for that company.
   if(!isAdmin){
-    var co=entry.company||'ngrd';
+    // Older records sometimes carry an invalid company ('none', blank). Treat
+    // anything unrecognised as NGRD rather than locking the person out.
+    var co=String(entry.company||'').toLowerCase();
+    if(co!=='ngrd'&&co!=='puspha') co='ngrd';
     var sc=CU.submitCompany||'both';
     if(sc==='none'||(sc!=='both'&&sc!==co)){
       alert('⛔ Submit panna mudiyaadhu\n\nIndha quotation: '+co.toUpperCase()
@@ -5558,7 +5562,8 @@ function markNotSubmitted(id){
   var role=getRole();
   if(!isAdmin&&!role.canSubmit){showToast('⛔ Submit permission இல்லை!','t-e');return;}
   if(!isAdmin){
-    var co=entry.company||'ngrd';
+    var co=String(entry.company||'').toLowerCase();
+    if(co!=='ngrd'&&co!=='puspha') co='ngrd';
     var assignedSubmitter=getSubmitter(co);
     if(assignedSubmitter&&assignedSubmitter!==CU.name){
       alert('⛔ '+co.toUpperCase()+'-ku assigned submitter: '+assignedSubmitter
@@ -5718,7 +5723,12 @@ function saveEditPerms(){
   var scEl=document.querySelector('input[name="ep-submit-co"]:checked');
   users[idx].priceCompany=pcEl?pcEl.value:'both';
   users[idx].submitCompany=scEl?scEl.value:'both';
-  users[idx].company=users[idx].priceCompany; // backward compat
+  // Legacy field. 'none' here means "no price rights", not a company — carrying
+  // it through made curCompany 'none', which then got saved onto quotations and
+  // locked every non-admin out of submitting them.
+  var legacyCo=users[idx].priceCompany;
+  if(legacyCo==='none') legacyCo=(users[idx].submitCompany&&users[idx].submitCompany!=='none')?users[idx].submitCompany:'both';
+  users[idx].company=legacyCo;
   var epNameEl=document.getElementById('ep-name');
   var epWaEl=document.getElementById('ep-wa');
   if(epNameEl&&epNameEl.value.trim()) users[idx].name=epNameEl.value.trim();
@@ -6034,10 +6044,11 @@ function renderHistory(){
     +'<div style="font-size:14px;font-weight:700;color:#E8B84B;">💰 '+lkr(_sumTotal)+'</div>'
     +'</div>';
   c.innerHTML=summaryHtml+hShown.map(e=>{
+    const viaEgp=(e.submittedVia==='eGP script')?'<span title="eGP script vazhiyaa mark aanadhu" style="background:#E8F4F6;color:#0B5D6B;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #9FD0D9;margin-left:4px;">⚡ eGP</span>':'';
     const sb=e.notSubmittedInfo?'<span class="status-badge sb-rejected">⚠️ '+((e.status||'draft').charAt(0).toUpperCase()+(e.status||'draft').slice(1))+' (Not Submitted)</span>':getStatusBadge(e.status)
       +(e.status==='approved'?(e.seenBySubmitter
         ?'<span title="'+(e.seenBySubmitter.at||'')+'" style="background:#E8F5E9;color:#1A6B3C;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #A5D6A7;margin-left:4px;">👁 '+(e.seenBySubmitter.by||'seen')+'</span>'
-        :'<span style="background:#FDECEA;color:#B22222;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #F5B7B1;margin-left:4px;">⏳ NOT SEEN</span>'):'');
+        :'<span style="background:#FDECEA;color:#B22222;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #F5B7B1;margin-left:4px;">⏳ NOT SEEN</span>'):'')+viaEgp;
     const coBadge=e.company==='puspha'?
       '<span style="background:#FFFBEB;color:#B45309;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #FCD34D;margin-left:4px;">PUSH</span>':
       '<span style="background:#EFF6FF;color:#1D4ED8;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid #BFDBFE;margin-left:4px;">NGRD</span>';
@@ -8725,7 +8736,7 @@ function openEgpFillById(id){
   if(!e){ showToast('Quotation kaanom','t-e'); return; }
   var go=function(rec){
     if(!rec.items||!rec.items.length){ showToast('Items kaanom','t-e'); return; }
-    _egpSrc={items:rec.items,company:rec.company||'ngrd',ref:rec.eqNo||rec.refNo||'',vehicle:rec.vehicle||''};
+    _egpSrc={id:rec.id,items:rec.items,company:rec.company||'ngrd',ref:rec.eqNo||rec.refNo||'',vehicle:rec.vehicle||''};
     window._curDoing='⚡ eGP '+(_egpSrc.ref||''); if(typeof pushPresence==='function') pushPresence();
     openEgpFillModal();
   };
@@ -8958,6 +8969,23 @@ function showNoRefRecords(){
     }).join('')+'</table></div>';
 }
 
+// A record whose company isn't ngrd/puspha blocks every non-admin from submitting
+// it, so offer a one-click repair using the e-Q prefix as the hint.
+function fixCompanyField(){
+  var bad=window._badCo||[];
+  if(!bad.length){ showToast('Ellaam sari','t-s'); return; }
+  var pick=prompt('⚠️ '+bad.length+' record-oda company field thappu.\n\nEdhu company-ku maathanum?\n"ngrd" illa "puspha" nu type pannunga:','ngrd');
+  if(pick===null) return;
+  pick=String(pick).trim().toLowerCase();
+  if(pick!=='ngrd'&&pick!=='puspha'){ showToast('ngrd illa puspha nu mattum','t-e'); return; }
+  var ids={}; bad.forEach(function(e){ if(e&&e.id!=null) ids[String(e.id)]=1; });
+  var h=getHist(), n=0;
+  h.forEach(function(e){ if(e&&ids[String(e.id)]){ e.company=pick; n++; } });
+  setHist(h);
+  showToast('✅ '+n+' record '+pick.toUpperCase()+'-ku maariduchu','t-s');
+  runIntegrityCheck();
+}
+
 function runIntegrityCheck(){
   var el=document.getElementById('integrity-out');
   if(el) el.innerHTML='<div style="font-size:12.5px;color:#666;">⏳ Check pannuren...</div>';
@@ -8973,6 +9001,11 @@ function runIntegrityCheck(){
     _missIds=missing;   // keep for the drill-down button
     var slim=local.filter(function(e){ return e&&e._slim; }).length;
     var noRef=local.filter(function(e){ return e&&!e.eqNo&&!e.refNo; }).length;
+    var badCo=local.filter(function(e){
+      var c=String(e&&e.company||'').toLowerCase();
+      return c!=='ngrd'&&c!=='puspha';
+    });
+    window._badCo=badCo;
     var del=[]; try{ del=JSON.parse(localStorage.getItem('ngrd_deleted')||'[]'); }catch(e){}
     var rows=[
       ['Indha device-la',local.length+' records',local.length?'ok':'bad'],
@@ -8980,7 +9013,8 @@ function runIntegrityCheck(){
       ['Inga kaanaadhadhu',missing.length+' records',missing.length?'bad':'ok'],
       ['Item list trim aanadhu',slim+' records (thirandhaa thirumba varum)',slim?'warn':'ok'],
       ['e-Q / Ref illaadhadhu',noRef+' records (match panna mudiyaadhu)',noRef?'warn':'ok'],
-      ['Delete panna list',del.length+' records',del.length?'warn':'ok']
+      ['Delete panna list',del.length+' records',del.length?'warn':'ok'],
+      ['Company field thappu',badCo.length+' records'+(badCo.length?' (submit block aagum)':''),badCo.length?'bad':'ok']
     ];
     var col={ok:'#1A6B3C',warn:'#8B6914',bad:'#B22222'};
     var ic={ok:'✅',warn:'⚠️',bad:'❌'};
@@ -9000,6 +9034,7 @@ function runIntegrityCheck(){
     }
     html+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">'
       +(missing.length?'<button onclick="showMissingRecords()" style="padding:8px 15px;background:#B22222;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83D\uDD0D '+missing.length+' kaanaadha record paaru</button>':'')
+      +(badCo.length?'<button onclick="fixCompanyField()" style="padding:8px 15px;background:#0B5D6B;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83C\uDFE2 '+badCo.length+' record-oda company sari pannu</button>':'')
       +(noRef?'<button onclick="showNoRefRecords()" style="padding:8px 15px;background:#8B6914;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83C\uDFF7\uFE0F '+noRef+' ref illaadha record paaru</button>':'')
       +'</div><div id="integrity-detail" style="margin-top:10px;"></div>';
     html+='<div style="font-size:11.5px;color:#888;margin-top:8px;line-height:1.6;">'
@@ -9681,7 +9716,8 @@ function _egpAllInOneScript(cfg){
     addr:cfg.addr||'', tel:cfg.tel||'', vehicle:cfg.vehicle||'',
     mfgYear:cfg.mfgYear||'', category:cfg.category||'',
     warrantyElec:cfg.warrantyElec||'',
-    ref:cfg.ref||'', items:cfg.items||[], vatOn:vatOn
+    ref:cfg.ref||'', items:cfg.items||[], vatOn:vatOn,
+    qid:cfg.qid||'', fb:cfg.fb||'', by:cfg.by||''
   })+";\n"
 +"var KEY='egp_progress_'+(CFG.ref||'x');\n"
 +"var PG={};try{PG=JSON.parse(sessionStorage.getItem(KEY)||'{}');}catch(e){}\n"
@@ -10069,10 +10105,37 @@ function _egpAllInOneScript(cfg){
 +"+'<div style=\"padding:16px 20px;\">'+h\n"
 +"+(left.length?'<div style=\"background:#FFF4E5;border-left:4px solid #C9952A;padding:10px 14px;margin-top:6px;font-size:12.5px;\"><b>Meethi page:</b> '+left.join(' · ')+'<br>Angae poi <b>idhe script-a</b> paste pannunga.</div>':'<div style=\"background:#E7F3EC;border-left:4px solid #1A6B3C;padding:10px 14px;margin-top:6px;font-size:12.5px;\"><b>✅ Ellaa page-um mudinjadhu.</b> Ovvondrilum Save adichittu, kadaisila Submit pannunga.</div>')\n"
 +"+(notes.length?'<div style=\"background:#FDECEA;border-left:4px solid #B22222;padding:10px 14px;margin-top:8px;font-size:12px;\"><b>Kavanam:</b><br>'+notes.map(esc).join('<br>')+'</div>':'')\n"
++"+((CFG.qid&&CFG.fb)?'<div style=\"margin-top:12px;background:#E7F3EC;border-left:4px solid #1A6B3C;padding:11px 14px;\">'\n"
++"   +'<div style=\"font-size:12.5px;color:#14532d;margin-bottom:8px;line-height:1.6;\">eGP-la <b>Submit</b> adichu confirm aana <b>piragu</b> mattum idha adikkunga — V3-la <b>Submitted</b> nu maarum.</div>'\n"
++"   +'<button id=\"egpmark\" style=\"padding:9px 18px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:13px;cursor:pointer;\">✅ eGP-la submit aayiduchu — V3-la mark pannu</button>'\n"
++"   +'<span id=\"egpmarkst\" style=\"margin-left:10px;font-size:12px;font-weight:700;\"></span></div>':'')\n"
 +"+'<div style=\"margin-top:14px;text-align:right;\"><button id=\"egpx\" style=\"padding:9px 20px;background:#123049;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:13px;cursor:pointer;\">Sari</button></div>'\n"
 +"+'</div></div>';\n"
 +"document.body.appendChild(d);\n"
 +"d.querySelector('#egpx').onclick=function(){d.remove();};\n"
++"var mk=d.querySelector('#egpmark');\n"
++"if(mk) mk.onclick=function(){\n"
++"  if(!confirm('eGP-la submit aagi confirm aayidhaa?\\n\\nAagala-na Cancel adikkunga —\\nthappaana mark V3-la ellaa report-aiyum kedukkum.')) return;\n"
++"  var st=d.querySelector('#egpmarkst');\n"
++"  st.textContent='⏳ mark pannuren...'; st.style.color='#8B6914'; mk.disabled=true;\n"
++"  var body={status:'submitted',submittedAt:new Date().toLocaleString('en-LK'),\n"
++"            submittedVia:'eGP script',submittedBy:CFG.by||'',notSubmittedInfo:null};\n"
++"  var x=new XMLHttpRequest();\n"
++"  x.open('PATCH',CFG.fb+'/history/'+CFG.qid+'.json',true);\n"
++"  x.setRequestHeader('Content-Type','application/json');\n"
++"  x.onload=function(){\n"
++"    if(x.status>=200&&x.status<300){\n"
++"      // nudge the change beacon so V3 devices pull it within seconds\n"
++"      try{var y=new XMLHttpRequest(); y.open('PUT',CFG.fb+'/pulse.json',true);\n"
++"        y.setRequestHeader('Content-Type','application/json');\n"
++"        y.send(JSON.stringify({t:Date.now(),by:CFG.by||'egp'}));}catch(e){}\n"
++"      st.textContent='✅ V3-la Submitted nu maariduchu'; st.style.color='#1A6B3C';\n"
++"      mk.style.display='none';\n"
++"    } else { st.textContent='❌ Fail ('+x.status+') — V3-la kaiyaala mark pannunga'; st.style.color='#B22222'; mk.disabled=false; }\n"
++"  };\n"
++"  x.onerror=function(){ st.textContent='❌ Net fail — V3-la kaiyaala mark pannunga'; st.style.color='#B22222'; mk.disabled=false; };\n"
++"  x.send(JSON.stringify(body));\n"
++"};\n"
 +"d.onclick=function(e){if(e.target===d)d.remove();};\n"
 +"})();";
 }
@@ -10099,6 +10162,8 @@ function _egpDoCopy(kind){
       delivery:gv('egp-days'),
       validity:gv('egp-validity'), payment:gv('egp-payment'), country:country,
       vatno:gv('egp-vatno'), name:gv('egp-name'), ref:(_egpSrc&&_egpSrc.ref)||'',
+      qid:(_egpSrc&&_egpSrc.id)||'', fb:(typeof FB_BASE!=='undefined'?FB_BASE:''),
+      by:(typeof CU!=='undefined'&&CU?CU.name:''),
       addr:(co&&co.address)||'', tel:gv('egp-tel')||(co&&co.tel)||'',
       vehicle:(_egpSrc&&_egpSrc.vehicle)||'',
       items:rows.map(function(r){ return {desc:r.desc,brand:r.brand||'',part:r.part||'',country:r.country||''}; })
@@ -10330,7 +10395,7 @@ function downloadExcel(){
 // ══════════════════════════════════════════════════
 function buildQData(){
   const g=id=>document.getElementById(id)?.value||'';
-  return{refNo:g('f-refno'),company:curCompany||'ngrd',eqNo:g('f-eqno'),entity:g('f-entity'),title:g('f-title'),
+  return{refNo:g('f-refno'),company:((curCompany==='ngrd'||curCompany==='puspha')?curCompany:'ngrd'),eqNo:g('f-eqno'),entity:g('f-entity'),title:g('f-title'),
     vehicle:g('f-vname'),vNo:g('f-vno'),eng:g('f-eng'),chas:g('f-chas'),
     closing:g('f-close'),validity:g('f-valid'),delivery:g('f-deliv'),dest:g('f-dest'),
     items:curItems,preparedBy:CU?.name||'',date:new Date().toLocaleDateString('en-LK'),status:curStatus};
