@@ -601,6 +601,8 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div class="panel-hdr-right" style="display:flex;align-items:center;gap:8px;"><span style="font-size:11px;color:rgba(255,255,255,.75);">Margin %</span><input id="ai-margin-pct" type="number" min="0" step="1" value="25" onchange="_saveMargin()" title="Purchase price mela ivvalavu % profit" style="width:54px;padding:5px 6px;border-radius:5px;border:1px solid rgba(255,255,255,.35);background:#fff;color:#111;font-size:12px;font-weight:700;text-align:center;"><button class="btn btn-gold btn-sm" onclick="aiAutoPrice()" style="font-weight:700;">🤖 AI Auto-Price</button><button class="btn btn-sm" onclick="showAllPriceProof()" style="font-weight:700;background:#eef4ff;color:#2060a0;border:1px solid #2060a0;">🔍 Proof</button><span style="font-size:11px;color:rgba(255,255,255,.5);">💡 cost + margin</span></div>
           </div>
           <div class="panel-body">
+            <div id="row-pick-bar" style="display:none;"></div>
+            <div id="brand-group-bar" style="display:none;"></div>
             <div class="tbl-wrap">
               <table>
                 <thead><tr>
@@ -4793,6 +4795,205 @@ function remBR(idx,bi){
   curItems[idx].brandRows.splice(bi,1);renderItems(curItems);
 }
 
+// ══════════════════════════════════════════════════
+// BRAND → COUNTRY MEMORY
+// A brand alone doesn't decide the country — R/C parts come from both Japan and
+// India. So history is indexed by item+brand first, and a brand-only answer is
+// used only when that brand has never had more than one country. Anything
+// ambiguous is left blank on purpose: a wrong auto-fill sails through unnoticed,
+// an empty cell does not.
+// ══════════════════════════════════════════════════
+var _bcMap=null, _bcVer=-1;
+function _bcKey(t){ return String(t||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim(); }
+
+// Brand typed by hand — pull its usual country in, but only when history is sure.
+// Brand-wise bar above the table: one dropdown sets the country for every row
+// carrying that brand — the correction path when memory guessed wrong or a
+// tender needs a different origin.
+// Row selection — for the times the pattern isn't the brand but the row itself
+// (1,4,6 Thailand · 2,3,5 Japan). Shift-click extends a range.
+var _lastPick=null;
+function pickRow(ev,idx){
+  if(ev.shiftKey&&_lastPick!==null){
+    var a=Math.min(_lastPick,idx), b=Math.max(_lastPick,idx), on=ev.target.checked;
+    document.querySelectorAll('.row-pick').forEach(function(c){
+      var i=parseInt(c.getAttribute('data-i'),10);
+      if(i>=a&&i<=b) c.checked=on;
+    });
+  }
+  _lastPick=idx;
+  renderPickBar();
+}
+function pickedRows(){
+  return Array.prototype.slice.call(document.querySelectorAll('.row-pick:checked'))
+    .map(function(c){ return parseInt(c.getAttribute('data-i'),10); });
+}
+function clearPicks(){
+  document.querySelectorAll('.row-pick').forEach(function(c){c.checked=false;});
+  _lastPick=null; renderPickBar();
+}
+function pickEmptyCountry(){
+  document.querySelectorAll('.row-pick').forEach(function(c){
+    var i=parseInt(c.getAttribute('data-i'),10);
+    var it=curItems[i]; if(!it) return;
+    c.checked=(it.brandRows||[]).some(function(br){ return !br.country; });
+  });
+  renderPickBar();
+}
+function renderPickBar(){
+  var host=document.getElementById('row-pick-bar'); if(!host) return;
+  var n=pickedRows().length;
+  if(!n){ host.style.display='none'; host.innerHTML=''; return; }
+  var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+  host.style.display='block';
+  host.innerHTML='<div style="background:#123049;color:#fff;border-radius:6px;padding:9px 13px;margin-bottom:8px;display:flex;gap:9px;align-items:center;flex-wrap:wrap;">'
+    +'<b style="font-size:12.5px;">✔ '+n+' row select aachu</b>'
+    +'<select id="pick-co" style="padding:5px 7px;border:none;border-radius:4px;font-size:12px;"><option value="">Country —</option>'+co+'</select>'
+    +'<input id="pick-brand" placeholder="Brand (venumna)" style="padding:5px 8px;border:none;border-radius:4px;font-size:12px;width:130px;">'
+    +'<button onclick="applyToPicked()" style="padding:6px 15px;background:#1A6B3C;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;">Apply</button>'
+    +'<button onclick="pickEmptyCountry()" style="padding:6px 12px;background:#8B6914;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12px;cursor:pointer;">Country kaali-a select</button>'
+    +'<button onclick="clearPicks()" style="padding:6px 12px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:4px;font-size:12px;cursor:pointer;">Clear</button>'
+    +'<span style="font-size:11px;opacity:.75;">Shift+click = range</span>'
+    +'</div>';
+}
+function applyToPicked(){
+  var idxs=pickedRows(); if(!idxs.length) return;
+  var c=(document.getElementById('pick-co')||{}).value||'';
+  var b=((document.getElementById('pick-brand')||{}).value||'').trim();
+  if(!c&&!b){ showToast('Country illa brand podunga','t-e'); return; }
+  var n=0;
+  idxs.forEach(function(i){
+    var it=curItems[i]; if(!it) return;
+    (it.brandRows||[]).forEach(function(br,bi){
+      if(c){ br.country=c; var cs=document.getElementById('br-c-'+i+'-'+bi); if(cs){cs.value=c;cs.style.background='';} }
+      if(b){ br.brand=b;   var bs=document.getElementById('br-b-'+i+'-'+bi); if(bs) bs.value=b; }
+      n++;
+    });
+  });
+  calcTotals();
+  if(typeof renderBrandGroupBar==='function') renderBrandGroupBar();
+  showToast('✅ '+idxs.length+' row maariduchu'+(c?' → '+c:''),'t-s');
+  clearPicks();
+}
+
+function renderBrandGroupBar(){
+  var host=document.getElementById('brand-group-bar');
+  if(!host) return;
+  var groups={};
+  (curItems||[]).forEach(function(item,idx){
+    (item.brandRows||[]).forEach(function(br,bi){
+      var b=(br.brand||'').trim(); if(!b) return;
+      (groups[b]=groups[b]||[]).push({i:idx,b:bi,c:br.country||''});
+    });
+  });
+  var keys=Object.keys(groups).sort(function(a,b){return groups[b].length-groups[a].length;});
+  if(keys.length<2){ host.style.display='none'; return; }
+  var co=COUNTRIES.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+  host.style.display='block';
+  host.innerHTML='<div style="background:#F4F6F8;border:1px solid #dde;border-radius:6px;padding:9px 12px;margin-bottom:8px;">'
+    +'<div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.05em;margin-bottom:7px;">BRAND-WISE COUNTRY — ஒரே dropdown, andha brand-oda ellaa row-um maarum</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+    +keys.map(function(b){
+      var g=groups[b];
+      var uniq={}; g.forEach(function(x){ if(x.c) uniq[x.c]=1; });
+      var ks=Object.keys(uniq);
+      var cur=ks.length===1?ks[0]:'';
+      var miss=g.filter(function(x){return !x.c;}).length;
+      return '<div style="display:flex;align-items:center;gap:5px;background:#fff;border:1px solid '+(miss?'#C9952A':'#dde')+';border-radius:5px;padding:4px 8px;">'
+        +'<span style="font-size:11.5px;font-weight:700;color:#123049;">'+b+'</span>'
+        +'<span style="font-size:10px;color:#888;">'+g.length+'</span>'
+        +(miss?'<span style="font-size:9px;background:#FFF4E5;color:#8B6914;padding:1px 5px;border-radius:7px;font-weight:700;">'+miss+' kaali</span>':'')
+        +'<select onchange="applyBrandCountry(this.value,'+JSON.stringify(JSON.stringify(b))+')" style="padding:3px 4px;border:1px solid var(--border);border-radius:3px;font-size:11px;">'
+        +'<option value="">'+(ks.length>1?'— pala —':'—')+'</option>'+co+'</select></div>';
+    }).join('')
+    +'</div></div>';
+  // reflect the current value where the group agrees
+  keys.forEach(function(b,i){
+    var sel=host.querySelectorAll('select')[i];
+    var uniq={}; groups[b].forEach(function(x){ if(x.c) uniq[x.c]=1; });
+    var ks=Object.keys(uniq);
+    if(sel&&ks.length===1) sel.value=ks[0];
+  });
+}
+
+function applyBrandCountry(country,brandJson){
+  if(!country) return;
+  var brand=JSON.parse(brandJson), n=0;
+  (curItems||[]).forEach(function(item,idx){
+    (item.brandRows||[]).forEach(function(br,bi){
+      if((br.brand||'').trim()!==brand) return;
+      br.country=country;
+      var csel=document.getElementById('br-c-'+idx+'-'+bi);
+      if(csel){ csel.value=country; csel.style.background=''; }
+      n++;
+    });
+  });
+  calcTotals();
+  showToast('🏳️ '+brand+' — '+n+' row '+country,'t-s');
+  renderBrandGroupBar();
+}
+
+function brandCountryHint(idx,bi){
+  try{
+    var item=curItems[idx]; if(!item) return;
+    var br=item.brandRows[bi]; if(!br) return;
+    var csel=document.getElementById('br-c-'+idx+'-'+bi);
+    if(!csel||csel.value) return;                 // already answered — leave it
+    var sg=suggestCountry(item.description,br.brand);
+    if(sg.country){
+      csel.value=sg.country; br.country=sg.country;
+      csel.style.background='#EAF6EF';
+      csel.title='Munnadi '+sg.country+' potiruikeenga';
+      syncRow(idx,bi); calcTotals();
+    } else if(sg.options&&sg.options.length>1){
+      csel.style.background='#FFF4E5';
+      csel.title=br.brand+' → '+sg.options.map(function(o){return o.c+' '+o.n+'x';}).join(' | ')+' — neenga select pannunga';
+    }
+  }catch(e){}
+}
+
+function buildCountryMemory(){
+  var ver=(window.__fapmVer||0);
+  if(_bcMap&&_bcVer===ver) return _bcMap;
+  var pair={}, brand={};
+  var note=function(bag,k,c){
+    if(!k||!c) return;
+    (bag[k]=bag[k]||{})[c]=(bag[k][c]||0)+1;
+  };
+  getHist().forEach(function(e){
+    if(!e||!e.items) return;
+    e.items.forEach(function(it){
+      var d=_bcKey(it.description);
+      (it.brandRows||[]).forEach(function(br){
+        var b=_bcKey(br.brand), c=(br.country||'').trim();
+        if(!b||!c) return;
+        note(pair, d+'||'+b, c);
+        note(brand, b, c);
+      });
+    });
+  });
+  _bcMap={pair:pair,brand:brand}; _bcVer=ver;
+  return _bcMap;
+}
+
+// → {country, why, options} ; country '' means "don't guess"
+function suggestCountry(desc,brandTxt){
+  var m=buildCountryMemory();
+  var b=_bcKey(brandTxt); if(!b) return {country:'',why:'',options:[]};
+  var top=function(bag){
+    if(!bag) return null;
+    var ks=Object.keys(bag); if(!ks.length) return null;
+    ks.sort(function(x,y){return bag[y]-bag[x];});
+    return {list:ks.map(function(k){return {c:k,n:bag[k]};}), best:ks[0]};
+  };
+  var pk=top(m.pair[_bcKey(desc)+'||'+b]);
+  if(pk) return {country:pk.best,why:'item+brand',options:pk.list};
+  var bk=top(m.brand[b]);
+  if(!bk) return {country:'',why:'',options:[]};
+  if(bk.list.length===1) return {country:bk.best,why:'brand',options:bk.list};
+  return {country:'',why:'ambiguous',options:bk.list};   // R/C → Japan and India
+}
+
 function renderItems(items){
   if(items!==undefined) curItems=items;
   items=curItems||[];
@@ -4840,7 +5041,10 @@ function renderItems(items){
       var _nq=item.notQuoting?' disabled':'';
       var h='';
       if(bi===0){
-        h+='<td class="tc" rowspan="'+rc+'" style="font-weight:700;color:var(--navy);vertical-align:middle;border-right:2px solid #ddd;padding:5px 3px;">'+item.itemNo+'</td>';
+        h+='<td class="tc" rowspan="'+rc+'" style="font-weight:700;color:var(--navy);vertical-align:middle;border-right:2px solid #ddd;padding:5px 3px;">'
+          +'<div>'+item.itemNo+'</div>'
+          +'<input type="checkbox" class="row-pick" data-i="'+idx+'" onclick="pickRow(event,'+idx+')" title="Select panni bulk-a country/brand podunga" style="cursor:pointer;margin-top:2px;">'
+          +'</td>';
         h+='<td rowspan="'+rc+'" style="font-size:11px;vertical-align:middle;border-right:2px solid #ddd;padding:5px 7px;">'+item.description
           +'<label style="display:flex;align-items:center;gap:4px;margin-top:5px;font-size:9px;color:#B22222;cursor:pointer;font-weight:700;"><input type="checkbox" '+(item.notQuoting?'checked':'')+' onchange="toggleNotQuoting('+idx+',this.checked)" style="cursor:pointer;">🚫 Not Quoting</label></td>';
         h+='<td class="tc" rowspan="'+rc+'" style="font-weight:700;vertical-align:middle;border-right:2px solid #ddd;padding:5px 3px;">'+item.qty+'</td>';
@@ -4848,7 +5052,7 @@ function renderItems(items){
         var rb=reqBrand?'<span style="display:inline-block;padding:2px 7px;background:#1A3A1A;color:#6FCF6F;border-radius:3px;font-size:11px;font-weight:700;">'+reqBrand+'</span>':'<span style="color:var(--muted);font-size:11px;font-style:italic;">Any</span>';
         h+='<td rowspan="'+rc+'" style="vertical-align:middle;padding:4px 5px;background:rgba(26,58,26,.04);border-right:2px solid #ddd;">'+rb+'</td>';
       }
-      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" onkeydown="handleRowEnter(event,\'b\','+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"'+_nq+'></td>';
+      h+='<td style="padding:3px 4px;"><input id="br-b-'+idx+'-'+bi+'" value="'+(br.brand||'')+'" placeholder="Brand" oninput="syncRow('+idx+','+bi+')" onblur="brandCountryHint('+idx+','+bi+')" onkeydown="handleRowEnter(event,\'b\','+idx+','+bi+')" style="width:94px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"'+_nq+'></td>';
       h+='<td style="padding:3px 4px;"><input id="br-p-'+idx+'-'+bi+'" value="'+(br.partNo||'')+'" placeholder="Part No." oninput="syncRow('+idx+','+bi+')" onkeydown="handleRowEnter(event,\'p\','+idx+','+bi+')" onblur="setTimeout(function(){if(typeof showPartCrossRef===\'function\')showPartCrossRef('+idx+','+bi+')},150)" style="width:84px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:11px;font-family:monospace;outline:none;"'+_nq+'></td>';
       h+='<td style="padding:3px 4px;"><select id="br-c-'+idx+'-'+bi+'" onchange="syncRow('+idx+','+bi+');calcTotals()" style="width:73px;padding:4px 3px;border:1px solid var(--border);border-radius:2px;font-size:11px;outline:none;"><option value="">—</option>'+co+'</select></td>';
       if(role.seePurchase){
@@ -4889,10 +5093,35 @@ function renderItems(items){
       h+='</td>';
       tr.innerHTML=h;tb.appendChild(tr);
       var csel=tr.querySelector('#br-c-'+idx+'-'+bi);
-      if(csel) csel.value=br.country||'Japan';
+      if(csel){
+        if(br.country){ csel.value=br.country; }
+        else {
+          var sg=(typeof suggestCountry==='function')?suggestCountry(item.description,br.brand):{country:'',options:[]};
+          if(sg.country){
+            csel.value=sg.country; br.country=sg.country;
+            csel.style.background='#EAF6EF';
+            csel.title='Munnadi '+(sg.why==='item+brand'?'indha item + brand':'indha brand')+'-ku '+sg.country+' potiruikeenga';
+          } else if(sg.options&&sg.options.length>1){
+            csel.value=''; csel.style.background='#FFF4E5';
+            csel.title=br.brand+' → '+sg.options.map(function(o){return o.c+' '+o.n+'x';}).join(' | ')+' — neenga select pannunga';
+            var pk=document.createElement('div');
+            pk.style.cssText='margin-top:2px;display:flex;gap:3px;flex-wrap:wrap;';
+            sg.options.slice(0,3).forEach(function(o){
+              var b2=document.createElement('button');
+              b2.textContent=o.c+' '+o.n+'×';
+              b2.style.cssText='padding:1px 5px;font-size:9px;border:1px solid #C9952A;background:#fff;color:#8B6914;border-radius:8px;cursor:pointer;font-family:inherit;';
+              b2.onclick=function(ev){ ev.preventDefault(); csel.value=o.c; csel.style.background='';
+                pk.remove(); syncRow(idx,bi); calcTotals(); };
+              pk.appendChild(b2);
+            });
+            csel.parentElement.appendChild(pk);
+          } else { csel.value=''; }
+        }
+      }
     });
   });
   calcTotals();
+  if(typeof renderBrandGroupBar==='function') renderBrandGroupBar();
   setTimeout(function(){
     var lockBanner=document.getElementById('lock-banner');
     if(!lockBanner){
