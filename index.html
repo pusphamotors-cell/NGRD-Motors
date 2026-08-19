@@ -4327,22 +4327,32 @@ function handleRowEnter(e,col,idx,bi){
 }
 function fillDownColumn(col){
   if(!curItems.length) return;
-  var rangeInput=prompt('எந்த rows-க்கு fill பண்ணணும்?\n\nஉதா: "1-10" (Item No 1 முதல் 10 வரைக்கும்)\nகாலியா விட்டா → எல்லா '+curItems.length+' rows-க்கும்\n\nRange-ஓட முதல் row-ஓட value தான் மீதி rows-க்கு copy ஆகும் — அதை முதல்ல அந்த row-ல் type பண்ணி வையுங்க.','1-'+curItems.length);
+  var rangeInput=prompt('எந்த rows-க்கு fill பண்ணணும்?\n\n  1-10        → 1 முதல் 10 வரை\n  1,4,6       → அந்த rows மட்டும்\n  1,4,6-9,12  → கலந்தும் போடலாம்\n  காலி        → எல்லா '+curItems.length+' rows-க்கும்\n\nமுதல்ல சொன்ன row-ஓட value தான் மீதிக்கு copy ஆகும் — அதை அந்த row-ல் முதல்ல போட்டு வையுங்க.','1-'+curItems.length);
   if(rangeInput===null) return; // cancelled
-  var startIdx=0,endIdx=curItems.length-1;
+  // Accepts "1-10", "1,4,6", or a mix like "1,4,6-9,12". Order is kept as typed,
+  // so the first item named is the one whose value gets copied.
   rangeInput=rangeInput.trim();
-  if(rangeInput){
-    var m=rangeInput.match(/^(\d+)\s*-\s*(\d+)$/);
-    if(m){
-      startIdx=Math.max(0,parseInt(m[1])-1);
-      endIdx=Math.min(curItems.length-1,parseInt(m[2])-1);
-    } else if(/^\d+$/.test(rangeInput)){
-      startIdx=endIdx=Math.max(0,parseInt(rangeInput)-1);
-    } else {
-      showToast('Range format தப்பு — "1-10" மாதிரி type பண்ணுங்க','t-e');return;
-    }
+  var targets=[];
+  if(!rangeInput){
+    for(var z=0;z<curItems.length;z++) targets.push(z);
+  } else {
+    var bad=false;
+    rangeInput.split(/[,\s]+/).filter(Boolean).forEach(function(tok){
+      var mm=tok.match(/^(\d+)\s*-\s*(\d+)$/);
+      if(mm){
+        var a=parseInt(mm[1],10)-1, b=parseInt(mm[2],10)-1;
+        if(a>b){ var t=a; a=b; b=t; }
+        for(var i=a;i<=b;i++) if(i>=0&&i<curItems.length) targets.push(i);
+      } else if(/^\d+$/.test(tok)){
+        var n=parseInt(tok,10)-1;
+        if(n>=0&&n<curItems.length) targets.push(n);
+      } else bad=true;
+    });
+    if(bad){ showToast('Format thappu — "1-10" illa "1,4,6" maadhiri podunga','t-e'); return; }
   }
-  if(startIdx>endIdx){showToast('Range தப்பு — start number end-ஐ விட குறைவா இருக்கணும்','t-e');return;}
+  var seen={}; targets=targets.filter(function(i){ if(seen[i]) return false; seen[i]=1; return true; });
+  if(!targets.length){ showToast('Row edhuvum kaanom','t-e'); return; }
+  var startIdx=targets[0];
   var firstBr=(curItems[startIdx].brandRows&&curItems[startIdx].brandRows[0])||{};
   var srcVal;
   if(col==='b') srcVal=firstBr.brand;
@@ -4352,11 +4362,12 @@ function fillDownColumn(col){
   else if(col==='m') srcVal=firstBr.marginPct;
   else if(col==='s') srcVal=firstBr.price;
   if(srcVal===undefined||srcVal===null||srcVal===''){showToast('Item No '+(startIdx+1)+'-ல் value போடுங்க/select பண்ணுங்க முதல்ல!','t-e');return;}
-  var count=endIdx-startIdx+1;
-  if(!confirm('"'+srcVal+'" -ஐ Item No '+(startIdx+1)+' முதல் '+(endIdx+1)+' வரைக்கும் ('+count+' rows) copy பண்ணணுமா?')) return;
-  for(var i=startIdx;i<=endIdx;i++){
+  var count=targets.length;
+  var label=targets.slice(0,12).map(function(i){return i+1;}).join(', ')+(count>12?' …':'');
+  if(!confirm('"'+srcVal+'" → Item No '+label+'\n\n('+count+' rows) copy pannanumaa?')) return;
+  targets.forEach(function(i){
     var item=curItems[i];
-    if(!item.brandRows||!item.brandRows[0]) continue;
+    if(!item.brandRows||!item.brandRows[0]) return;
     if(col==='b') item.brandRows[0].brand=srcVal;
     else if(col==='p') item.brandRows[0].partNo=srcVal;
     else if(col==='c') item.brandRows[0].country=srcVal;
@@ -4369,7 +4380,7 @@ function fillDownColumn(col){
       var _mg=parseFloat(item.brandRows[0].marginPct)||0;
       if(_pu>0&&_mg>=0) item.brandRows[0].price=Math.round(_pu*(1+_mg/100));
     }
-  }
+  });
   renderItems(curItems);
   calcTotals();
   showToast('⬇️ '+count+' rows fill ஆச்சு!','t-s');
