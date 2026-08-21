@@ -6094,6 +6094,7 @@ function _renderUsersInternal(){
       <div style="display:flex;gap:5px;flex-shrink:0;">
         ${u.id!==1?`<button class="hist-btn" onclick="toggleUser(${u.id})" title="${u.active?'Disable':'Enable'}">${u.active?'🔴':'🟢'}</button>`:''}
         <button class="hist-btn" onclick="openPw(${u.id})" title="Change Password">🔑</button>
+        <button class="hist-btn" onclick="openWA(${u.id})" title="${u.whatsapp?'WhatsApp: '+u.whatsapp:'⚠️ WhatsApp No. illa — set pannunga'}" style="${u.whatsapp?'':'background:#FFF4E5;border-color:#C9952A;'}">📱</button>
         <button class="hist-btn" onclick="openVehicle(${u.id})" title="Set Vehicles">🚗</button>
         <button class="hist-btn" onclick="openEditPerms(${u.id})" title="Edit Permissions">✏️</button>
         ${u.id!==1?`<button class="hist-btn" onclick="removeUser(${u.id})" style="color:var(--red);" title="Remove">🗑️</button>`:''}
@@ -7400,6 +7401,35 @@ function savePw(){
   if(x){x.password=np;saveUsers(u);if(CU&&CU.id===id){CU.password=np;LS.set('ngrd_s',CU);}
     closeMod();addLog('Password changed');showToast('Password changed!','t-s');}
 }
+function openWA(id){
+  var u=getUsers().find(function(x){return x.id===id;});
+  if(!u){showToast('User kedaikala','t-e');return;}
+  var cur=u.whatsapp||'';
+  var v=prompt(
+    '📱 '+u.name+' — WhatsApp Number\n\n'
+    +'Country code sethu, + illama, mudhal 0 illama podunga.\n'
+    +'Udhaaranam:  0771234567  →  94771234567\n\n'
+    +'(Kaali vittu OK pannina number remove aagum)',
+    cur);
+  if(v===null) return;
+  var num=String(v).replace(/[^0-9]/g,'');
+  if(num){
+    if(num.charAt(0)==='0') num='94'+num.slice(1);
+    if(num.slice(0,2)!=='94'&&num.length===9) num='94'+num;
+    if(num.length<11||num.length>12){
+      showToast('⚠️ Number thappu ('+num.length+' digits). 94xxxxxxxxx madhiri irukanum.','t-e');return;
+    }
+  }
+  var users=getUsers();
+  var x=users.find(function(y){return y.id===id;});
+  if(!x) return;
+  x.whatsapp=num;
+  saveUsers(users);
+  renderUsers&&renderUsers();
+  addLog('WhatsApp set — '+x.name+': '+(num||'removed'));
+  showToast(num?('✅ '+x.name+' → +'+num):('🗑️ '+x.name+' WhatsApp remove aachu'),'t-s');
+  if(typeof loadSubmitterSettings==='function') loadSubmitterSettings();
+}
 function openVehicle(id){
   document.getElementById('veh-uid').value=id;
   const u=getUsers().find(x=>x.id===id);
@@ -8001,7 +8031,8 @@ function notifySubmitterApproved(id){
 function _waSendPanel(targets,noWA,msg,coName,refTxt){
   var old=document.getElementById('wa-send-panel'); if(old) old.remove();
   var isAdminFallback=!targets.length;
-  if(isAdminFallback) targets=[{name:'Admin (submitter set illa)',whatsapp:ADMIN_WA}];
+  var reasonNoWA=isAdminFallback&&noWA.length>0;   // submitter set aagirukku, aana WA no. illa
+  if(isAdminFallback) targets=[{name:'Admin (fallback)',whatsapp:ADMIN_WA}];
 
   var rows=targets.map(function(t,i){
     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #E2E5E9;border-radius:6px;margin-bottom:8px;">'
@@ -8012,9 +8043,13 @@ function _waSendPanel(targets,noWA,msg,coName,refTxt){
   }).join('');
 
   var warn = noWA.length
-    ? '<div style="background:#FFF4E5;border-left:4px solid #C9952A;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.6;">⚠️ <b>'+noWA.join(', ')+'</b> — WhatsApp No. illa. Users page → edit panni sethunga.</div>'
+    ? '<div style="background:#FFF4E5;border-left:4px solid #C9952A;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.6;">⚠️ <b>'+noWA.join(', ')+'</b> — WhatsApp No. illa.<br>Users page → andha per pakkathula <b>📱</b> button thatti number podunga.</div>'
     : '';
-  if(isAdminFallback) warn += '<div style="background:#FDECEC;border-left:4px solid #B22222;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.6;">⚠️ '+coName+'-ku submitter set pannala. Admin-ku dhaan poidum. <b>Users page → Submitter Settings</b>-la set pannunga.</div>';
+  if(isAdminFallback){
+    warn += reasonNoWA
+      ? '<div style="background:#FDECEC;border-left:4px solid #B22222;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.6;">⛔ '+coName+'-ku submitter <b>set aagirukku</b> — aana avanga WhatsApp No. illa, adhaan Admin-ku fallback.<br>Sari panna: <b>Users page → andha staff pakkathula 📱 button</b> → number podunga.</div>'
+      : '<div style="background:#FDECEC;border-left:4px solid #B22222;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.6;">⚠️ '+coName+'-ku submitter set pannala. Admin-ku dhaan poidum. <b>Users page → Submitter Settings</b>-la set pannunga.</div>';
+  }
 
   window._waMsg=msg;
   var d=document.createElement('div');
