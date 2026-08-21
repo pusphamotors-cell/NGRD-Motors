@@ -1310,20 +1310,18 @@ tbody td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:mi
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;">
               <div>
                 <label style="font-size:12px;font-weight:700;color:#0D1B2A;display:block;margin-bottom:6px;">🔵 NGRD Motors — Submitter</label>
-                <select id="ngrd-submitter" onchange="saveSubmitterSettings()" style="width:100%;padding:8px;border:2px solid #0D1B2A;border-radius:4px;font-size:13px;font-family:var(--fb);">
-                  <option value="">— Select Staff —</option>
+                <select id="ngrd-submitter" multiple size="4" onchange="saveSubmitterSettings()" style="width:100%;padding:8px;border:2px solid #0D1B2A;border-radius:4px;font-size:13px;font-family:var(--fb);">
                 </select>
               </div>
               <div>
                 <label style="font-size:12px;font-weight:700;color:#4A0E0E;display:block;margin-bottom:6px;">🟤 Puspha Motors — Submitter</label>
-                <select id="puspha-submitter" onchange="saveSubmitterSettings()" style="width:100%;padding:8px;border:2px solid #4A0E0E;border-radius:4px;font-size:13px;font-family:var(--fb);">
-                  <option value="">— Select Staff —</option>
+                <select id="puspha-submitter" multiple size="4" onchange="saveSubmitterSettings()" style="width:100%;padding:8px;border:2px solid #4A0E0E;border-radius:4px;font-size:13px;font-family:var(--fb);">
                 </select>
               </div>
             </div>
             <div style="background:#FFF4E5;border-left:4px solid #C9952A;padding:9px 13px;margin-top:10px;font-size:12px;line-height:1.6;">
-              ⚠️ Inga oruthar per select panna, <b>avar mattum</b> andha company-oda quotation-a submit panna mudiyum — mathavanga permission irundhaalum mudiyaadhu.<br>
-              Ellaarum submit panna vendum-na <b>"— Select Staff —"</b> nu kaali vidunga.
+              ⚠️ <b>Ctrl (illa Cmd) pidichi click</b> panni <b>oru per-ku mela</b> select pannalaam. Select panna ellarum submit panna mudiyum, ellarukum WhatsApp poidum.<br>
+              Ellaarum submit panna vendum-na <b>edhuvum select pannaama</b> kaali vidunga.
             </div>
             <div id="submitter-status" style="font-size:12px;color:#1A6B3C;margin-top:8px;"></div>
             <button onclick="loadSubmitterSettings()" style="margin-top:8px;padding:5px 12px;background:#0D1B2A;color:#fff;border:none;border-radius:3px;font-size:11px;cursor:pointer;">🔄 Refresh Users</button>
@@ -5726,7 +5724,7 @@ function markSubmitted(id){
       return;
     }
     var assignedSubmitter=getSubmitter(co);
-    if(assignedSubmitter&&assignedSubmitter!==CU.name){
+    if(!isAssignedSubmitter(co,CU.name)){
       alert('⛔ Submit panna mudiyaadhu\n\n'+co.toUpperCase()+'-ku assigned submitter: '
         +assignedSubmitter+'\nNeenga: '+CU.name
         +'\n\nAdmin-kitta sollunga:\nUsers page → Submitter Settings → '+co.toUpperCase()
@@ -5805,7 +5803,7 @@ function markNotSubmitted(id){
     var co=String(entry.company||'').toLowerCase();
     if(co!=='ngrd'&&co!=='puspha') co='ngrd';
     var assignedSubmitter=getSubmitter(co);
-    if(assignedSubmitter&&assignedSubmitter!==CU.name){
+    if(!isAssignedSubmitter(co,CU.name)){
       alert('⛔ '+co.toUpperCase()+'-ku assigned submitter: '+assignedSubmitter
         +'\nNeenga: '+CU.name+'\n\nUsers page → Submitter Settings-la maathunga.');return;
     }
@@ -6318,7 +6316,7 @@ function renderHistory(){
           var co=e.company||'ngrd';
           var assignedSub=getSubmitter(co);
           var canSub=isAdm||rl.canSubmit;
-          var isAssigned=!assignedSub||isAdm||(assignedSub===CU.name);
+          var isAssigned=isAdm||isAssignedSubmitter(co,CU.name);
           var alreadyDone=['submitted','awarded'].indexOf(e.status||'')>=0;
           // Status is the truth — steps.submitted alone should NOT block!
           var submittedBy=e.steps&&e.steps.submitted?e.steps.submitted.by:'';
@@ -7918,7 +7916,8 @@ function checkHandover(id){
     var subName=getSubmitter(co);
     var users=getUsers().filter(function(u){return u.active;});
     // Who could submit this? Named submitter, else anyone with submit rights for this company
-    var candidates=subName?users.filter(function(u){return u.name===subName;})
+    var _subList=getSubmitters(co);
+    var candidates=_subList.length?users.filter(function(u){return _subList.indexOf(u.name)>=0;})
       :users.filter(function(u){
          var p=(u.permissions||[]).join(',');
          var can=u.role==='admin'||u.role==='submitter'||u.role==='staff'||p.indexOf('submit')>=0;
@@ -7988,15 +7987,55 @@ function notifySubmitterApproved(id){
     var users=getUsers();
     target=users.find(function(u){return u.active&&u.name===submitterName&&u.whatsapp;});
   }
-  var number=target?target.whatsapp:ADMIN_WA;
+  var coName=(co==='puspha')?'Puspha Motors':'NGRD Motors';
+  var targets=getSubmitterTargets(co).filter(function(t){return t.whatsapp;});
+  var noWA=getSubmitterTargets(co).filter(function(t){return !t.whatsapp;}).map(function(t){return t.name;});
   var refTxt=entry.eqNo||entry.refNo||('#'+entry.id);
-  var msg='✅ *NGRD Motors — Approved!*%0A%0A🚗 '+encodeURIComponent(entry.vehicle||'')+'%0A📋 '+encodeURIComponent(refTxt)+'%0A📅 Closing: '+encodeURIComponent((entry.closingDate||'—')+(entry.closingTime?' '+entry.closingTime:''))+'%0A%0A📤 Promise.lk-ல் submit பண்ணுங்க — PDF இப்போ download ஆகும், அதை இங்க attach பண்ணி அனுப்புங்க.%0A%0A🔗 ngrd-motors.vercel.app';
+  var msg='✅ *'+encodeURIComponent(coName)+' — Approved!*%0A%0A🚗 '+encodeURIComponent(entry.vehicle||'')+'%0A📋 '+encodeURIComponent(refTxt)+'%0A📅 Closing: '+encodeURIComponent((entry.closingDate||'—')+(entry.closingTime?' '+entry.closingTime:''))+'%0A%0A📤 Promise.lk-ல் submit பண்ணுங்க — PDF இப்போ download ஆகும், அதை இங்க attach பண்ணி அனுப்புங்க.%0A%0A🔗 ngrd-motors.vercel.app';
   // Trigger PDF download for this exact quotation
   if(typeof reExportPDF==='function'){ try{ reExportPDF(id); }catch(err){} }
-  setTimeout(function(){
-    window.open('https://wa.me/'+number+'?text='+msg,'_blank');
-    showToast((target?'📱 '+target.name+'-க்கு':'📱 Admin-க்கு')+' WhatsApp அனுப்பப்பட்டது!','t-s');
-  },400);
+  setTimeout(function(){ _waSendPanel(targets,noWA,msg,coName,refTxt); },400);
+}
+
+// Multiple recipients — browser blocks looped window.open, so show tap-to-send panel
+function _waSendPanel(targets,noWA,msg,coName,refTxt){
+  var old=document.getElementById('wa-send-panel'); if(old) old.remove();
+  var isAdminFallback=!targets.length;
+  if(isAdminFallback) targets=[{name:'Admin (submitter set illa)',whatsapp:ADMIN_WA}];
+
+  var rows=targets.map(function(t,i){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #E2E5E9;border-radius:6px;margin-bottom:8px;">'
+      +'<div style="min-width:0;"><div style="font-weight:700;font-size:13.5px;">'+t.name+'</div>'
+      +'<div style="font-size:11.5px;color:#6B7280;">+'+t.whatsapp+'</div></div>'
+      +'<button id="wa-btn-'+i+'" onclick="_waOne('+i+',\''+t.whatsapp+'\')" style="flex:0 0 auto;padding:9px 15px;background:#1A6B3C;color:#fff;border:none;border-radius:5px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">📲 Send</button>'
+      +'</div>';
+  }).join('');
+
+  var warn = noWA.length
+    ? '<div style="background:#FFF4E5;border-left:4px solid #C9952A;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.6;">⚠️ <b>'+noWA.join(', ')+'</b> — WhatsApp No. illa. Users page → edit panni sethunga.</div>'
+    : '';
+  if(isAdminFallback) warn += '<div style="background:#FDECEC;border-left:4px solid #B22222;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.6;">⚠️ '+coName+'-ku submitter set pannala. Admin-ku dhaan poidum. <b>Users page → Submitter Settings</b>-la set pannunga.</div>';
+
+  window._waMsg=msg;
+  var d=document.createElement('div');
+  d.id='wa-send-panel';
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px;';
+  d.innerHTML='<div style="background:#fff;border-radius:8px;max-width:460px;width:100%;overflow:hidden;font-family:var(--fb,inherit);">'
+    +'<div style="background:#1A6B3C;color:#fff;padding:13px 18px;">'
+      +'<div style="font-weight:700;font-size:15.5px;">📱 WhatsApp — '+targets.length+' per</div>'
+      +'<div style="font-size:11.5px;opacity:.9;margin-top:2px;">'+coName+' · '+refTxt+'</div></div>'
+    +'<div style="padding:16px 18px;max-height:60vh;overflow:auto;">'+warn+rows
+      +'<div style="font-size:11.5px;color:#6B7280;line-height:1.6;margin-top:4px;">Ovvoru "Send"-um WhatsApp-a thanithani tab-la thorakkum. Anga <b>Send</b> pannunga.</div>'
+    +'</div>'
+    +'<div style="padding:12px 18px;border-top:1px solid #E2E5E9;display:flex;justify-content:flex-end;">'
+      +'<button onclick="document.getElementById(\'wa-send-panel\').remove()" style="padding:8px 16px;background:#6B7280;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">Mudinjidhu</button>'
+    +'</div></div>';
+  document.body.appendChild(d);
+}
+function _waOne(i,num){
+  window.open('https://wa.me/'+num+'?text='+(window._waMsg||''),'_blank');
+  var b=document.getElementById('wa-btn-'+i);
+  if(b){ b.textContent='✅ Sent'; b.style.background='#6B7280'; }
 }
 
 function rejectQuot(id){
@@ -12559,13 +12598,19 @@ function loadSubmitterSettings(){
   panel.style.display=(CU&&CU.role==='admin')?'block':'none';
   if(!CU||CU.role!=='admin') return;
   
+  function _applySel(sel,names){
+    if(!sel) return;
+    Array.prototype.slice.call(sel.options).forEach(function(o){
+      o.selected = names.indexOf(o.value)>=0;
+    });
+  }
   function _fillSubmitters(users){
     var ngrdSel=document.getElementById('ngrd-submitter');
     var pushaSel=document.getElementById('puspha-submitter');
     if(!ngrdSel||!pushaSel) return;
-    var opts='<option value="">— Select Staff —</option>';
+    var opts='';
     users.forEach(function(u){ 
-      if(u.active!==false) opts+='<option value="'+u.name+'">'+u.name+'</option>'; 
+      if(u.active!==false) opts+='<option value="'+u.name+'">'+u.name+(u.whatsapp?'':' ⚠️ (No WA)')+'</option>'; 
     });
     ngrdSel.innerHTML=opts;
     pushaSel.innerHTML=opts;
@@ -12577,15 +12622,16 @@ function loadSubmitterSettings(){
           settings=fbSettings;
           LS.set('ngrd_submitter_settings',settings);
         }
-        if(settings.ngrd) ngrdSel.value=settings.ngrd;
-        if(settings.puspha) pushaSel.value=settings.puspha;
+        _applySel(ngrdSel,getSubmitters('ngrd'));
+        _applySel(pushaSel,getSubmitters('puspha'));
+        var nT=getSubmitters('ngrd'), pT=getSubmitters('puspha');
         var st=document.getElementById('submitter-status');
-        if(st) st.innerHTML=(settings.ngrd||settings.puspha)?
-          '✅ NGRD: <b>'+(settings.ngrd||'Not set')+'</b> &nbsp;|&nbsp; Puspha: <b>'+(settings.puspha||'Not set')+'</b>':'';
+        if(st) st.innerHTML=(nT.length||pT.length)?
+          '✅ NGRD: <b>'+(nT.join(', ')||'Not set')+'</b> &nbsp;|&nbsp; Puspha: <b>'+(pT.join(', ')||'Not set')+'</b>':'';
       });
     } else {
-      if(settings.ngrd) ngrdSel.value=settings.ngrd;
-      if(settings.puspha) pushaSel.value=settings.puspha;
+      _applySel(ngrdSel,getSubmitters('ngrd'));
+      _applySel(pushaSel,getSubmitters('puspha'));
     }
   }
   
@@ -12606,21 +12652,58 @@ function loadSubmitterSettings(){
   }
 }
 
+function _selVals(id){
+  var el=document.getElementById(id);
+  if(!el) return [];
+  return Array.prototype.slice.call(el.selectedOptions||[]).map(function(o){return o.value;}).filter(Boolean);
+}
 function saveSubmitterSettings(){
-  var ngrd=document.getElementById('ngrd-submitter')?.value||'';
-  var puspha=document.getElementById('puspha-submitter')?.value||'';
+  var ngrd=_selVals('ngrd-submitter');
+  var puspha=_selVals('puspha-submitter');
   LS.set('ngrd_submitter_settings',{ngrd:ngrd,puspha:puspha});
   // Save to Firebase for all devices
   if(typeof fbWrite==='function') fbWrite('settings/submitters',{ngrd:ngrd,puspha:puspha});
+  var nTxt=ngrd.length?ngrd.join(', '):'Not set';
+  var pTxt=puspha.length?puspha.join(', '):'Not set';
   var st=document.getElementById('submitter-status');
-  if(st) st.innerHTML='✅ NGRD: <b>'+(ngrd||'Not set')+'</b> &nbsp;|&nbsp; Puspha: <b>'+(puspha||'Not set')+'</b>';
-  showToast('✅ Submitter settings saved!','t-s');
-  addLog('Submitter set — NGRD:'+ngrd+' | Puspha:'+puspha);
+  if(st) st.innerHTML='✅ NGRD: <b>'+nTxt+'</b> &nbsp;|&nbsp; Puspha: <b>'+pTxt+'</b>';
+  // Warn if any selected staff has no WhatsApp number saved
+  var missing=[];
+  getSubmitterTargets('ngrd').concat(getSubmitterTargets('puspha')).forEach(function(t){
+    if(!t.whatsapp&&missing.indexOf(t.name)<0) missing.push(t.name);
+  });
+  if(missing.length) showToast('⚠️ WhatsApp No. illa: '+missing.join(', ')+' — Users page-la sethunga!','t-e');
+  else showToast('✅ Submitter settings saved!','t-s');
+  addLog('Submitter set — NGRD:'+nTxt+' | Puspha:'+pTxt);
 }
 
-function getSubmitter(company){
+function getSubmitters(company){
   var settings=LS.get('ngrd_submitter_settings')||{};
-  return company==='puspha'?settings.puspha:settings.ngrd;
+  var v=(company==='puspha')?settings.puspha:settings.ngrd;
+  if(!v) return [];
+  if(Array.isArray(v)) return v.filter(Boolean);
+  return String(v).split(',').map(function(x){return x.trim();}).filter(Boolean);
+}
+function isAssignedSubmitter(company,name){
+  var list=getSubmitters(company);
+  return list.length===0 || list.indexOf(name)>=0;
+}
+function getSubmitter(company){
+  var l=getSubmitters(company);
+  return l.length?l.join(', '):'';
+}
+// Every user record matching the assigned submitter names (with a WhatsApp no.)
+function getSubmitterTargets(company){
+  var names=getSubmitters(company);
+  if(!names.length) return [];
+  var users=getUsers()||[];
+  var out=[];
+  names.forEach(function(nm){
+    var u=users.find(function(x){return x&&x.active!==false&&x.name===nm;});
+    if(u) out.push({name:u.name,whatsapp:(u.whatsapp||'').replace(/[^0-9]/g,'')});
+    else out.push({name:nm,whatsapp:''});
+  });
+  return out;
 }
 
 // ══════════════════════════════════════════════════
@@ -12951,7 +13034,7 @@ function updateWorkflowBar(){
     // Check if this user is the assigned submitter
     var co=(entry&&entry.company)||curCompany||'ngrd';
     var assignedSub=getSubmitter(co);
-    var canSubNow=isAdmin||(!assignedSub&&getRole().canSubmit)||(assignedSub&&assignedSub===CU.name);
+    var canSubNow=isAdmin||(getSubmitters(co).length===0?getRole().canSubmit:isAssignedSubmitter(co,CU.name));
     if(canSubNow){
       btn.textContent='✅ Submit to Promise.lk →';
       btn.style.background='linear-gradient(135deg,#1A6B3C,#2a9d5c)';
@@ -13006,7 +13089,7 @@ function handleNextStep(){
   } else if(step==='approved'){
     var co2=(entry&&entry.company)||curCompany||'ngrd';
     var assignedSub2=getSubmitter(co2);
-    var canSubNow2=isAdmin||(!assignedSub2&&role.canSubmit)||(assignedSub2&&assignedSub2===CU.name);
+    var canSubNow2=isAdmin||(getSubmitters(co2).length===0?role.canSubmit:isAssignedSubmitter(co2,CU.name));
     if(!canSubNow2){showToast('⛔ '+co2.toUpperCase()+' submitter: '+(assignedSub2||'Not set')+' மட்டும்!','t-e');return;}
     submitToPromise();
   } else if(step==='submitted'){
