@@ -9102,27 +9102,75 @@ function _egpCountryName(c){
   return map[k]||t;
 }
 
-function _egpScript(prices,countries,vatMode,fallbackCountry){
+function _egpScript(prices,countries,vatMode,fallbackCountry,descs){
   var arr='['+prices.join(',')+']';
   var cArr=JSON.stringify((countries||[]).map(_egpCountryName));
+  var dArr=JSON.stringify(descs||[]);
   var vatLine=vatMode==='off'
     ? "  /* VAT tick off */"
     : "  var cb=r.querySelector('input[type=checkbox]'); if(cb&&!cb.checked) cb.click();";
   var priceExpr=vatMode==='strip' ? "(price[i]/1.18).toFixed(2)" : "price[i].toFixed(2)";
   return "(function(){\n"
-    +"  var price="+arr+", CO="+cArr+", FB="+JSON.stringify(_egpCountryName(fallbackCountry||''))+";\n"
+    +"  var price="+arr+", CO="+cArr+", DESC="+dArr+", FB="+JSON.stringify(_egpCountryName(fallbackCountry||''))+";\n"
+    +"  function norm(t){return String(t||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}\n"
+    +"  function toks(t){return String(t||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').split(/\\s+/).filter(function(x){return x.length>2;});}\n"
+    +"  function stop(title,lines){\n"
+    +"    var o=document.getElementById('_ngrd_stop'); if(o) o.remove();\n"
+    +"    var d=document.createElement('div'); d.id='_ngrd_stop';\n"
+    +"    d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;font-family:system-ui,Arial,sans-serif;';\n"
+    +"    d.innerHTML='<div style=\"background:#fff;max-width:640px;width:100%;border-radius:10px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);\">'\n"
+    +"      +'<div style=\"background:#B22222;color:#fff;padding:16px 22px;font-size:19px;font-weight:800;\">&#9940; NIRUTHUNGA — '+title+'</div>'\n"
+    +"      +'<div style=\"padding:18px 22px;font-size:14px;line-height:1.75;color:#111;\">'+lines+'</div>'\n"
+    +"      +'<div style=\"padding:14px 22px;border-top:1px solid #ddd;text-align:right;\"><button onclick=\"document.getElementById(\\'_ngrd_stop\\').remove()\" style=\"padding:10px 22px;background:#333;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;\">Purinjidhu</button></div>'\n"
+    +"      +'</div>';\n"
+    +"    document.body.appendChild(d);\n"
+    +"  }\n"
+    +"  function rowDesc(r){\n"
+    +"    var best='';\n"
+    +"    [].forEach.call(r.querySelectorAll('td'),function(td){\n"
+    +"      if(td.querySelector('input,select,textarea')) return;\n"
+    +"      var t=(td.innerText||td.textContent||'').trim();\n"
+    +"      if(t.length>best.length) best=t;\n"
+    +"    });\n"
+    +"    return best;\n"
+    +"  }\n"
+    +"  function matchIdx(txt){\n"
+    +"    var nn=norm(txt); if(!nn) return -1;\n"
+    +"    for(var k=0;k<DESC.length;k++){ if(norm(DESC[k])===nn) return k; }\n"
+    +"    for(var k2=0;k2<DESC.length;k2++){ var dn=norm(DESC[k2]); if(dn.length>5&&(nn.indexOf(dn)>=0||dn.indexOf(nn)>=0)) return k2; }\n"
+    +"    var pt=toks(txt), bi=-1, bs=0;\n"
+    +"    for(var k3=0;k3<DESC.length;k3++){\n"
+    +"      var dt=toks(DESC[k3]); if(!dt.length) continue;\n"
+    +"      var hit=0; dt.forEach(function(t){ if(pt.indexOf(t)>=0) hit++; });\n"
+    +"      var sc=hit/dt.length; if(sc>bs){ bs=sc; bi=k3; }\n"
+    +"    }\n"
+    +"    return bs>=0.6?bi:-1;\n"
+    +"  }\n"
     +"  var R=[].slice.call(document.querySelectorAll('tr')).filter(function(r){return r.querySelector('input[value=\"Save\"],input[value=\"Edit\"]')});\n"
-    +"  console.log('Table rows:',R.length,'| Prices:',price.length);\n"
-    +"  if(R.length!==price.length){console.warn('COUNT MISMATCH - stop and check item order');}\n"
+    +"  if(!R.length){ stop('Table kaanom','Price Schedule page-la irukeengala nu paarunga.'); return; }\n"
+    +"  console.log('Portal rows:',R.length,'| Local items:',price.length);\n"
+    +"  var MAP=[], bad=[], used={};\n"
+    +"  R.forEach(function(r,idx){\n"
+    +"    var pd=rowDesc(r), m=matchIdx(pd);\n"
+    +"    if(m<0){ bad.push({row:idx+1,txt:pd,why:'match aagala'}); MAP.push(-1); return; }\n"
+    +"    if(used[m]!==undefined){ bad.push({row:idx+1,txt:pd,why:'row '+(used[m]+1)+'-oda same item-ku match aagudhu'}); MAP.push(-1); return; }\n"
+    +"    used[m]=idx; MAP.push(m);\n"
+    +"  });\n"
+    +"  console.table(R.map(function(r,idx){ return {portal_row:idx+1, portal_item:rowDesc(r).slice(0,45), our_item:(MAP[idx]>=0?DESC[MAP[idx]]:'?').slice(0,45), price:(MAP[idx]>=0?price[MAP[idx]]:'—')}; }));\n"
+    +"  if(bad.length){\n"
+    +"    var li=bad.map(function(b){ return '<li style=\"margin-bottom:6px;\"><b>Portal row '+b.row+'</b>: &ldquo;'+String(b.txt).slice(0,60)+'&rdquo;<br><span style=\"color:#B22222;\">'+b.why+'</span></li>'; }).join('');\n"
+    +"    stop('Item match aagala', 'Indha row-ku namma list-la sari-yaana item kedaikala. <b>Price fill pannala</b> — position-la vechu nirappina thappu price submit aayidum.<ul style=\"margin:12px 0 0 18px;padding:0;\">'+li+'</ul><div style=\"margin-top:14px;padding:11px 13px;background:#FFF4E5;border-left:4px solid #C9952A;font-size:13px;\">Portal-la <b>'+R.length+'</b> item, namma list-la <b>'+price.length+'</b> item.<br>Quotation System-la item-a portal-oda <b>same-a</b> aakkitu, script-a <b>marubadiyum copy</b> pannunga.</div>');\n"
+    +"    return;\n"
+    +"  }\n"
     +"  var i=-1; for(var j=0;j<R.length;j++){ if(R[j].querySelector('input[value=\"Save\"]')){i=j;break;} }\n"
     +"  if(i<0){console.log('%cALL DONE','font-size:20px;color:green');return;}\n"
-    +"  var r=R[i];\n"
-    +"  var CN=(CO[i]||FB||'').trim();\n"
+    +"  var r=R[i], pi=MAP[i];\n"
+    +"  var CN=(CO[pi]||FB||'').trim();\n"
     +"  if(CN){\n"
     +"    [].forEach.call(r.querySelectorAll('select'),function(s){\n"
+    +"      var want=CN.toLowerCase().replace(/[^a-z]/g,'');\n"
     +"      var hit=-1;\n"
     +"      for(var k=0;k<s.options.length;k++){ if(s.options[k].text.trim().toLowerCase().replace(/[^a-z]/g,'')===want){ hit=k; break; } }\n"
-    +"      var want=CN.toLowerCase().replace(/[^a-z]/g,'');\n"
     +"      if(hit<0){ var bb=-1,bn=0;\n"
     +"        for(var k2=0;k2<s.options.length;k2++){\n"
     +"          var oo=s.options[k2].text.trim().toLowerCase().replace(/[^a-z]/g,'');\n"
@@ -9131,14 +9179,16 @@ function _egpScript(prices,countries,vatMode,fallbackCountry){
     +"        }\n"
     +"        hit=bb; }\n"
     +"      if(hit>=0){ s.value=s.options[hit].value; s.dispatchEvent(new Event('change',{bubbles:true})); }\n"
-    +"      else console.warn('Country kaanom in dropdown:',CN,'(row',i+1,')');\n"
+    +"      else console.warn('Country kaanom in dropdown:',CN,'(portal row',i+1,')');\n"
     +"    });\n"
-    +"  } else console.warn('Row',i+1,'country kaali - kaiyaala select pannunga');\n"
+    +"  } else console.warn('Portal row',i+1,'country kaali - kaiyaala select pannunga');\n"
+    +"  var _p=price[pi];\n"
+    +"  if(!(_p>0)){ stop('Price kaali','Portal row <b>'+(i+1)+'</b> (&ldquo;'+rowDesc(r).slice(0,60)+'&rdquo;) — namma list-la <b>price 0 / kaali</b>. Price podunga, illa andha item-a &ldquo;Not Quoting&rdquo; pannunga.'); return; }\n"
     +"  var inp=r.querySelectorAll('input[type=text],input[type=number]')[0];\n"
-    +"  if(inp){ inp.focus(); inp.value="+priceExpr+";\n"
+    +"  if(inp){ inp.focus(); inp.value="+priceExpr.replace('price[i]','price[pi]')+";\n"
     +"    ['input','change','keyup','blur'].forEach(function(e){ inp.dispatchEvent(new Event(e,{bubbles:true})); }); }\n"
     +vatLine+"\n"
-    +"  setTimeout(function(){ console.log('Saving row',i+1,'| price',"+priceExpr+"); r.querySelector('input[value=\"Save\"]').click(); },600);\n"
+    +"  setTimeout(function(){ console.log('Saving portal row',i+1,'|',DESC[pi],'| price',"+priceExpr.replace('price[i]','price[pi]')+"); r.querySelector('input[value=\"Save\"]').click(); },600);\n"
     +"})();";
 }
 
@@ -10503,7 +10553,8 @@ function _egpDoCopy(kind){
     var nm=(document.getElementById('egp-name')||{}).value||'';
     _egpCopy(_egpDetailsScript(vn.trim(),nm.trim()),'Declarations filler');
   } else {
-    _egpCopy(_egpScript(prices,rows.map(function(r){return r.country;}),vat,country),'Auto-fill script');
+    _egpCopy(_egpScript(prices,rows.map(function(r){return r.country;}),vat,country,
+             rows.map(function(r){return r.desc;})),'Auto-fill script');
   }
 }
 
