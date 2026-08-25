@@ -3906,7 +3906,7 @@ function initFirebaseSync(){
               var _PROTECT2=['submitted','awarded'];
               if(_PROTECT2.indexOf(lo.status)>=0&&_PROTECT2.indexOf(re2.status)<0){merged.push(lo);}
               else // Equal status → remote wins
-              merged.push(reR>=loR?re2:lo);}
+              merged.push(keepLocalMarks(reR>=loR?re2:lo,lo,re2));}
             else if(re2&&!lo)merged.push(re2);
             else if(lo)merged.push(lo);
           });
@@ -13474,6 +13474,22 @@ function fbDelHist(id){
 // what left slow-connection branches stuck at zero records. Instead we keep a
 // tiny fingerprint index ('hindex') and pull only the records that changed.
 // ══════════════════════════════════════════════════
+// A record chosen by rank can still be missing a decision the other copy has —
+// the "Not Submitted" reason typed a second ago hasn't reached Firebase yet, so
+// a same-rank merge would throw it away and the row reappears under Draft.
+function keepLocalMarks(winner,lo,re){
+  if(!winner) return winner;
+  var out=winner;
+  var carry=function(f){
+    if(out[f]) return;
+    var v=(lo&&lo[f])||(re&&re[f]);
+    if(v){ if(out===winner) out=Object.assign({},winner); out[f]=v; }
+  };
+  carry('notSubmittedInfo'); carry('seenBySubmitter'); carry('submittedVia');
+  if(out.status==='submitted') out.notSubmittedInfo=null;   // real submit clears it
+  return out;
+}
+
 function syncHistoryFull(done){
   done=done||function(){};
   if(window._histReadBusy){done(false);return;}
@@ -13499,7 +13515,7 @@ function syncHistoryFull(done){
           if(_PROTECT.indexOf(lo.status)>=0&&_PROTECT.indexOf(re2.status)<0){
             merged.push(lo); // Keep local submitted/awarded!
           } else {
-            merged.push(reR>=loR?re2:lo);
+            merged.push(keepLocalMarks(reR>=loR?re2:lo,lo,re2));
           }
         }
         else if(re2&&!lo)merged.push(re2);else if(lo)merged.push(lo);
@@ -13635,7 +13651,7 @@ function syncHistoryFast(done){
           var id=String(r.id), lo=localMap[id];
           if(!lo){ localMap[id]=r; return; }
           if(PROTECT.indexOf(lo.status)>=0 && PROTECT.indexOf(r.status)<0) return; // keep local
-          localMap[id]=((order[r.status]||0)>=(order[lo.status]||0))?r:lo;
+          localMap[id]=keepLocalMarks(((order[r.status]||0)>=(order[lo.status]||0))?r:lo,lo,r);
         });
         var merged=Object.keys(localMap).map(function(k){return localMap[k];});
         if(typeof autoFixStatus==='function') merged=autoFixStatus(merged);
