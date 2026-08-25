@@ -6003,8 +6003,9 @@ function renderPresencePanel(){
     var chips=users.map(function(u){
       var pres=window._presenceData&&window._presenceData[u.id]?window._presenceData[u.id]:null;
       var st=getPresenceStatus(pres?pres.lastSeen:null,pres?pres.online:false);
-      return {name:u.name||u.username,role:u.role,st:st,h:dh[u.id]||null,
-              page:(pres&&pres.page)||'',doing:(pres&&pres.doing)||''};
+      return {id:u.id,name:u.name||u.username,role:u.role,st:st,h:dh[u.id]||null,
+              page:(pres&&pres.page)||'',doing:(pres&&pres.doing)||'',
+              seen:(pres&&pres.lastSeen)||''};
     });
     chips.sort(function(a,b){
       var order={'🟢':0,'🟡':1,'🔴':2};
@@ -6033,7 +6034,9 @@ function renderPresencePanel(){
         return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#f7fafd;border:1px solid var(--border);border-radius:20px;font-size:12px;">'
           +'<span>'+c.st.icon+'</span><span style="font-weight:600;">'+c.name+'</span>'
           +where
-          +'<span style="color:#999;font-size:10px;">'+c.st.label+'</span>'+extra+'</div>';
+          +'<span style="color:#999;font-size:10px;">'+c.st.label+'</span>'+extra
+          +'<button onclick="viewStaffActivity('+JSON.stringify(JSON.stringify({id:c.id,name:c.name}))+')" title="Indha staff enna panraanga nu paaru" style="background:none;border:none;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;">👁</button>'
+          +'</div>';
       }).join('')
       +'</div></div>';
   }
@@ -13339,6 +13342,99 @@ function _histMapFromArr(val){
 // the handover landed instead of guessing. Runs after every sync.
 // Each device reports what it can actually SEE. Without this, a staff PC that
 // silently holds zero records looks identical to a healthy one from the admin side.
+// ══════════════════════════════════════════════════
+// STAFF ACTIVITY VIEW
+// A browser can't mirror another machine's screen without that person granting
+// capture permission every session. What actually answers "enna panraanga?" is
+// the work itself — where they are, which quotation is open, what they touched
+// in the last hour — and that is already recorded, so it's shown live here.
+// ══════════════════════════════════════════════════
+function viewStaffActivity(who){
+  var u=JSON.parse(who);
+  var old=document.getElementById('sa-modal'); if(old) old.remove();
+  var d=document.createElement('div');
+  d.id='sa-modal';
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100002;display:flex;align-items:center;justify-content:center;padding:16px;';
+  d.innerHTML='<div style="background:#fff;border-radius:8px;max-width:680px;width:100%;max-height:90vh;overflow:auto;">'
+    +'<div style="background:#123049;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;">'
+      +'<div><div style="font-weight:700;font-size:16px;">👁 '+u.name+'</div>'
+      +'<div id="sa-sub" style="font-size:11.5px;opacity:.85;">Padikkuren...</div></div>'
+      +'<button onclick="clearInterval(window._saInt);document.getElementById(\'sa-modal\').remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;">×</button></div>'
+    +'<div id="sa-body" style="padding:18px 20px;"><div style="font-size:12.5px;color:#666;">⏳ Load aagudhu...</div></div>'
+    +'</div>';
+  document.body.appendChild(d);
+  d.addEventListener('click',function(e){ if(e.target===d){ clearInterval(window._saInt); d.remove(); } });
+  loadStaffActivity(u);
+  clearInterval(window._saInt);
+  window._saInt=setInterval(function(){
+    if(!document.getElementById('sa-modal')){ clearInterval(window._saInt); return; }
+    loadStaffActivity(u);
+  },15000);
+}
+
+function loadStaffActivity(u){
+  var body=document.getElementById('sa-body'); if(!body) return;
+  var esc=function(t){ return String(t==null?'':t).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); };
+  var pres=(window._presenceData||{})[u.id]||{};
+  var dh=(window._devHealth||{})[u.id]||{};
+  var mins=pres.lastSeen?Math.round((new Date()-new Date(pres.lastSeen))/60000):null;
+  var live=pres.online&&mins!==null&&mins<5;
+  var sub=document.getElementById('sa-sub');
+  if(sub) sub.textContent=live?('🟢 Online · '+(pres.page||'—')):('🔴 '+(mins===null?'theriyala':(mins<60?mins+' nimisham munnadi':Math.round(mins/60)+' mani munnadi')));
+
+  var cur=live
+    ? '<div style="background:#E7F3EC;border-left:4px solid #1A6B3C;padding:12px 15px;border-radius:5px;">'
+       +'<div style="font-size:11px;color:#1A6B3C;font-weight:700;letter-spacing:.06em;">IPPO</div>'
+       +'<div style="font-size:15px;font-weight:700;color:#123049;margin-top:3px;">'+esc(pres.doing||('📍 '+(pres.page||'—')))+'</div>'
+       +(pres.doing&&pres.page?'<div style="font-size:12px;color:#666;margin-top:2px;">📍 '+esc(pres.page)+'</div>':'')
+       +'</div>'
+    : '<div style="background:#F4F6F8;border-left:4px solid #999;padding:12px 15px;border-radius:5px;font-size:13px;color:#666;">App moodi irukku — kadaisiyaa '+esc(pres.page||'—')+'</div>';
+
+  var health=dh.total!==undefined
+    ? '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:#555;">'
+      +'<span>📦 '+dh.visible+' records</span><span>✅ '+dh.approved+' approved</span>'
+      +'<span>'+(dh.canSubmit?'📤 submit seiyalaam':'⛔ submit illa')+'</span></div>'
+    : '';
+
+  body.innerHTML=cur+health+'<div id="sa-log" style="margin-top:14px;"><div style="font-size:12.5px;color:#666;">⏳ Activity padikkuren...</div></div>';
+
+  if(typeof FB_BASE==='undefined'){ return; }
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET',FB_BASE+'/auditlog.json?orderBy="ts"&limitToLast=400',true);
+  xhr.timeout=15000;
+  xhr.onload=function(){
+    var el=document.getElementById('sa-log'); if(!el) return;
+    var rows=[];
+    try{
+      var data=JSON.parse(xhr.responseText||'{}')||{};
+      Object.keys(data).forEach(function(k){
+        var r=data[k];
+        if(r&&r.user===u.name) rows.push(r);
+      });
+    }catch(e){}
+    rows.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    rows=rows.slice(0,25);
+    if(!rows.length){ el.innerHTML='<div style="font-size:12.5px;color:#888;">Indha staff-oda activity edhuvum kaanom.</div>'; return; }
+    var ago=function(ts){
+      var m=Math.round((Date.now()-ts)/60000);
+      if(m<1) return 'ippo dhaan'; if(m<60) return m+'m'; 
+      var hh=Math.round(m/60); if(hh<24) return hh+'h'; return Math.round(hh/24)+'d';
+    };
+    el.innerHTML='<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:.06em;margin-bottom:6px;">KADAISI '+rows.length+' VELAI</div>'
+      +'<div style="border:1px solid #e3e3e3;border-radius:6px;overflow:auto;max-height:320px;">'
+      +rows.map(function(r){
+        return '<div style="display:flex;gap:10px;padding:7px 11px;border-bottom:1px solid #f2f2f2;font-size:12px;">'
+          +'<span style="color:#888;white-space:nowrap;min-width:52px;">'+ago(r.ts||0)+'</span>'
+          +'<span style="flex:1;">'+esc(r.msg)+'</span></div>';
+      }).join('')+'</div>';
+  };
+  xhr.onerror=xhr.ontimeout=function(){
+    var el=document.getElementById('sa-log');
+    if(el) el.innerHTML='<div style="font-size:12.5px;color:#B22222;">Activity padikka mudiyala — net paarunga.</div>';
+  };
+  xhr.send();
+}
+
 function reportDeviceHealth(){
   if(typeof CU==='undefined'||!CU||typeof fbWrite!=='function') return;
   try{
