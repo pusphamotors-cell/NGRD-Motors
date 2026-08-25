@@ -13400,19 +13400,30 @@ function loadStaffActivity(u){
   body.innerHTML=cur+health+'<div id="sa-log" style="margin-top:14px;"><div style="font-size:12.5px;color:#666;">⏳ Activity padikkuren...</div></div>';
 
   if(typeof FB_BASE==='undefined'){ return; }
-  var xhr=new XMLHttpRequest();
-  xhr.open('GET',FB_BASE+'/auditlog.json?orderBy="ts"&limitToLast=400',true);
-  xhr.timeout=15000;
-  xhr.onload=function(){
+  // orderBy="ts" needs an .indexOn rule on the node; "$key" always works because
+  // keys are stored ordered, and ours start with the timestamp.
+  var tryFetch=function(query,onFail){
+    var xhr=new XMLHttpRequest();
+    xhr.open('GET',FB_BASE+'/auditlog.json'+query,true);
+    xhr.timeout=15000;
+    xhr.onload=function(){ handle(xhr.responseText,onFail); };
+    xhr.onerror=xhr.ontimeout=function(){ if(onFail) onFail(); else fail(); };
+    xhr.send();
+  };
+  var fail=function(){
+    var el=document.getElementById('sa-log');
+    if(el) el.innerHTML='<div style="font-size:12.5px;color:#B22222;">Activity padikka mudiyala — net paarunga.</div>';
+  };
+  var handle=function(txt,onFail){
     var el=document.getElementById('sa-log'); if(!el) return;
-    var rows=[];
-    try{
-      var data=JSON.parse(xhr.responseText||'{}')||{};
-      Object.keys(data).forEach(function(k){
-        var r=data[k];
-        if(r&&r.user===u.name) rows.push(r);
-      });
-    }catch(e){}
+    var rows=[], data=null;
+    try{ data=JSON.parse(txt||'{}'); }catch(e){}
+    if(!data||data.error){ if(onFail){ onFail(); return; } data={}; }
+    var want=String(u.name||'').trim().toLowerCase();
+    Object.keys(data).forEach(function(k){
+      var r=data[k];
+      if(r&&typeof r==='object'&&String(r.user||'').trim().toLowerCase()===want) rows.push(r);
+    });
     rows.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
     rows=rows.slice(0,25);
     if(!rows.length){ el.innerHTML='<div style="font-size:12.5px;color:#888;">Indha staff-oda activity edhuvum kaanom.</div>'; return; }
@@ -13429,11 +13440,7 @@ function loadStaffActivity(u){
           +'<span style="flex:1;">'+esc(r.msg)+'</span></div>';
       }).join('')+'</div>';
   };
-  xhr.onerror=xhr.ontimeout=function(){
-    var el=document.getElementById('sa-log');
-    if(el) el.innerHTML='<div style="font-size:12.5px;color:#B22222;">Activity padikka mudiyala — net paarunga.</div>';
-  };
-  xhr.send();
+  tryFetch('?orderBy="$key"&limitToLast=600', function(){ tryFetch('', null); });
 }
 
 function reportDeviceHealth(){
