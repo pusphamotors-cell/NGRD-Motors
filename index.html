@@ -6035,7 +6035,7 @@ function renderPresencePanel(){
           +'<span>'+c.st.icon+'</span><span style="font-weight:600;">'+c.name+'</span>'
           +where
           +'<span style="color:#999;font-size:10px;">'+c.st.label+'</span>'+extra
-          +'<button onclick="viewStaffActivity('+JSON.stringify(JSON.stringify({id:c.id,name:c.name}))+')" title="Indha staff enna panraanga nu paaru" style="background:none;border:none;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;">👁</button>'
+          +'<button onclick="viewStaffActivity(\''+String(c.id).replace(/'/g,"")+'\')" title="Indha staff enna panraanga nu paaru" style="background:none;border:none;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;">👁</button>'
           +'</div>';
       }).join('')
       +'</div></div>';
@@ -13349,8 +13349,9 @@ function _histMapFromArr(val){
 // the work itself — where they are, which quotation is open, what they touched
 // in the last hour — and that is already recorded, so it's shown live here.
 // ══════════════════════════════════════════════════
-function viewStaffActivity(who){
-  var u=JSON.parse(who);
+function viewStaffActivity(uid){
+  var rec=(getUsers()||[]).find(function(x){return String(x.id)===String(uid);});
+  var u={id:uid,name:(rec&&(rec.name||rec.username))||'Staff'};
   var old=document.getElementById('sa-modal'); if(old) old.remove();
   var d=document.createElement('div');
   d.id='sa-modal';
