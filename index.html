@@ -13279,15 +13279,37 @@ function _syncBadge(){
   else if(typeof FB_READY!=='undefined'&&FB_READY){el.textContent='\uD83D\uDFE2 Synced';el.style.background='#1A6B3C';el.style.color='#fff';el.title='Ellam Firebase-la confirm aachu';}
 }
 // Anything left unconfirmed from a previous session gets pushed again on start.
-function _outRetry(){
+var _outBusy=0;
+function _outRetry(quiet){
   var ids=_outGet();if(!ids.length)return;
   if(typeof getHist!=='function')return;
+  if(Date.now()-_outBusy<20000) return;   // don't stack retries on top of an in-flight one
+  _outBusy=Date.now();
   var map={};(getHist()||[]).forEach(function(e){if(e&&e.id!=null)map[String(e.id)]=e;});
   var arr=ids.map(function(i){return map[i];}).filter(Boolean);
+  // An id with no local record left (deleted since) can never be sent — drop it
+  // rather than leaving the badge stuck on a number that will never fall.
+  if(arr.length<ids.length){_outSet(arr.map(function(e){return String(e.id);}));}
   if(!arr.length){_outSet([]);_syncBadge();return;}
   arr.forEach(function(e){delete _histSyncSnap[String(e.id)];});
-  if(typeof showToast==='function')showToast('\u23F3 '+arr.length+' record munnadi sync aagala \u2014 thirumba anuppuren...','t-s');
+  if(!quiet&&typeof showToast==='function')showToast('\u23F3 '+arr.length+' record munnadi sync aagala \u2014 thirumba anuppuren...','t-s');
   fbWrite('history',arr);
+}
+// ══════════════════════════════════════════════════════════════
+// AUTO-RETRY LOOP
+// Without this the outbox only drained on reconnect or on the next edit, so a
+// write that failed while Firebase was up could sit unsent until the next day —
+// which is precisely how an approved batch went missing. Now anything pending is
+// re-pushed every 30s on its own, with no user action.
+// ══════════════════════════════════════════════════════════════
+if(!window._outLoopStarted){
+  window._outLoopStarted=true;
+  setInterval(function(){
+    if(typeof FB_READY==='undefined'||!FB_READY) return;
+    if(typeof CU==='undefined'||!CU) return;
+    if(_outCount()>0) _outRetry(true);   // quiet: no toast spam
+    _syncBadge();
+  },30000);
 }
 // Close guard — unconfirmed records irundha browser close panra munnadi warning.
 window.addEventListener('beforeunload',function(ev){
