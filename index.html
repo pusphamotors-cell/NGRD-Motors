@@ -3940,6 +3940,7 @@ function initFirebaseSync(){
         if(p&&p.length>0)fbWrite('prices',p);
         if(u&&u.length>0)fbWrite('users',u);
         el.textContent='🟢 Synced';el.style.background='#1A6B3C';
+        if(typeof _syncBadge==='function') setTimeout(_syncBadge,600);
       });
     };
     document.body.appendChild(el);
@@ -13255,6 +13256,43 @@ var FB_READY=false;
 var FB_BASE='https://ngrd-motors-default-rtdb.firebaseio.com/ngrd';
 var _fbRetry=0;
 var _fbQueue={};
+// ══════════════════════════════════════════════════════════════
+// SYNC OUTBOX  — fixes "shows Synced but staff see nothing"
+// Old behaviour: a record was marked synced the moment it was HANDED to the
+// network. If the PC was switched off (or the write returned an HTTP error)
+// before Firebase actually confirmed, the record was still counted as done and
+// was NEVER re-sent. Now nothing is marked synced until the server says 200,
+// and un-confirmed ids survive a browser close in localStorage.
+// Only IDs are stored (~10 bytes each) so this cannot blow the storage quota.
+// ══════════════════════════════════════════════════════════════
+var _pendSnap={};              // id -> JSON awaiting server confirmation
+var _OUTKEY='ngrd_outbox';
+function _outGet(){try{return JSON.parse(localStorage.getItem(_OUTKEY)||'[]')||[];}catch(e){return [];}}
+function _outSet(a){try{localStorage.setItem(_OUTKEY,JSON.stringify(a.slice(0,5000)));}catch(e){}}
+function _outAdd(ids){var s=_outGet();ids.forEach(function(i){if(s.indexOf(i)<0)s.push(i);});_outSet(s);_syncBadge();}
+function _outDel(ids){var s=_outGet().filter(function(i){return ids.indexOf(i)<0;});_outSet(s);_syncBadge();}
+function _outCount(){return _outGet().length;}
+function _syncBadge(){
+  var el=document.getElementById('fb-badge');if(!el)return;
+  var n=_outCount();
+  if(n>0){el.textContent='\u23F3 '+n+' pending';el.style.background='#8A5A00';el.style.color='#fff';el.title=n+' record Firebase-la confirm aagala. Wait pannunga.';}
+  else if(typeof FB_READY!=='undefined'&&FB_READY){el.textContent='\uD83D\uDFE2 Synced';el.style.background='#1A6B3C';el.style.color='#fff';el.title='Ellam Firebase-la confirm aachu';}
+}
+// Anything left unconfirmed from a previous session gets pushed again on start.
+function _outRetry(){
+  var ids=_outGet();if(!ids.length)return;
+  if(typeof getHist!=='function')return;
+  var map={};(getHist()||[]).forEach(function(e){if(e&&e.id!=null)map[String(e.id)]=e;});
+  var arr=ids.map(function(i){return map[i];}).filter(Boolean);
+  if(!arr.length){_outSet([]);_syncBadge();return;}
+  arr.forEach(function(e){delete _histSyncSnap[String(e.id)];});
+  if(typeof showToast==='function')showToast('\u23F3 '+arr.length+' record munnadi sync aagala \u2014 thirumba anuppuren...','t-s');
+  fbWrite('history',arr);
+}
+// Close guard — unconfirmed records irundha browser close panra munnadi warning.
+window.addEventListener('beforeunload',function(ev){
+  if(_outCount()>0){ev.preventDefault();ev.returnValue='';return '';}
+});
 function initFirebase(){
   var xhr=new XMLHttpRequest();
   xhr.open('GET','https://ngrd-motors-default-rtdb.firebaseio.com/ngrd/ping.json',true);
@@ -13264,6 +13302,8 @@ function initFirebase(){
     FB_READY=true;_fbRetry=0;window._ngrdWasOffline=false;
     var badge=document.getElementById('fb-badge');
     if(badge){badge.textContent='🟢 Synced';badge.style.color='#1A6B3C';}
+    if(typeof _syncBadge==='function') _syncBadge();
+    if(typeof _outRetry==='function') setTimeout(_outRetry,1200);
     hideOfflineBanner();
     if(wasOffline&&typeof showToast==='function') showToast('✅ Net திரும்ப வந்துச்சு — data sync ஆகுது!','t-s');
     _flushQueue();
@@ -13532,13 +13572,15 @@ function _flushQueue(){
       // was the main cause of slow Approve/Submit/Save clicks. Now only the changed record(s) go out.
       var arr=Array.isArray(val)?val:(val&&typeof val==='object'?Object.values(val):[]);
       var body={};
+      var _sentIds=[];
       arr.forEach(function(e){
         if(!e||typeof e!=='object'||e.id==null) return;
         var idStr=String(e.id);
         var js=JSON.stringify(e);
-        if(_histSyncSnap[idStr]!==js){body[idStr]=e;_histSyncSnap[idStr]=js;}
+        if(_histSyncSnap[idStr]!==js){body[idStr]=e;_pendSnap[idStr]=js;_sentIds.push(idStr);}
       });
-      if(!Object.keys(body).length) return; // nothing actually changed — skip the network call entirely
+      if(!_sentIds.length) return; // nothing actually changed — skip the network call entirely
+      _outAdd(_sentIds);           // mark as IN FLIGHT (not synced) until server confirms
       // Mirror a tiny fingerprint per record into 'hindex' (~30 bytes each). Other devices
       // read that instead of the whole archive and pull only the records that moved.
       try{
@@ -13552,10 +13594,20 @@ function _flushQueue(){
       var xhr=new XMLHttpRequest();
       xhr.open('PATCH',FB_BASE+'/history.json',true);
       xhr.setRequestHeader('Content-Type','application/json');
-      xhr.onerror=function(){
-        Object.keys(body).forEach(function(k){delete _histSyncSnap[k];}); // retry these next time
+      xhr.timeout=30000;
+      var _fail=function(){
+        _sentIds.forEach(function(k){delete _histSyncSnap[k];delete _pendSnap[k];}); // stay in outbox, retry next time
         _fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);
+        _syncBadge();
       };
+      // ONLY a real 2xx from Firebase counts as synced.
+      xhr.onload=function(){
+        if(xhr.status>=200&&xhr.status<300){
+          _sentIds.forEach(function(k){if(_pendSnap[k]!==undefined){_histSyncSnap[k]=_pendSnap[k];delete _pendSnap[k];}});
+          _outDel(_sentIds);
+        }else{_fail();}
+      };
+      xhr.onerror=xhr.ontimeout=xhr.onabort=_fail;
       xhr.send(JSON.stringify(body));
     } else {
       var xhr2=new XMLHttpRequest();
