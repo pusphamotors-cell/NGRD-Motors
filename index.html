@@ -13581,31 +13581,49 @@ function _flushQueue(){
       });
       if(!_sentIds.length) return; // nothing actually changed — skip the network call entirely
       _outAdd(_sentIds);           // mark as IN FLIGHT (not synced) until server confirms
-      // Mirror a tiny fingerprint per record into 'hindex' (~30 bytes each). Other devices
-      // read that instead of the whole archive and pull only the records that moved.
-      try{
-        var idx={};
-        Object.keys(body).forEach(function(k){ idx[k]=_histFp(body[k]); });
-        var xi=new XMLHttpRequest();
-        xi.open('PATCH',FB_BASE+'/hindex.json',true);
-        xi.setRequestHeader('Content-Type','application/json');
-        xi.send(JSON.stringify(idx));
-      }catch(_e){}
-      var xhr=new XMLHttpRequest();
-      xhr.open('PATCH',FB_BASE+'/history.json',true);
-      xhr.setRequestHeader('Content-Type','application/json');
-      xhr.timeout=30000;
+      // ══════════════════════════════════════════════════════════════
+      // ORDER MATTERS: history FIRST, then hindex.
+      // hindex is the "something changed" signal other devices read. If it were
+      // written first and the archive write then failed, branches would be told
+      // to pull a record Firebase never received. Writing the data before the
+      // signal means a half-finished sync leaves branches on the old record —
+      // stale, but never pointing at nothing. The outbox retries the pair.
+      // ══════════════════════════════════════════════════════════════
       var _fail=function(){
         _sentIds.forEach(function(k){delete _histSyncSnap[k];delete _pendSnap[k];}); // stay in outbox, retry next time
         _fbQueue[key]=val;FB_READY=false;setTimeout(initFirebase,3000);
         _syncBadge();
       };
-      // ONLY a real 2xx from Firebase counts as synced.
+      // Step 2 — signal the branches. Only runs after the archive is confirmed.
+      // This write is ALSO acked: if it fails the records stay in the outbox and
+      // the whole pair is resent, because data Firebase has but no branch is told
+      // about is exactly the "approved but staff see nothing" failure.
+      var _sendIndex=function(){
+        var idx={};
+        try{ Object.keys(body).forEach(function(k){ idx[k]=_histFp(body[k]); }); }
+        catch(_e){ _fail(); return; }
+        var xi=new XMLHttpRequest();
+        xi.open('PATCH',FB_BASE+'/hindex.json',true);
+        xi.setRequestHeader('Content-Type','application/json');
+        xi.timeout=30000;
+        xi.onload=function(){
+          if(xi.status>=200&&xi.status<300){
+            // BOTH writes confirmed — only now is the record truly synced.
+            _sentIds.forEach(function(k){if(_pendSnap[k]!==undefined){_histSyncSnap[k]=_pendSnap[k];delete _pendSnap[k];}});
+            _outDel(_sentIds);
+          }else{_fail();}
+        };
+        xi.onerror=xi.ontimeout=xi.onabort=_fail;
+        xi.send(JSON.stringify(idx));
+      };
+      // Step 1 — write the actual records.
+      var xhr=new XMLHttpRequest();
+      xhr.open('PATCH',FB_BASE+'/history.json',true);
+      xhr.setRequestHeader('Content-Type','application/json');
+      xhr.timeout=30000;
       xhr.onload=function(){
-        if(xhr.status>=200&&xhr.status<300){
-          _sentIds.forEach(function(k){if(_pendSnap[k]!==undefined){_histSyncSnap[k]=_pendSnap[k];delete _pendSnap[k];}});
-          _outDel(_sentIds);
-        }else{_fail();}
+        if(xhr.status>=200&&xhr.status<300){ _sendIndex(); }
+        else{ _fail(); }
       };
       xhr.onerror=xhr.ontimeout=xhr.onabort=_fail;
       xhr.send(JSON.stringify(body));
