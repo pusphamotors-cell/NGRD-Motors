@@ -9316,6 +9316,7 @@ function runIntegrityCheck(){
     html+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">'
       +(missing.length?'<button onclick="showMissingRecords()" style="padding:8px 15px;background:#B22222;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83D\uDD0D '+missing.length+' kaanaadha record paaru</button>':'')
       +(badCo.length?'<button onclick="fixCompanyField()" style="padding:8px 15px;background:#0B5D6B;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83C\uDFE2 '+badCo.length+' record-oda company sari pannu</button>':'')
+      +'<button onclick="recoverLostItems()" style="padding:8px 15px;background:#6A1B9A;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83E\uDDF0 Lost items recover pannu</button>'
       +(noRef?'<button onclick="showNoRefRecords()" style="padding:8px 15px;background:#8B6914;color:#fff;border:none;border-radius:4px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;">\uD83C\uDFF7\uFE0F '+noRef+' ref illaadha record paaru</button>':'')
       +'</div><div id="integrity-detail" style="margin-top:10px;"></div>';
     html+='<div style="font-size:11.5px;color:#888;margin-top:8px;line-height:1.6;">'
@@ -13597,6 +13598,10 @@ function _flushQueue(){
       var _sentIds=[];
       arr.forEach(function(e){
         if(!e||typeof e!=='object'||e.id==null) return;
+        // ITEM-LOSS GUARD: a record trimmed by saveHistSafe has items:[] only on THIS
+        // device. Uploading it wiped the real item list in Firebase (and then every
+        // other device pulled the empty copy). Slim records are local-only — never send.
+        if(e._slim&&!(e.items&&e.items.length)) return;
         var idStr=String(e.id);
         var js=JSON.stringify(e);
         if(_histSyncSnap[idStr]!==js){body[idStr]=e;_pendSnap[idStr]=js;_sentIds.push(idStr);}
@@ -13676,6 +13681,11 @@ function fbDelHist(id){
 function keepLocalMarks(winner,lo,re){
   if(!winner) return winner;
   var out=winner;
+  // ITEM-LOSS GUARD: if the chosen copy has no items but the other copy does, keep the items.
+  if(!(out.items&&out.items.length)){
+    var src=(lo&&lo.items&&lo.items.length)?lo:((re&&re.items&&re.items.length)?re:null);
+    if(src&&src!==out){ out=Object.assign({},out,{items:src.items}); delete out._slim; delete out._itemCount; }
+  }
   var carry=function(f){
     if(out[f]) return;
     var v=(lo&&lo[f])||(re&&re[f]);
@@ -13862,6 +13872,61 @@ function syncHistoryFast(done){
       release(true);
     };
     for(var c=0;c<Math.min(CONC,need.length);c++) next();
+  });
+}
+
+// ══════════════════════════════════════════════════
+// ITEM RECOVERY — run on EVERY device (PC, tablet, staff laptops).
+// Finds records whose Firebase copy has 0 items while this device still holds the
+// full item list, and writes them back. Also lists what is still lost everywhere.
+// ══════════════════════════════════════════════════
+function recoverLostItems(){
+  if(typeof FB_READY==='undefined'||!FB_READY){ showToast('Firebase connect ஆகல','t-e'); return; }
+  showToast('⏳ Items check பண்றேன்...','t-i');
+  fbRead('hindex',function(idx){
+    if(!idx||typeof idx!=='object'){ showToast('Index இல்ல — Sync Index உருவாக்குங்க','t-e'); return; }
+    var local=getHist(), map={};
+    local.forEach(function(e){ if(e&&e.id!=null) map[String(e.id)]=e; });
+    var emptyRemote=Object.keys(idx).filter(function(id){ return String(idx[id]).split('|')[2]==='0'; });
+    var canFix=[], stillLost=[];
+    emptyRemote.forEach(function(id){
+      var lo=map[id];
+      if(lo&&lo.items&&lo.items.length) canFix.push(lo); else stillLost.push(lo||{id:id});
+    });
+    window._lostItemRecs=stillLost;
+    var report=function(fixed){
+      var el=document.getElementById('integrity-detail');
+      var html='<div style="background:'+(stillLost.length?'#FDECEA':'#E7F3EC')+';border-left:4px solid '+(stillLost.length?'#B22222':'#1A6B3C')+';padding:10px 14px;font-size:12.5px;line-height:1.7;">'
+        +'<b>✅ Indha device-la irundhu '+fixed+' record items thirumba Firebase-ku pochu.</b><br>'
+        +'<b>'+(stillLost.length?'❌ ':'✅ ')+stillLost.length+' record-ku items innum illa</b> (endha device-layum kidaikkala).'
+        +(stillLost.length?'<br>Matha PC / tablet-la um indha button press pannunga. Aprom mistham ullavanga eGP portal / PDF la irundhu edukkanum.':'')
+        +'</div>';
+      if(stillLost.length){
+        html+='<div style="max-height:260px;overflow:auto;margin-top:8px;font-size:12px;"><table style="width:100%;border-collapse:collapse;">'
+          +stillLost.slice().sort(function(a,b){return (b.id||0)-(a.id||0);}).map(function(e){
+            return '<tr style="border-bottom:1px solid #eee;"><td style="padding:4px;">'+(e.eqNo||e.refNo||e.id)+'</td><td style="padding:4px;">'+(e.vehicle||'')+'</td><td style="padding:4px;">'+(e.status||'')+'</td><td style="padding:4px;text-align:right;">'+(e.grandTotal!=null?e.grandTotal:(e.total||''))+'</td></tr>';
+          }).join('')+'</table></div>';
+      }
+      if(el) el.innerHTML=html;
+      showToast('✅ '+fixed+' fixed · '+stillLost.length+' innum lost',fixed?'t-s':'t-i');
+    };
+    if(!canFix.length){ report(0); return; }
+    var body={}, fp={};
+    canFix.forEach(function(e){ var c=Object.assign({},e); delete c._slim; delete c._itemCount; body[String(e.id)]=c; fp[String(e.id)]=_histFp(c); });
+    var x=new XMLHttpRequest();
+    x.open('PATCH',FB_BASE+'/history.json',true);
+    x.setRequestHeader('Content-Type','application/json');
+    x.onload=function(){
+      if(x.status<200||x.status>=300){ showToast('Firebase write fail','t-e'); return; }
+      var y=new XMLHttpRequest();
+      y.open('PATCH',FB_BASE+'/hindex.json',true);
+      y.setRequestHeader('Content-Type','application/json');
+      y.onload=function(){ if(typeof fbPulse==='function') fbPulse(); report(canFix.length); };
+      y.onerror=function(){ report(canFix.length); };
+      y.send(JSON.stringify(fp));
+    };
+    x.onerror=function(){ showToast('Firebase write fail','t-e'); };
+    x.send(JSON.stringify(body));
   });
 }
 
