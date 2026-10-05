@@ -6416,9 +6416,12 @@ function loadHist(id){
   if(e0){ window._curDoing='📄 '+(e0.eqNo||e0.refNo||('#'+e0.id)); if(typeof pushPresence==='function') pushPresence(); }
   // Storage-trimmed record — pull its items back from Firebase before opening,
   // otherwise the quotation would open empty.
-  if(e0&&e0._slim&&(!e0.items||!e0.items.length)&&typeof ensureItemsLoaded==='function'){
+  if(e0&&e0._slim&&(!e0.items||!e0.items.length)&&typeof ensureItemsLoaded==='function'&&window._slimRetry!==id){
     if(typeof showToast==='function') showToast('⏳ Items load ஆகுது...','t-i');
-    ensureItemsLoaded(id,function(){ window._slimRetry=true; loadHist(id); });
+    ensureItemsLoaded(id,function(rec){
+      if(!(rec&&rec.items&&rec.items.length)){ showToast('⚠️ Items Firebase-la kidaikala — net check pannunga','t-e'); return; }
+      window._slimRetry=id; loadHist(id); window._slimRetry=null;
+    });
     return;
   }
   const e=getHist().find(x=>x.id===id);if(!e)return;
@@ -6530,8 +6533,15 @@ function delHist(id){
 }
 
 // ── QUICK VIEW ──
-function openQV(id){
-  const e=getHist().find(x=>x.id===id);if(!e)return;
+function openQV(id,_rec){
+  const e=_rec||getHist().find(x=>x.id===id);if(!e)return;
+  // Storage-trimmed record — fetch its items from Firebase first, otherwise the
+  // popup shows an empty table (only grandTotal survives the trim).
+  if(!_rec&&e._slim&&(!e.items||!e.items.length)&&typeof ensureItemsLoaded==='function'){
+    if(typeof showToast==='function') showToast('⏳ Items load ஆகுது...','t-i');
+    ensureItemsLoaded(id,function(rec){ openQV(id,(rec&&rec.items&&rec.items.length)?rec:e); });
+    return;
+  }
   // Silently load into curItems so PDF download works
   window.curEditId=id;
   curItems=JSON.parse(JSON.stringify(e.items||[]));
@@ -13752,7 +13762,7 @@ function syncHistoryFull(done){
 // reporting "Synced". Now we trim instead: finalised old quotations keep their
 // summary but drop the bulky items array, which can be re-fetched on demand.
 // ══════════════════════════════════════════════════
-function saveHistSafe(arr){
+function saveHistSafe(arr,keepId){
   var FINAL=['submitted','awarded','rejected','missed'];
   try{
     localStorage.setItem('ngrd_hist',JSON.stringify(arr));
@@ -13764,7 +13774,8 @@ function saveHistSafe(arr){
   var work=arr.map(function(e){return e;}), trimmed=0;
   for(var pass=0;pass<idx.length;pass++){
     var t=work[idx[pass].i];
-    if(t&&t.items&&t.items.length){
+    var _keep=(keepId!=null&&t&&String(t.id)===String(keepId));
+    if(!_keep&&t&&t.items&&t.items.length){
       work[idx[pass].i]=Object.assign({},t,{items:[],_slim:true,_itemCount:t.items.length});
       trimmed++;
     }
@@ -13790,7 +13801,7 @@ function ensureItemsLoaded(id,cb){
     if(rec&&rec.items&&rec.items.length){
       var h=getHist();
       var i=h.findIndex(function(x){return x&&String(x.id)===String(id);});
-      if(i>=0){ h[i]=rec; saveHistSafe(h); window.__fapmVer=(window.__fapmVer||0)+1; }
+      if(i>=0){ h[i]=rec; saveHistSafe(h,id); window.__fapmVer=(window.__fapmVer||0)+1; }
       cb&&cb(rec);
     } else cb&&cb(e);
   });
